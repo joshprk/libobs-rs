@@ -15,6 +15,8 @@ Compiled Windows DLLs for libobs can be found at https://github.com/joshprk/libo
 
 ## Quick Start
 
+Below is an example that will record video-only footage of an exclusive fullscreen application. Note that the API is extremely limited right now, but you can already record both video and audio with full control over the output already. If you need more, libobs is exposed.
+
 ```rs
 use std::time::Duration;
 use std::thread;
@@ -79,7 +81,7 @@ pub fn main() {
     let video_source_data = ObsData::new();
     video_source_data
         .set_string("capture_mode", "window")
-        .set_string("window", window_name)
+        .set_string("window", "")
         .set_bool("capture_cursor", true);
         
     let video_source_info = SourceInfo::new(
@@ -96,6 +98,7 @@ pub fn main() {
     println!("recording for 10 seconds...");
     thread::sleep(Duration::new(10, 0));
 
+    // Open any fullscreen application and
     // Success!
     output.stop();
 }

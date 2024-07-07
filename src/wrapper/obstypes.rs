@@ -740,6 +740,10 @@ impl ObsOutput {
         })
     }
 
+    pub fn get_video_encoders(&mut self) -> &mut Vec<ObsVideoEncoder> {
+        &mut self.video_encoders
+    }
+
     pub fn video_encoder(
         &mut self, 
         info: VideoEncoderInfo,
@@ -887,6 +891,10 @@ impl ObsVideoEncoder {
             settings,
             hotkey_data,
         })
+    }
+
+    pub fn as_ptr(&mut self) -> *mut obs_encoder {
+        self.encoder
     }
 }
 

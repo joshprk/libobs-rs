@@ -173,6 +173,13 @@ impl ObsContext {
     /// when one wants to change a setting related to the
     /// OBS video info sent on startup.
     /// 
+    /// It is important to register your video encoders to
+    /// a video handle after you reset the video context
+    /// if you are using a video handle other than the
+    /// main video handle. For convenience, this function
+    /// sets all video encoder back to the main video handler
+    /// by default.
+    /// 
     /// Note that you cannot reset the graphics module
     /// without destroying the entire OBS context. Trying 
     /// so will result in an error.
@@ -188,6 +195,12 @@ impl ObsContext {
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status))
         } else {
+            for output in self.outputs.iter_mut() {
+                for video_encoder in output.get_video_encoders().iter_mut() {
+                    unsafe { crate::obs_encoder_set_video(video_encoder.as_ptr(), ObsContext::get_video_ptr().unwrap()) }
+                }
+            }
+
             self.startup_info.obs_video_info = ovi;
             return Ok(())
         }
