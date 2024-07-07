@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, env, path::PathBuf};
 
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
@@ -35,9 +35,9 @@ fn get_ignored_macros() -> IgnoreMacros {
 fn main() {
     println!("cargo:rustc-link-search=native={}", env!("CARGO_MANIFEST_DIR"));
     println!("cargo:rustc-link-lib=obs");
-    println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
+    // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
 
-    bindgen::builder()
+    let bindings = bindgen::builder()
         .header("headers/obs.h")
         .blocklist_function("_bindgen_ty_2")
         .parse_callbacks(Box::new(get_ignored_macros()))
@@ -52,7 +52,10 @@ fn main() {
         .layout_tests(false)
         .merge_extern_blocks(true)
         .generate()
-        .expect("Error generating bindings")
-        .write_to_file(&format!("{}/src/bindings.rs", env!("CARGO_MANIFEST_DIR")))
-        .expect("Error outputting bindings");
+        .expect("Error generating bindings");
+
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("Couldn't write bindings!");
 }

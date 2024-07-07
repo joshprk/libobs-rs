@@ -8,4 +8,4 @@
 
 pub mod wrapper;
 
-include!(env!("LIBOBS_BINDINGS_FILE"));
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
