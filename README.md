@@ -11,6 +11,8 @@ To build on Linux, you must install the libobs-dev package, as well as the bindg
 sudo apt-get libobs-dev llvm-dev libclang-dev clang
 ```
 
+Compiled Windows DLLs for libobs can be found at https://github.com/joshprk/libobs-rs/releases/tag/deps
+
 ## Quick Start
 
 ```rs
