@@ -36,7 +36,7 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", env!("CARGO_MANIFEST_DIR"));
     println!("cargo:rustc-link-lib=obs");
     // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
-
+    
     let bindings = bindgen::builder()
         .header("headers/obs.h")
         .blocklist_function("_bindgen_ty_2")
