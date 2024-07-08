@@ -54,12 +54,6 @@ impl From<Vec<u8>> for ObsString {
     }
 }
 
-impl Into<*const c_char> for ObsString {
-    fn into(self: ObsString) -> *const c_char {
-        self.as_ptr()
-    }
-}
-
 #[derive(Clone, Debug, Default, Hash, PartialEq, PartialOrd)]
 pub struct ObsPath {
     inner: PathBuf,
@@ -104,5 +98,11 @@ impl ObsPath {
         }
 
         ObsString::new(bytes)
+    }
+}
+
+impl Into<ObsString> for ObsPath {
+    fn into(self) -> ObsString {
+        self.into_obs_string()
     }
 }
