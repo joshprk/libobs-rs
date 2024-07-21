@@ -34,7 +34,12 @@ fn get_ignored_macros() -> IgnoreMacros {
 
 fn main() {
     println!("cargo:rustc-link-search=native={}", env!("CARGO_MANIFEST_DIR"));
-    println!("cargo:rustc-link-lib=obs");
+    println!("cargo:rustc-link-lib=dylib=obs");
+
+
+    if let Some(path) = env::var("LIBOBS_PATH").ok() {
+        println!("cargo:rustc-link-search=native={}", path);
+    }
     // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
 
     let bindings = bindgen::builder()
