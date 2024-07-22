@@ -10,6 +10,12 @@ use crate::{audio_output, obs_audio_info, obs_audio_info2, obs_data, obs_encoder
 
 use super::{AudioEncoderInfo, SourceInfo, VideoEncoderInfo};
 
+
+#[cfg(target_os = "windows")]
+type OsEnumType = i32;
+#[cfg(not(target_os = "windows"))]
+type OsEnumType = u32;
+
 /// Error type for OBS function calls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsError {
@@ -277,7 +283,8 @@ impl Into<ObsString> for ObsPath {
     }
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the video output format used by the
 /// OBS video context. Used in `ObsVideoInfo`.
@@ -310,7 +317,8 @@ pub enum ObsVideoFormat {
     YVYU = crate::video_format_VIDEO_FORMAT_YVYU,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
@@ -323,7 +331,8 @@ pub enum ObsColorspace {
     CSRGB       = crate::video_colorspace_VIDEO_CS_SRGB,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the minimum and maximum color levels that
 /// an OBS video context is allowed to encode. Used in
@@ -334,7 +343,8 @@ pub enum ObsVideoRange {
     Full    = crate::video_range_type_VIDEO_RANGE_FULL,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes how libobs should reconcile non-matching
 /// base and output resolutions when creating a video
@@ -477,11 +487,11 @@ impl ObsVideoInfoBuilder {
             base_height: self.base_height,
             output_width: self.output_width,
             output_height: self.output_height,
-            output_format: self.output_format as u32,
+            output_format: self.output_format as OsEnumType,
             gpu_conversion: self.gpu_conversion,
-            colorspace: self.colorspace as u32,
-            range: self.range as u32,
-            scale_type: self.scale_type as u32,
+            colorspace: self.colorspace as OsEnumType,
+            range: self.range as OsEnumType,
+            scale_type: self.scale_type as OsEnumType,
         };
 
         drop(self);
@@ -646,7 +656,8 @@ impl Default for ObsAudioInfo {
 
 /// Audio samples per second options that are
 /// supported by libobs.
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsSamplesPerSecond {
     /// 44.1 kHz
@@ -660,7 +671,8 @@ pub enum ObsSamplesPerSecond {
 /// detailed function `obs_reset_audio2`.
 pub type ObsAudioInfo2 = obs_audio_info2;
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsSpeakerLayout {
     S2Point1 = crate::speaker_layout_SPEAKERS_2POINT1,
