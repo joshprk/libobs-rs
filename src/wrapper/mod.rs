@@ -403,7 +403,7 @@ impl StartupPathsBuilder {
         Self {
             libobs_data_path: ObsPath::from_relative("data/libobs"),
             plugin_bin_path: ObsPath::from_relative("obs-plugins/64bit"),
-            plugin_data_path: ObsPath::from_relative("data/obs-plugins"),
+            plugin_data_path: ObsPath::from_relative("data/obs-plugins/%module%"),
         }
     }
 
