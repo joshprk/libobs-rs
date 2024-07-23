@@ -266,12 +266,14 @@ impl ObsPath {
     /// does not support non-Unicode characters in
     /// its path.
     pub fn build(self) -> ObsString {
-        let bytes = self.path
+        let mut bytes = self.path
             .display()
             .to_string()
-            .replace("\\", "/")
-            + "/";
-        
+            .replace("\\", "/");
+
+        if self.path.is_dir() {
+            bytes = bytes + "/";
+        }
         let obs_string = ObsString::from(bytes.as_str());
 
         drop(self);
