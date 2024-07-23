@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::{env, ptr};
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, CStr, CString};
 use std::path::{Path, PathBuf};
 
 use display_info::DisplayInfo;
@@ -17,7 +17,7 @@ type OsEnumType = i32;
 type OsEnumType = u32;
 
 /// Error type for OBS function calls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObsError {
     /// The `obs_startup` function failed on libobs.
     Failure,
@@ -35,6 +35,8 @@ pub enum ObsError {
     /// an error with creating the object of the requested
     /// pointer.
     NullPointer,
+    OutputAlreadyActive,
+    OutputStartFailure(Option<String>)
 }
 
 /// String wrapper for OBS function calls.
@@ -830,12 +832,22 @@ impl ObsOutput {
         }
     }
 
-    pub fn start(&mut self) -> bool {
+    pub fn start(&mut self) -> Result<(), ObsError> {
         if unsafe { !crate::obs_output_active(self.output) } {
-            return unsafe { crate::obs_output_start(self.output) }
+            let res = unsafe { crate::obs_output_start(self.output) };
+            if res {
+                return Ok(())
+            }
+
+            let err = unsafe { crate::obs_output_get_last_error(self.output) };
+            let c_str = unsafe { CStr::from_ptr(err) };
+            let err_str = c_str.to_str().ok()
+                .map(|x| x.to_string());
+
+            return Err(ObsError::OutputStartFailure(err_str))
         }
 
-        false
+        Err(ObsError::OutputAlreadyActive)
     }
 
     pub fn stop(&mut self) -> bool {
