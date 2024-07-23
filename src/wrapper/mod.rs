@@ -12,7 +12,7 @@ use std::{sync::Mutex, thread};
 use std::thread::ThreadId;
 use std::ptr;
 
-pub use obstypes::{ObsGraphicsModule, ObsAudioInfo, ObsData, ObsError, ObsVideoEncoderType, ObsPath, ObsResetVideoStatus, ObsString, ObsVideoInfo, ObsVideoInfoBuilder};
+pub use obstypes::{ObsColorspace, ObsGraphicsModule, ObsAudioInfo, ObsData, ObsError, ObsVideoEncoderType, ObsPath, ObsResetVideoStatus, ObsString, ObsVideoInfo, ObsVideoInfoBuilder};
 use obstypes::ObsOutput;
 
 use crate::{audio_output, video_output};
