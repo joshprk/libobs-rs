@@ -29,10 +29,10 @@ use libobs::wrapper::{
 pub fn main() {
     // Start the OBS context
     let startup_info = StartupInfo::default();
-    let context = ObsContext::new(startup_info).unwrap();
+    let mut context = ObsContext::new(startup_info).unwrap();
 
     // Set up output to ./recording.mp4
-    let output_settings = ObsData::new();
+    let mut output_settings = ObsData::new();
     output_settings
         .set_string("path", ObsPath::from_relative("recording.mp4").build());
 
@@ -40,7 +40,7 @@ pub fn main() {
         "ffmpeg_muxer", "output", Some(output_settings), None
     );
 
-    let Ok(output) = context.output(output_info).unwrap();
+    let output = context.output(output_info).unwrap();
 
     // Register the video encoder
     let mut video_settings = ObsData::new();
@@ -56,7 +56,7 @@ pub fn main() {
     let video_info = VideoEncoderInfo::new(
         ObsContext::get_best_encoder(),
         "video_encoder",
-        Some(video_enc_settings),
+        Some(video_settings),
         None,
     );
 
@@ -70,15 +70,15 @@ pub fn main() {
     let audio_info = AudioEncoderInfo::new(
         "ffmpeg_aac", 
         "audio_encoder", 
-        Some(audio_enc_settings), 
+        Some(audio_settings), 
         None
     );
 
-    let audio_handler = ObsContext::get_audio_ptr().unwrap()
+    let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler);
 
     // Create the video source using game capture
-    let video_source_data = ObsData::new();
+    let mut video_source_data = ObsData::new();
     video_source_data
         .set_string("capture_mode", "window")
         .set_string("window", "")
