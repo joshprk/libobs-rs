@@ -7,5 +7,7 @@
 #![allow(rustdoc::bare_urls)]
 
 pub mod wrapper;
+#[cfg(test)]
+mod test;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));

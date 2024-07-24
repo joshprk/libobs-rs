@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::{env, ptr};
-use std::ffi::{c_char, CString};
+use std::ffi::{c_char, CStr, CString};
 use std::path::{Path, PathBuf};
 
 use display_info::DisplayInfo;
@@ -10,8 +10,14 @@ use crate::{audio_output, obs_audio_info, obs_audio_info2, obs_data, obs_encoder
 
 use super::{AudioEncoderInfo, SourceInfo, VideoEncoderInfo};
 
+
+#[cfg(target_os = "windows")]
+type OsEnumType = i32;
+#[cfg(not(target_os = "windows"))]
+type OsEnumType = u32;
+
 /// Error type for OBS function calls.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObsError {
     /// The `obs_startup` function failed on libobs.
     Failure,
@@ -29,6 +35,8 @@ pub enum ObsError {
     /// an error with creating the object of the requested
     /// pointer.
     NullPointer,
+    OutputAlreadyActive,
+    OutputStartFailure(Option<String>)
 }
 
 /// String wrapper for OBS function calls.
@@ -258,12 +266,14 @@ impl ObsPath {
     /// does not support non-Unicode characters in
     /// its path.
     pub fn build(self) -> ObsString {
-        let bytes = self.path
+        let mut bytes = self.path
             .display()
             .to_string()
-            .replace("\\", "/")
-            + "/";
-        
+            .replace("\\", "/");
+
+        if self.path.is_dir() {
+            bytes = bytes + "/";
+        }
         let obs_string = ObsString::from(bytes.as_str());
 
         drop(self);
@@ -277,7 +287,8 @@ impl Into<ObsString> for ObsPath {
     }
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the video output format used by the
 /// OBS video context. Used in `ObsVideoInfo`.
@@ -310,7 +321,8 @@ pub enum ObsVideoFormat {
     YVYU = crate::video_format_VIDEO_FORMAT_YVYU,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
@@ -323,7 +335,8 @@ pub enum ObsColorspace {
     CSRGB       = crate::video_colorspace_VIDEO_CS_SRGB,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the minimum and maximum color levels that
 /// an OBS video context is allowed to encode. Used in
@@ -334,7 +347,8 @@ pub enum ObsVideoRange {
     Full    = crate::video_range_type_VIDEO_RANGE_FULL,
 }
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes how libobs should reconcile non-matching
 /// base and output resolutions when creating a video
@@ -477,11 +491,11 @@ impl ObsVideoInfoBuilder {
             base_height: self.base_height,
             output_width: self.output_width,
             output_height: self.output_height,
-            output_format: self.output_format as u32,
+            output_format: self.output_format as OsEnumType,
             gpu_conversion: self.gpu_conversion,
-            colorspace: self.colorspace as u32,
-            range: self.range as u32,
-            scale_type: self.scale_type as u32,
+            colorspace: self.colorspace as OsEnumType,
+            range: self.range as OsEnumType,
+            scale_type: self.scale_type as OsEnumType,
         };
 
         drop(self);
@@ -646,7 +660,8 @@ impl Default for ObsAudioInfo {
 
 /// Audio samples per second options that are
 /// supported by libobs.
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsSamplesPerSecond {
     /// 44.1 kHz
@@ -660,7 +675,8 @@ pub enum ObsSamplesPerSecond {
 /// detailed function `obs_reset_audio2`.
 pub type ObsAudioInfo2 = obs_audio_info2;
 
-#[repr(u32)]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsSpeakerLayout {
     S2Point1 = crate::speaker_layout_SPEAKERS_2POINT1,
@@ -818,12 +834,22 @@ impl ObsOutput {
         }
     }
 
-    pub fn start(&mut self) -> bool {
+    pub fn start(&mut self) -> Result<(), ObsError> {
         if unsafe { !crate::obs_output_active(self.output) } {
-            return unsafe { crate::obs_output_start(self.output) }
+            let res = unsafe { crate::obs_output_start(self.output) };
+            if res {
+                return Ok(())
+            }
+
+            let err = unsafe { crate::obs_output_get_last_error(self.output) };
+            let c_str = unsafe { CStr::from_ptr(err) };
+            let err_str = c_str.to_str().ok()
+                .map(|x| x.to_string());
+
+            return Err(ObsError::OutputStartFailure(err_str))
         }
 
-        false
+        Err(ObsError::OutputAlreadyActive)
     }
 
     pub fn stop(&mut self) -> bool {

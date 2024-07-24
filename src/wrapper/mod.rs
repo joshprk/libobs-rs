@@ -12,7 +12,7 @@ use std::{sync::Mutex, thread};
 use std::thread::ThreadId;
 use std::ptr;
 
-pub use obstypes::{ObsAudioInfo, ObsData, ObsError, ObsVideoEncoderType, ObsPath, ObsResetVideoStatus, ObsString, ObsVideoInfo, ObsVideoInfoBuilder};
+pub use obstypes::{ObsVideoRange, ObsVideoFormat, ObsScaleType, ObsColorspace, ObsGraphicsModule, ObsAudioInfo, ObsData, ObsError, ObsVideoEncoderType, ObsPath, ObsResetVideoStatus, ObsString, ObsVideoInfo, ObsVideoInfoBuilder};
 use obstypes::ObsOutput;
 
 use crate::{audio_output, video_output};
@@ -403,7 +403,7 @@ impl StartupPathsBuilder {
         Self {
             libobs_data_path: ObsPath::from_relative("data/libobs"),
             plugin_bin_path: ObsPath::from_relative("obs-plugins/64bit"),
-            plugin_data_path: ObsPath::from_relative("data/obs-plugins"),
+            plugin_data_path: ObsPath::from_relative("data/obs-plugins/%module%"),
         }
     }
 
