@@ -34,7 +34,8 @@ fn get_ignored_macros() -> IgnoreMacros {
 
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=headers/obs.h");
+    // This should be the whole directory, but cargo would have to check the whole directory with a lot of files which takes long
+    println!("cargo:rerun-if-changed=headers/wrapper.h");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
@@ -49,7 +50,8 @@ fn main() {
     // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
 
     let bindings = bindgen::builder()
-        .header("headers/obs.h")
+        .header("headers/wrapper.h")
+        .clang_arg(format!("-I{}", "headers/obs"))
         .blocklist_function("_bindgen_ty_2")
         .parse_callbacks(Box::new(get_ignored_macros()))
         .blocklist_function("_+.*")
