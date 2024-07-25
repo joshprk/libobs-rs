@@ -6,6 +6,7 @@ mod window_capture;
 #[cfg(target_family = "windows")]
 pub use window_capture::WindowCaptureSourceBuilder;
 
+#[allow(private_bounds)]
 pub(super) trait ObsSourceBuilderPrivate {
     fn take_settings(&mut self) -> Option<ObsData>;
     fn take_hotkeys(&mut self) -> Option<ObsData>;

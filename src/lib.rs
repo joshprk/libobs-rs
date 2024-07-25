@@ -5,7 +5,11 @@
 #![allow(clippy::approx_constant)]
 #![allow(clippy::unreadable_literal)]
 #![allow(rustdoc::bare_urls)]
+//! # LibOBS bindings (and wrapper) for rust
+//! This crate provides bindings to the [LibOBS](https://obsproject.com/) library for rust.
+//! Furthermore, this crate provides a safe wrapper around the unsafe functions, which can be found in the [`wrapper`](module@wrapper) module.
 
+/// Contains safe wrappers around the unsafe functions in the generated bindings.
 pub mod wrapper;
 #[cfg(test)]
 mod test;
