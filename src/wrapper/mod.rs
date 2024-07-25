@@ -6,6 +6,7 @@
 #![warn(rustdoc::bare_urls)]
 
 mod obstypes;
+pub mod sources;
 
 use std::ffi::{c_char, CStr};
 use std::{sync::Mutex, thread};

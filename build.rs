@@ -33,6 +33,12 @@ fn get_ignored_macros() -> IgnoreMacros {
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=headers/obs.h");
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
+
+
     println!("cargo:rustc-link-search=native={}", env!("CARGO_MANIFEST_DIR"));
     println!("cargo:rustc-link-lib=dylib=obs");
 
