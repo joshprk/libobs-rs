@@ -3,7 +3,7 @@ use num_traits::ToPrimitive;
 
 use crate::wrapper::{ObsData, ObsString};
 
-use super::{ObsSourceBuilder, ObsSourceBuilderPrivate};
+use super::{impl_obs_source_builder, ObsSourceBuilder, ObsSourceBuilderId, ObsSourceBuilderPrivate};
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
@@ -34,47 +34,12 @@ pub struct WindowInfo {
     pub executable: ObsString,
 }
 
-impl ObsSourceBuilderPrivate for WindowCaptureSourceBuilder {
-    fn take_settings(&mut self) -> Option<ObsData> {
-        self.settings.take()
-    }
+impl_obs_source_builder!(WindowCaptureSourceBuilder);
 
-    fn take_hotkeys(&mut self) -> Option<ObsData> {
-        self.hotkeys.take()
-    }
-}
 
-impl ObsSourceBuilder for WindowCaptureSourceBuilder {
-    fn new(name: impl Into<ObsString>) -> Self {
-        Self {
-            settings: None,
-            hotkeys: None,
-            name: name.into(),
-        }
-    }
-
+impl ObsSourceBuilderId for WindowCaptureSourceBuilder {
     fn get_id() -> ObsString {
         "window_capture".into()
-    }
-
-    fn get_settings(&self) -> &Option<ObsData> {
-        &self.settings
-    }
-
-    fn get_settings_mut(&mut self) -> &mut Option<ObsData> {
-        &mut self.settings
-    }
-
-    fn get_hotkeys(&self) -> &Option<ObsData> {
-        &self.hotkeys
-    }
-
-    fn get_hotkeys_mut(&mut self) -> &mut Option<ObsData> {
-        &mut self.hotkeys
-    }
-
-    fn get_name(&self) -> ObsString {
-        self.name.clone()
     }
 }
 
