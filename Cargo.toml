@@ -1,6 +1,6 @@
 [package]
 name = "libobs"
-version = "0.1.2"
+version = "0.1.3"
 description = "Wrapper for simple, safe video recording with libobs"
 repository = "https://github.com/joshprk/libobs-rs"
 readme = "README.md"
