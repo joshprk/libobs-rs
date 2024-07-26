@@ -1,7 +1,11 @@
 use std::env;
-use std::ffi::{c_char, CStr, CString};
-use std::num::{NonZero, NonZeroU8};
-use std::path::{Path, PathBuf};
+use std::ffi::c_char;
+use std::ffi::CStr;
+use std::ffi::CString;
+use std::num::NonZero;
+use std::num::NonZeroU8;
+use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsString {
@@ -54,7 +58,7 @@ impl From<Vec<u8>> for ObsString {
     }
 }
 
-#[derive(Clone, Debug, Default, Hash, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd)]
 pub struct ObsPath {
     inner: PathBuf,
 }
@@ -104,5 +108,11 @@ impl ObsPath {
 impl Into<ObsString> for ObsPath {
     fn into(self) -> ObsString {
         self.into_obs_string()
+    }
+}
+
+impl<P> From<P> for ObsPath where P: AsRef<Path> {
+    fn from(value: P) -> Self {
+        ObsPath::new(value)
     }
 }
