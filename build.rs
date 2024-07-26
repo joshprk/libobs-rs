@@ -1,46 +1,64 @@
-use std::{collections::HashSet, env, path::PathBuf};
+use std::collections::HashSet;
+use std::env;
+use std::path::PathBuf;
+
+use bindgen::callbacks::ParseCallbacks;
+use bindgen::callbacks::MacroParsingBehavior;
 
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
 
-impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
-    fn will_parse_macro(&self, name: &str) -> bindgen::callbacks::MacroParsingBehavior {
+impl ParseCallbacks for IgnoreMacros {
+    fn will_parse_macro(&self, name: &str) -> MacroParsingBehavior {
         if self.0.contains(name) {
-            bindgen::callbacks::MacroParsingBehavior::Ignore
-        } else {
-            bindgen::callbacks::MacroParsingBehavior::Default
+            return MacroParsingBehavior::Ignore
         }
+
+        MacroParsingBehavior::Default
     }
 }
 
-fn get_ignored_macros() -> IgnoreMacros {
+fn get_ignored_macros() -> Box<IgnoreMacros> {
     let mut ignored = HashSet::new();
-    ignored.insert("FE_INVALID".to_string());
-    ignored.insert("FE_DIVBYZERO".to_string());
-    ignored.insert("FE_OVERFLOW".to_string());
-    ignored.insert("FE_UNDERFLOW".to_string());
-    ignored.insert("FE_INEXACT".to_string());
-    ignored.insert("FE_TONEAREST".to_string());
-    ignored.insert("FE_DOWNWARD".to_string());
-    ignored.insert("FE_UPWARD".to_string());
-    ignored.insert("FE_TOWARDZERO".to_string());
-    ignored.insert("FP_NORMAL".to_string());
-    ignored.insert("FP_SUBNORMAL".to_string());
-    ignored.insert("FP_ZERO".to_string());
-    ignored.insert("FP_INFINITE".to_string());
-    ignored.insert("FP_NAN".to_string());
-    IgnoreMacros(ignored)
+    let ignore_list = vec![
+        "FE_INVALID",
+        "FE_DIVBYZERO",
+        "FE_OVERFLOW",
+        "FE_UNDERFLOW",
+        "FE_INEXACT",
+        "FE_TONEAREST",
+        "FE_DOWNWARD",
+        "FE_UPWARD",
+        "FE_TOWARDZERO",
+        "FP_NORMAL",
+        "FP_SUBNORMAL",
+        "FP_ZERO",
+        "FP_INFINITE",
+        "FP_NAN",
+    ];
+
+    for item in ignore_list {
+       ignored.insert(item.to_string()); 
+    }
+
+    Box::new(IgnoreMacros(ignored))
 }
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=headers");
+    println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rustc-link-search=native={}", env!("CARGO_MANIFEST_DIR"));
-    println!("cargo:rustc-link-lib=obs");
-    // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
+    println!("cargo:rustc-link-lib=dylib=obs");
+
+    if let Some(path) = env::var("LIBOBS_PATH").ok() {
+        println!("cargo:rustc-link-search=native={}", path);
+    }
     
     let bindings = bindgen::builder()
         .header("headers/obs.h")
         .blocklist_function("_bindgen_ty_2")
-        .parse_callbacks(Box::new(get_ignored_macros()))
+        .parse_callbacks(get_ignored_macros())
         .blocklist_function("_+.*")
         .derive_copy(true)
         .derive_debug(true)
