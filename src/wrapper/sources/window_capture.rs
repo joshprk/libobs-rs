@@ -3,7 +3,7 @@ use num_traits::ToPrimitive;
 
 use crate::wrapper::{ObsData, ObsString};
 
-use super::{impl_obs_source_builder, ObsSourceBuilder, ObsSourceBuilderId, ObsSourceBuilderPrivate};
+use super::{impl_obs_source_builder, ObsSourceBuilder, ObsSourceBuilderPrivate};
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
@@ -34,14 +34,8 @@ pub struct WindowInfo {
     pub executable: ObsString,
 }
 
-impl_obs_source_builder!(WindowCaptureSourceBuilder);
+impl_obs_source_builder!(WindowCaptureSourceBuilder, "window_capture");
 
-
-impl ObsSourceBuilderId for WindowCaptureSourceBuilder {
-    fn get_id() -> ObsString {
-        "window_capture".into()
-    }
-}
 
 impl WindowCaptureSourceBuilder {
     pub fn set_window(mut self, window: impl Into<ObsString>) -> Self {

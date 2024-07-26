@@ -12,14 +12,9 @@ pub(super) trait ObsSourceBuilderPrivate {
     fn take_hotkeys(&mut self) -> Option<ObsData>;
 }
 
-pub trait ObsSourceBuilderId {
-    /// Returns the ID of the source.
-    fn get_id() -> ObsString;
-}
-
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
-pub trait ObsSourceBuilder: ObsSourceBuilderPrivate + ObsSourceBuilderId {
+pub trait ObsSourceBuilder: ObsSourceBuilderPrivate {
     fn new(name: impl Into<ObsString>) -> Self;
 
     /// Returns the name of the source.
@@ -50,6 +45,9 @@ pub trait ObsSourceBuilder: ObsSourceBuilderPrivate + ObsSourceBuilderId {
     fn get_or_create_settings(&mut self) -> &mut ObsData {
         self.get_settings_mut().get_or_insert_with(ObsData::new)
     }
+
+    /// Returns the ID of the source.
+    fn get_id() -> ObsString;
 }
 
 
@@ -58,9 +56,14 @@ pub trait ObsSourceBuilder: ObsSourceBuilderPrivate + ObsSourceBuilderId {
 /// - settings: `Option<ObsData>`
 /// - hotkeys: `Option<ObsData>`
 /// - name: `ObsString`
-/// Also make sure to implement `ObsSourceBuilderId` for the struct.
 macro_rules! impl_obs_source_builder {
+    () => {
+        compile_error!("First argument must be a struct. Look at the documentation for required fields");
+    };
     ($builder:ident) => {
+        compile_error!("Second argument must be a valid obs source id");
+    };
+    ($builder:ident, $id: expr) => {
         impl ObsSourceBuilder for $builder {
             fn new(name: impl Into<ObsString>) -> Self {
                 Self {
@@ -88,6 +91,10 @@ macro_rules! impl_obs_source_builder {
 
             fn get_name(&self) -> ObsString {
                 self.name.clone()
+            }
+
+            fn get_id() -> ObsString {
+                $id.into()
             }
         }
 
