@@ -153,6 +153,10 @@ impl<'a> ObsData<'a> {
         self.map.shrink_to_fit();
         self
     }
+
+    pub fn as_ptr(&self) -> *mut obs_data {
+        self.ptr
+    }
 }
 
 impl<'a> Drop for ObsData<'a> {
