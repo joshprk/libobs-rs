@@ -97,8 +97,10 @@ impl ObsPath {
             })
             .collect::<Vec<u8>>();
 
-        if is_dir {
-            bytes.push(b'/');
+        if let Some(last) = bytes.last() {
+            if is_dir && *last != b'/' {
+                bytes.push(b'/');
+            }
         }
 
         ObsString::new(bytes)
