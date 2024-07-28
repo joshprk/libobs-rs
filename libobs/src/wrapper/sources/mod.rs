@@ -3,6 +3,10 @@
 
 use super::{ObsData, ObsError, ObsOutput, ObsSource, ObsString, SourceInfo};
 
+pub trait StringEnum {
+    fn to_str(&self) -> &str;
+}
+
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
 pub trait ObsSourceBuilder {

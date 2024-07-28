@@ -344,7 +344,7 @@ pub enum ObsVideoFormat {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
-pub enum ObsColorspace {
+pub enum ObsColorSpace {
     CS2100HLG   = crate::video_colorspace_VIDEO_CS_2100_HLG,
     CS2100PQ    = crate::video_colorspace_VIDEO_CS_2100_PQ,
     CS601       = crate::video_colorspace_VIDEO_CS_601,

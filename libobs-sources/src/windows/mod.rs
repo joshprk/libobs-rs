@@ -1,6 +1,9 @@
 
-#[cfg(target_family = "windows")]
 mod window_capture;
-
-#[cfg(target_family = "windows")]
 pub use window_capture::*;
+
+mod capture;
+pub use capture::*;
+
+mod game_capture;
+pub use game_capture::*;

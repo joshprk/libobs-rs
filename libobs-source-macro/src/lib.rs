@@ -8,7 +8,67 @@ use syn::{
 
 #[allow(unused_assignments)]
 #[proc_macro_attribute]
-/// Note that fields are just for the attributes, they are not actually implemented for the struct
+/// This macro is used to generate a builder pattern for an obs source. <br>
+/// The attribute should be the id of the source.<br>
+/// The struct should have named fields, each field should have an attribute `#[obs_property(type_t="your_type")]`. <br>
+/// `type_t` can be `enum`, `enum_string`, `string`, `bool` or `int`. <br>
+/// - `enum`: the field should be an enum with `num_derive::{FromPrimitive, ToPrimitive}`.
+/// - `enum_string`: the field should be an enum which implements `StringEnum`.
+/// - `string`: the field should be a string.
+/// - `bool`: the field should be a bool.
+/// - `type_t`: `int`, the field should be an i64.
+/// The attribute can also have a `settings_key` which is the key used in the settings, if this attribute is not given, the macro defaults to the field name. <br>
+/// Documentation is inherited from the field to the setter function.<br>
+/// Example: <br>
+/// ```
+/// use libobs::wrapper::sources::StringEnum;
+/// use libobs_source_macro::obs_source_builder;
+/// use num_derive::{FromPrimitive, ToPrimitive};
+///
+/// #[repr(i32)]
+/// #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+/// pub enum ObsWindowCaptureMethod {
+///     MethodAuto = libobs::window_capture_method_METHOD_AUTO,
+/// 	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
+/// 	MethodWgc = libobs::window_capture_method_METHOD_WGC,
+/// }
+///
+/// #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// pub enum ObsGameCaptureRgbaSpace {
+///     SRgb,
+///     RGBA2100pq
+/// }
+///
+/// impl StringEnum for ObsGameCaptureRgbaSpace {
+///     fn to_str(&self) -> &str {
+///         match self {
+///             ObsGameCaptureRgbaSpace::SRgb => "sRGB",
+///             ObsGameCaptureRgbaSpace::RGBA2100pq => "Rec. 2100 (PQ)"
+///         }
+///     }
+/// }
+///
+/// /// Provides a easy to use builder for the window capture source.
+/// #[derive(Debug)]
+/// #[obs_source_builder("window_capture")]
+/// pub struct WindowCaptureSourceBuilder {
+///     #[obs_property(type_t="enum")]
+///     /// Sets the capture method for the window capture
+///     capture_method: ObsWindowCaptureMethod,
+///
+///     /// Sets the window to capture.
+///     #[obs_property(type_t = "string", settings_key = "window")]
+///     window_raw: String,
+///
+///     #[obs_property(type_t = "bool")]
+///     /// Sets whether the cursor should be captured
+///     cursor: bool,
+///
+///     /// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
+///     #[obs_property(type_t = "enum_string")]
+///     capture_mode: ObsGameCaptureMode,
+/// }
+/// ```
 pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     let id = parse_macro_input!(attr as LitStr);
 
@@ -114,7 +174,20 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                         self
                     }
                 }
-            }
+            },
+            "enum_string" => {
+                quote! {
+                    #(#docs_attr)*
+                    pub fn #set_field(mut self, #field_name: #field_type) -> Self {
+                        use libobs::wrapper::sources::StringEnum;
+
+                        self.get_or_create_settings()
+                            .set_string(#obs_settings_key, #field_name.to_str());
+
+                        self
+                    }
+                }
+            },
             "string" => {
                 quote! {
                     #(#docs_attr)*

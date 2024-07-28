@@ -2,34 +2,8 @@ use libobs_source_macro::obs_source_builder;
 
 #[cfg(feature="window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use num_derive::{FromPrimitive, ToPrimitive};
 
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-/// Describes the priority of the window capture source.
-/// Used in `WindowCaptureSourceBuilder`
-pub enum ObsWindowPriority {
-    /// The window class names must be the same. This means that windows are of the same type.
-    Class = libobs::window_priority_WINDOW_PRIORITY_CLASS,
-    /// Window titles must match otherwise, find window with the same class
-    Title = libobs::window_priority_WINDOW_PRIORITY_TITLE,
-    /// Match title, otherwise find window with the same executable
-    Executable = libobs::window_priority_WINDOW_PRIORITY_EXE,
-}
-
-
-#[repr(i32)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-/// Describes the capture method of the window capture source.
-/// Used in `WindowCaptureSourceBuilder`
-pub enum ObsWindowCaptureMethod {
-	/// Automatically selects the best method based on the window.
-    MethodAuto = libobs::window_capture_method_METHOD_AUTO,
-    /// Uses BitBlt to capture the window. BitBlt (Windows 7 and up)
-	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
-    /// Uses Windows Graphics Capture to capture the window. Windows 10 (1903 and up)
-	MethodWgc = libobs::window_capture_method_METHOD_WGC,
-}
+use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 
 /// Provides a easy to use builder for the window capture source.
 #[derive(Debug)]
@@ -37,10 +11,6 @@ pub enum ObsWindowCaptureMethod {
 pub struct WindowCaptureSourceBuilder {
     #[obs_property(type_t="enum")]
     /// Sets the capture method for the window capture
-    /// - `BitBlt` - Uses BitBlt to capture the window. This is the fastest method, but may not work with all windows.
-    /// - `GDI` - Uses GDI to capture the window. This is slower than BitBlt, but works with more windows.
-    /// - `DWM` - Uses the Desktop Window Manager to capture the window. This is the slowest method, but works with all windows.
-    /// - `Auto` - Automatically selects the best method based on the window.
     capture_method: ObsWindowCaptureMethod,
 
     /// Sets the priority of the window capture source.
