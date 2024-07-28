@@ -1,4 +1,3 @@
-use libobs::wrapper::sources::ObsSourceBuilder;
 use libobs_source_macro::obs_source_builder;
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use num_derive::{FromPrimitive, ToPrimitive};
@@ -20,17 +19,48 @@ pub enum ObsWindowPriority {
 #[derive(Debug)]
 #[obs_source_builder("window_capture")]
 pub struct WindowCaptureSourceBuilder {
-    #[obs_property(type_t="enum")]
+    #[obs_property(type_t = "enum")]
+    /// Sets the priority of the window capture source.
+    /// Used to determine in which order windows are searched for.
+    ///
+    /// # Arguments
+    ///
+    /// * `priority` - The priority of the window capture source.
+    ///
+    /// # Returns
+    ///
+    /// The updated `WindowCaptureSourceBuilder` instance.
     priority: ObsWindowPriority,
-    #[obs_property(type_t="string")]
-    window: String
+
+    #[obs_property(type_t = "string")]
+    /// Sets the window to capture.
+    ///
+    /// # Arguments
+    ///
+    /// * `window` - The window to capture, represented as `ObsString`. Must be in the format of an obs window id
+    ///
+    /// # Returns
+    ///
+    /// The updated `WindowCaptureSourceBuilder` instance.
+    window_raw: String,
 }
-
-
 
 impl WindowCaptureSourceBuilder {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
         get_all_windows(mode, false)
+    }
+
+    /// Sets the window to capture.
+    ///
+    /// # Arguments
+    ///
+    /// * `window` - The window to capture. A list of available windows can be retrieved using `WindowCaptureSourceBuilder::get_windows`
+    ///
+    /// # Returns
+    ///
+    /// The updated `WindowCaptureSourceBuilder` instance.
+    pub fn set_window(self, window: &WindowInfo) -> Self {
+        self.set_window_raw(window.obs_id.as_str())
     }
 }

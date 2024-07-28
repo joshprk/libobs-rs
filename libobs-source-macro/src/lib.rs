@@ -1,7 +1,8 @@
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    parse_macro_input, punctuated::Punctuated, Data, DeriveInput, Fields, LitStr,
+    parse_macro_input, punctuated::Punctuated, Attribute, Data, DeriveInput, Expr, Fields, LitStr,
     MetaNameValue, Token,
 };
 
@@ -25,7 +26,6 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         },
         _ => panic!("Only structs are supported"),
     };
-
 
     let id_value = id.value();
     let fields_tokens = fields.iter().map(|f| {
@@ -94,19 +94,22 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             };
         }
 
+        let (_docs_str, docs_attr) = collect_doc(&field.attrs);
+
+        let obs_settings_key = LitStr::new(&obs_settings_name, Span::call_site());
         let set_field = quote::format_ident!("set_{}", field_name);
         let type_t_str = type_t.as_str();
         let to_add = match type_t_str {
             "enum" => {
                 quote! {
+                    #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: #field_type) -> Self {
                         use num_traits::ToPrimitive;
                         use libobs::wrapper::sources::ObsSourceBuilder;
                         let val = #field_name.to_i32().unwrap();
 
-                        println!("Hi set {}", "#obs_settings_name");
-                        //self.get_or_create_settings()
-                        //    .set_int("#obs_settings_name", val as i64);
+                        self.get_or_create_settings()
+                            .set_int(#obs_settings_key, val as i64);
 
                         self
                     }
@@ -114,16 +117,41 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
             "string" => {
                 quote! {
+                    #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: impl Into<libobs::wrapper::ObsString>) -> Self {
                         use libobs::wrapper::sources::ObsSourceBuilder;
-                        println!("Hi set {}", "#obs_settings_name");
-                        //self.get_or_create_settings()
-//                            .set_string("#field_name", #field_name);
+                        self.get_or_create_settings()
+                            .set_string(#obs_settings_key, #field_name);
                         self
                     }
                 }
             }
-            _ => panic!("Unsupported type_t {}", type_t),
+            "bool" => {
+                quote! {
+                    #(#docs_attr)*
+                    pub fn #set_field(mut self, #field_name: bool) -> Self {
+                        use libobs::wrapper::sources::ObsSourceBuilder;
+                        self.get_or_create_settings()
+                            .set_bool(#obs_settings_key, #field_name);
+                        self
+                    }
+                }
+            },
+            "int" => {
+                quote! {
+                    #(#docs_attr)*
+                    pub fn #set_field(mut self, #field_name: i64) -> Self {
+                        use libobs::wrapper::sources::ObsSourceBuilder;
+                        self.get_or_create_settings()
+                            .set_int(#obs_settings_key, #field_name);
+                        self
+                    }
+                }
+            }
+            _ => panic!(
+                "Unsupported type_t {}. Should either be `enum`, `string`, `bool` or `int`",
+                type_t
+            ),
         };
 
         functions.push(to_add);
@@ -131,6 +159,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #(#attributes)*
+        #[allow(dead_code)]
         #visibility struct #name #generics {
             #(#fields_tokens,)*
             settings: Option<libobs::wrapper::ObsData>,
@@ -179,4 +208,33 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+fn collect_doc(attrs: &Vec<Attribute>) -> (Vec<String>, Vec<&Attribute>) {
+    let mut docs_str = Vec::new();
+    let mut docs_attr = Vec::new();
+    for attr in attrs {
+        let name_val = match &attr.meta {
+            syn::Meta::NameValue(n) => n,
+            _ => continue,
+        };
+
+        let is_doc = name_val.path.is_ident("doc");
+        if !is_doc {
+            continue;
+        }
+
+        let lit = match &name_val.value {
+            Expr::Lit(l) => match &l.lit {
+                syn::Lit::Str(s) => s.value(),
+                _ => continue,
+            },
+            _ => continue,
+        };
+
+        docs_str.push(lit);
+        docs_attr.push(attr);
+    }
+
+    (docs_str, docs_attr)
 }
