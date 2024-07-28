@@ -1,8 +1,7 @@
-use libobs::wrapper::{sources::ObsSourceBuilder, ObsString};
+use libobs::wrapper::sources::ObsSourceBuilder;
 use libobs_source_macro::obs_source_builder;
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use num_derive::{FromPrimitive, ToPrimitive};
-use num_traits::ToPrimitive;
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
@@ -22,29 +21,16 @@ pub enum ObsWindowPriority {
 #[obs_source_builder("window_capture")]
 pub struct WindowCaptureSourceBuilder {
     #[obs_property(type_t="enum")]
-    prority: ObsWindowPriority,
+    priority: ObsWindowPriority,
+    #[obs_property(type_t="string")]
+    window: String
 }
 
 
 
 impl WindowCaptureSourceBuilder {
-    pub fn set_window(mut self, window: impl Into<ObsString>) -> Self {
-        self.get_or_create_settings() //
-            .set_string("window", window);
-        self
-    }
-
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
         get_all_windows(mode, false)
-    }
-
-    pub fn set_priority(mut self, priority: ObsWindowPriority) -> Self {
-        let priority = priority.to_i32().unwrap();
-
-        self.get_or_create_settings()
-            .set_int("priority", priority as i64);
-
-        self
     }
 }
