@@ -20,15 +20,15 @@ pub enum ObsWindowPriority {
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-/// Describes the priority of the window capture source.
+/// Describes the capture method of the window capture source.
 /// Used in `WindowCaptureSourceBuilder`
 pub enum ObsWindowCaptureMethod {
 	/// Automatically selects the best method based on the window.
-    MethodAuto = window_capture_method_METHOD_AUTO,
+    MethodAuto = libobs::window_capture_method_METHOD_AUTO,
     /// Uses BitBlt to capture the window. BitBlt (Windows 7 and up)
-	MethodBitBlt = window_capture_method_METHOD_BITBLT,
+	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
     /// Uses Windows Graphics Capture to capture the window. Windows 10 (1903 and up)
-	MethodWgc = window_capture_method_METHOD_WGC,
+	MethodWgc = libobs::window_capture_method_METHOD_WGC,
 }
 
 /// Provides a easy to use builder for the window capture source.
@@ -108,15 +108,5 @@ impl WindowCaptureSourceBuilder {
     /// The updated `WindowCaptureSourceBuilder` instance.
     pub fn set_window(self, window: &WindowInfo) -> Self {
         self.set_window_raw(window.obs_id.as_str())
-    }
-}
-
-
-#[cfg(test)]
-mod t {
-    #[test]
-    pub fn tes() {
-        WindowCaptureSourceBuilder::new("test")
-        .set_window_raw("hi");
     }
 }

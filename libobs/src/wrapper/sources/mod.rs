@@ -12,7 +12,7 @@ pub trait ObsSourceBuilder {
     fn get_name(&self) -> ObsString;
 
     /// Adds the obs source to the output on the given channel
-    fn add<'a>(
+    fn add_to_output<'a>(
         mut self,
         output: &'a mut ObsOutput,
         channel: u32,

@@ -120,9 +120,8 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: impl Into<libobs::wrapper::ObsString>) -> Self {
                         use libobs::wrapper::sources::ObsSourceBuilder;
-                        //self.get_or_create_settings()
-                        //    .set_string(#obs_settings_key, #field_name);
-                        println!("Setting string: {}", #obs_settings_key);
+                        self.get_or_create_settings()
+                            .set_string(#obs_settings_key, #field_name);
                         self
                     }
                 }
