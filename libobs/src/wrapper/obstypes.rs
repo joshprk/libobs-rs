@@ -184,7 +184,7 @@ impl ObsData {
 
     /// Sets a double in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
-    pub fn set_bool(&mut self, key: impl Into<ObsString>, value: f64) -> &mut Self {
+    pub fn set_double(&mut self, key: impl Into<ObsString>, value: f64) -> &mut Self {
         let key = key.into();
 
         unsafe { 
