@@ -181,6 +181,24 @@ impl ObsData {
 
         self
     }
+
+    /// Sets a double in `obs_data` and stores the key
+    /// in `ObsData` so it does not get freed.
+    pub fn set_bool(&mut self, key: impl Into<ObsString>, value: f64) -> &mut Self {
+        let key = key.into();
+
+        unsafe { 
+            crate::obs_data_set_double(
+                self.obs_data, 
+                key.as_ptr(), 
+                value
+            ) 
+        }
+
+        self.strings.push(key);
+
+        self
+    }
 }
 
 impl Drop for ObsData {
