@@ -302,6 +302,7 @@ name = "libobs-sources"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "display-info",
  "libobs",
  "libobs-source-macro",
  "libobs-window-helper",
