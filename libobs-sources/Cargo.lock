@@ -303,6 +303,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "display-info",
+ "lazy_static",
  "libobs",
  "libobs-source-macro",
  "libobs-window-helper",

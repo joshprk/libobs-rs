@@ -707,8 +707,6 @@ pub enum ObsSpeakerLayout {
     Unknown = crate::speaker_layout_SPEAKERS_UNKNOWN,
 }
 
-/// NOTE: DO NOT INITIALIZE THIS STRUCT MANUALLY. <br>
-/// thank you :)
 #[derive(Debug)]
 pub struct ObsOutput {
     output: *mut obs_output,
