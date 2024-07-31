@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 repository = "https://github.com/joshprk/libobs-rs"
 authors = ["sshcrack"]
-keywords = ["obs", "libobs", "video", "recording", "screen-recording", "build", "prepare"]
+keywords = ["obs", "libobs", "video", "build", "prepare"]
 edition = "2021"
 
 [dependencies]
