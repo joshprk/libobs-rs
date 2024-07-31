@@ -13,27 +13,25 @@ pub enum ObsWindowPriority {
     Executable = libobs::window_priority_WINDOW_PRIORITY_EXE,
 }
 
-
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the capture method of the window capture source.
 /// Used in `WindowCaptureSourceBuilder`
 pub enum ObsWindowCaptureMethod {
-	/// Automatically selects the best method based on the window.
+    /// Automatically selects the best method based on the window.
     MethodAuto = libobs::window_capture_method_METHOD_AUTO,
     /// Uses BitBlt to capture the window. BitBlt (Windows 7 and up)
-	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
+    MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
     /// Uses Windows Graphics Capture to capture the window. Windows 10 (1903 and up)
-	MethodWgc = libobs::window_capture_method_METHOD_WGC,
+    MethodWgc = libobs::window_capture_method_METHOD_WGC,
 }
-
 
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the capture method of the window capture source.
 /// Used in `WindowCaptureSourceBuilder`
 pub enum ObsHookRate {
-	Slow = libobs::hook_rate_HOOK_RATE_SLOW,
+    Slow = libobs::hook_rate_HOOK_RATE_SLOW,
     Normal = libobs::hook_rate_HOOK_RATE_NORMAL,
     Fast = libobs::hook_rate_HOOK_RATE_FAST,
     Fastest = libobs::hook_rate_HOOK_RATE_FASTEST,

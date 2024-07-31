@@ -31,6 +31,9 @@ struct RunArgs {
     /// The build config that obs should be built with (can be Release, Debug, RelWithDebInfo)
     #[arg(short, long, default_value = "RelWithDebInfo")]
     config: String,
+
+    #[arg(long, default_value_t=false)]
+    no_remove: bool
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,6 +49,7 @@ fn main() -> anyhow::Result<()> {
         repo_id,
         profile: target_profile,
         config: build_type,
+        no_remove
     } = args;
 
     let target_out_dir = PathBuf::new().join("target").join(&target_profile);
@@ -83,11 +87,14 @@ fn main() -> anyhow::Result<()> {
         fs::create_dir_all(&build)?;
 
         configure_cmake(&repo_dir, obs_preset, &build_type)?;
-        build_cmake(&repo_dir, &build_type)?;
+        build_cmake(&repo_dir, &build_out, &build_type)?;
 
         fs::create_dir_all(&build_out)?;
 
-        delete_all_except(&repo_dir, Some(&build_out))?;
+        if !no_remove {
+            delete_all_except(&repo_dir, Some(&build_out))?;
+        }
+
         #[cfg(target_family = "windows")]
         win::copy_files(&repo_dir, &build_out, &build_type)?;
 

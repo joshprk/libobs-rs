@@ -39,50 +39,16 @@ pub fn clone_repo(repo_id: &str, tag: &str, repo_dir: &Path) -> anyhow::Result<(
 
     let res = Command::new("git")
         .arg("clone")
+        .arg("--depth=1")
         .arg("--recursive")
+        .arg("--branch")
+        .arg(tag)
         .arg(&repo_url)
         .arg(&repo_dir)
         .status()?;
 
     if !res.success() {
         bail!("Failed to clone OBS Studio");
-    }
-
-    checkout_repo(repo_dir, tag)?;
-
-    Ok(())
-}
-
-pub fn checkout_repo(repo_dir: &Path, tag: &str) -> anyhow::Result<()> {
-    let res = Command::new("git")
-        .arg("fetch")
-        .arg("origin")
-        .arg(tag)
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to fetch tag");
-    }
-
-    let res = Command::new("git")
-        .arg("checkout")
-        .arg(tag)
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to checkout tag");
-    }
-
-    let res = Command::new("git")
-        .arg("submodule")
-        .arg("update")
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to update submodules");
     }
 
     Ok(())

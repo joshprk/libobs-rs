@@ -1,4 +1,7 @@
-use libobs::wrapper::{AudioEncoderInfo, ObsContext, ObsData, ObsOutput, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo};
+use libobs::wrapper::{
+    AudioEncoderInfo, ObsContext, ObsData, ObsOutput, ObsPath, OutputInfo, StartupInfo,
+    VideoEncoderInfo,
+};
 
 pub fn initialize_obs() -> anyhow::Result<(ObsContext, ObsOutput)> {
     // Start the OBS context

@@ -9,17 +9,66 @@ use colored::Colorize;
 use walkdir::WalkDir;
 
 fn add_disabled_features(cmd: &mut Command) {
-    cmd.arg("-DCMAKE_BUILD_TYPE=RelWithDebInfo");
     cmd.arg("-DENABLE_BROWSER:BOOL=OFF ");
     cmd.arg("-DENABLE_VLC:BOOL=OFF ");
-    cmd.arg("-DENABLE_UI:BOOL=OFF ");
     cmd.arg("-DENABLE_VST:BOOL=OFF ");
-    cmd.arg("-DENABLE_SCRIPTING:BOOL=OFF");
-    cmd.arg("-DCOPIED_DEPENDENCIES:BOOL=OFF");
-    cmd.arg("-DCOPY_DEPENDENCIES:BOOL=ON");
-    cmd.arg("-DBUILD_FOR_DISTRIBUTION:BOOL=ON");
     cmd.arg("-DENABLE_WEBSOCKET:BOOL=OFF");
+    cmd.arg("-DENABLE_UI:BOOL=OFF ");
     cmd.arg("-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF");
+}
+
+fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
+    let deps = repo_dir.join("deps");
+    let mut obs_dep_dir = None;
+
+    for entry in deps.read_dir()? {
+        if entry.is_err() {
+            continue;
+        }
+
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        let file_name = path.file_name();
+        if let Some(f) = file_name {
+            if path.is_dir() {
+                let f = f.to_str().unwrap();
+                if f.contains("obs-deps") && f.ends_with("x64") {
+                    obs_dep_dir = Some(path);
+                }
+            }
+        }
+    }
+
+    if obs_dep_dir.is_none() {
+        bail!("Failed to find OBS Studio dependencies");
+    }
+
+    let obs_dep_dir = obs_dep_dir.unwrap();
+    let bin_dir = obs_dep_dir.join("bin");
+
+    // Copy DLLS here
+    //TODO also handle linux libraries
+
+    for entry in bin_dir.read_dir()? {
+        if entry.is_err() {
+            continue;
+        }
+
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        if path.is_file() {
+            let file_name = path.file_name().unwrap();
+            let file_name = file_name.to_str().unwrap();
+
+            if file_name.ends_with(".dll") {
+                fs::copy(&path, out_dir.join(file_name))?;
+            }
+        }
+    }
+
+    Ok(())
 }
 
 pub fn configure_cmake(dir: &Path, preset: &str, build_type: &str) -> anyhow::Result<()> {
@@ -45,7 +94,7 @@ pub fn configure_cmake(dir: &Path, preset: &str, build_type: &str) -> anyhow::Re
     Ok(())
 }
 
-pub fn build_cmake(dir: &Path, build_type: &str) -> anyhow::Result<()> {
+pub fn build_cmake(dir: &Path, final_build_out: &Path, build_type: &str) -> anyhow::Result<()> {
     println!("{}", "Building OBS studio...".yellow());
     let cmd = Command::new("cmake")
         .arg("--build")
@@ -58,6 +107,9 @@ pub fn build_cmake(dir: &Path, build_type: &str) -> anyhow::Result<()> {
     if !cmd.success() {
         bail!("Failed to build OBS Studio");
     }
+
+    println!("Copying dependencies...");
+    copy_deps(dir, final_build_out)?;
 
     Ok(())
 }

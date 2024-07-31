@@ -28,8 +28,6 @@
 //! .add_to_output(output, 0);
 //! `````
 
-
-
-#[cfg(target_family="windows")]
+#[cfg(target_family = "windows")]
 /// Windows-specific functionality. Contains a builder for e.g. `window-capture` sources.
 pub mod windows;

@@ -20,14 +20,14 @@ pub enum ObsGameCaptureRgbaSpace {
     /// sRGB color space
     SRgb,
     /// Rec. 2100 (PQ)
-    RGBA2100pq
+    RGBA2100pq,
 }
 
 impl StringEnum for ObsGameCaptureRgbaSpace {
     fn to_str(&self) -> &str {
         match self {
             ObsGameCaptureRgbaSpace::SRgb => "sRGB",
-            ObsGameCaptureRgbaSpace::RGBA2100pq => "Rec. 2100 (PQ)"
+            ObsGameCaptureRgbaSpace::RGBA2100pq => "Rec. 2100 (PQ)",
         }
     }
 }
@@ -101,15 +101,14 @@ pub struct GameCaptureSourceBuilder {
     #[obs_property(type_t = "enum_string")]
     rgb10a2_space: ObsGameCaptureRgbaSpace,
 
-
     /// Whether to capture audio from window source (BETA) <br>
     /// When enabled, creates an "Application Audio Capture" source that automatically updates to the currently captured window/application. <br>
     /// Note that if Desktop Audio is configured, this could result in doubled audio.
-    #[obs_property(type_t="bool")]
-    capture_audio: bool
+    #[obs_property(type_t = "bool")]
+    capture_audio: bool,
 }
 
-#[cfg(feature="window-list")]
+#[cfg(feature = "window-list")]
 impl GameCaptureSourceBuilder {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
