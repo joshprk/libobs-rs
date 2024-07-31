@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use crate::util::{copy_to_dir, get_build_out};
-use colored::Colorize;
 
 pub fn copy_files(
     repo_dir: &Path,
