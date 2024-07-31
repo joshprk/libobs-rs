@@ -1,5 +1,5 @@
 [package]
-name = "libobs-build"
+name = "cargo-obs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
 version = "0.1.0"
 readme = "README.md"

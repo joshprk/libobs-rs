@@ -97,6 +97,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b048fb63fd8b5923fc5aa7b340d8e156aec7ec02f0c78fa8a6ddc2613f6f71de"
 
 [[package]]
+name = "cargo-obs-build"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "colored",
+ "http_req",
+ "serde",
+ "serde_json",
+ "toml",
+ "walkdir",
+]
+
+[[package]]
 name = "cc"
 version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,20 +292,6 @@ name = "libc"
 version = "0.2.155"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
-
-[[package]]
-name = "libobs-build"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "colored",
- "http_req",
- "serde",
- "serde_json",
- "toml",
- "walkdir",
-]
 
 [[package]]
 name = "linux-raw-sys"
