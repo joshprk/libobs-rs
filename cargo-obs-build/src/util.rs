@@ -18,7 +18,7 @@ fn add_disabled_features(cmd: &mut Command) {
 }
 
 fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
-    let deps = repo_dir.join("deps");
+    let deps = repo_dir.join(".deps");
     let mut obs_dep_dir = None;
 
     for entry in deps.read_dir()? {
