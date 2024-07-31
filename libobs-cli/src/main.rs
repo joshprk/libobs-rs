@@ -2,7 +2,7 @@ use git::{clone_repo, fetch_latest};
 use metadata::{get_main_meta, read_val_from_meta};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
 
