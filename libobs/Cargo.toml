@@ -18,3 +18,8 @@ bindgen = "0.69.4"
 display-info = "0.5.1"
 num-traits = "0.2.19"
 num-derive = "0.4.2"
+
+
+[package.metadata]
+libobs-version="30.2.2"
+libobs-cache-dir="../obs-build"

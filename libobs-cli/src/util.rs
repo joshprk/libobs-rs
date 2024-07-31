@@ -90,3 +90,26 @@ pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow:
 
     Ok(())
 }
+
+pub fn delete_all_except(src: &Path, except_dir: Option<&Path>) -> anyhow::Result<()> {
+    for entry in fs::read_dir(src)? {
+        if entry.is_err() {
+            continue;
+        }
+
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        if except_dir.is_some_and(|e| path.starts_with(e)) {
+            continue;
+        }
+
+        if path.is_dir() {
+            fs::remove_dir_all(path).unwrap();
+        } else {
+            fs::remove_file(path).unwrap();
+        }
+    }
+
+    Ok(())
+}

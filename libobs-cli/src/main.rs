@@ -1,16 +1,16 @@
-use anyhow::bail;
-use colored::Colorize;
-use http_req::{request::Request, response::StatusCode, uri::Uri};
-use serde_json::Value;
+use git::{clone_repo, fetch_latest};
+use metadata::{get_main_meta, read_val_from_meta};
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
 };
-use util::{build_cmake, configure_cmake};
+use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
 
 use clap::Parser;
+use colored::Colorize;
 
+mod git;
+mod metadata;
 mod util;
 
 #[cfg(target_family = "windows")]
@@ -23,13 +23,9 @@ struct RunArgs {
     #[arg(short, long)]
     profile: String,
 
-    /// The tag of OBS Studio to build
-    #[arg(short, long, default_value = "latest")]
-    tag: String,
-
-    /// The directory to build OBS Studio in
-    #[arg(short, long, default_value = "obs-build")]
-    build_dir: PathBuf,
+    /// The location where the OBS Studio sources should be cloned to
+    #[arg(short='o', long, default_value = "obs-build")]
+    cache_dir: PathBuf,
 
     /// The github repository to clone OBS Studio from
     #[arg(short, long, default_value = "obsproject/obs-studio")]
@@ -40,157 +36,65 @@ struct RunArgs {
     config: String,
 }
 
-fn fetch_latest(repo_id: &str) -> anyhow::Result<String> {
-    let url = format!("https://api.github.com/repos/{}/releases/latest", repo_id);
-    let url = Uri::try_from(url.as_str())?;
-
-    let mut body = Vec::new(); //Container for body of a response.
-    let res = Request::new(&url)
-        .header("User-Agent", "libobs-cli")
-        .send(&mut body)?;
-
-    if res.status_code() != StatusCode::new(200) {
-        bail!(
-            "Failed to fetch latest release: {} with {}",
-            res.status_code(),
-            String::from_utf8(body).unwrap_or("Couldn't parse".to_string())
-        );
-    }
-
-    let body = String::from_utf8(body)?;
-    let body: Value = serde_json::from_str(&body)?;
-    let body = body["tag_name"].as_str();
-
-    if let Some(tag) = body {
-        return Ok(tag.to_string());
-    }
-
-    bail!("Failed to fetch latest release")
-}
-
-fn clone_repo(repo_id: &str, tag: &str, repo_dir: &Path) -> anyhow::Result<()> {
-    let repo_url = format!("https://github.com/{}.git", repo_id);
-
-    let res = Command::new("git")
-        .arg("clone")
-        .arg("--recursive")
-        .arg(&repo_url)
-        .arg(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to clone OBS Studio");
-    }
-
-    checkout_repo(repo_dir, tag)?;
-
-    Ok(())
-}
-
-fn checkout_repo(repo_dir: &Path, tag: &str) -> anyhow::Result<()> {
-    let res = Command::new("git")
-        .arg("fetch")
-        .arg("origin")
-        .arg(tag)
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to fetch tag");
-    }
-
-    let res = Command::new("git")
-        .arg("checkout")
-        .arg(tag)
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to checkout tag");
-    }
-
-    let res = Command::new("git")
-        .arg("submodule")
-        .arg("update")
-        .current_dir(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to update submodules");
-    }
-
-    Ok(())
-}
-
-fn has_changed(repo_dir: &Path, tag: &str) -> anyhow::Result<bool> {
-    let res = Command::new("git")
-        .arg("describe")
-        .arg("--exact-match")
-        .arg("--tags")
-        .current_dir(&repo_dir)
-        .output()?;
-
-    let res = String::from_utf8(res.stdout)?;
-    println!("Out '{}' tag '{}'", res.trim(), tag);
-
-    Ok(res.trim() != tag)
-}
-
 fn main() -> anyhow::Result<()> {
     let args = RunArgs::parse();
 
     let RunArgs {
-        mut tag,
-        build_dir: repo_dir,
+        cache_dir,
         repo_id,
         profile: target_profile,
         config: build_type,
     } = args;
 
-    let copy_dir = PathBuf::new().join("target").join(&target_profile);
+    let target_out_dir = PathBuf::new().join("target").join(&target_profile);
 
-    let mut changed = true;
+    let meta = get_main_meta()?;
+
+    let mut tag = read_val_from_meta(&meta, "libobs-version")?;
+    let cache_dir = read_val_from_meta(&meta, "libobs-cache-dir")
+        .and_then(|e| Ok(PathBuf::from(&e)))
+        .unwrap_or_else(|_e| cache_dir);
 
     if tag == "latest" {
         tag = fetch_latest(&repo_id)?;
     }
 
-    println!("Fetching {} version of OBS Studio...", tag.on_blue());
-    if !repo_dir.exists() {
-        clone_repo(&repo_id, &tag, &repo_dir)?;
-    } else {
-        let c = has_changed(&repo_dir, &tag);
-        if let Err(e) = &c {
-            eprintln!("Error checking changed: {}", e);
-        }
-
-        changed = c.unwrap_or(false);
-
-        if changed {
-            println!("{}", "Repo already exists, checking out tag...".yellow());
-            checkout_repo(&repo_dir, &tag)?;
-        }
+    let repo_dir = cache_dir.join(&tag);
+    let exists = repo_dir.is_dir();
+    if !repo_dir.is_dir() {
+        fs::create_dir_all(&repo_dir)?;
     }
 
-    let obs_preset = if cfg!(target_family = "windows") {
-        "windows-x64"
-    } else {
-        "linux-x64"
-    };
-
+    println!("Fetching {} version of OBS Studio...", tag.on_blue());
+    let build_out = repo_dir.join("build_out");
     let build = repo_dir.join("build");
-    fs::create_dir_all(&build)?;
 
-    if changed {
+    if !exists {
+        clone_repo(&repo_id, &tag, &repo_dir)?;
+
+        let obs_preset = if cfg!(target_family = "windows") {
+            "windows-x64"
+        } else {
+            "linux-x64"
+        };
+
+        fs::create_dir_all(&build)?;
+
         configure_cmake(&repo_dir, obs_preset, &build_type)?;
         build_cmake(&repo_dir, &build_type)?;
+
+        fs::create_dir_all(&build_out)?;
+
+        #[cfg(target_family = "windows")]
+        win::copy_files(&repo_dir, &build_out, &build_type)?;
+
+        delete_all_except(&repo_dir, Some(&build_out))?;
+
+        #[cfg(not(target_family = "windows"))]
+        println!("Unsupported platform");
     }
 
-    #[cfg(target_family = "windows")]
-    win::run(&repo_dir, &copy_dir, &build_type)?;
-
-    #[cfg(not(target_family = "windows"))]
-    println!("Unsupported platform");
+    copy_to_dir(&build_out, &target_out_dir, None)?;
 
     Ok(())
 }
