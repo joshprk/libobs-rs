@@ -1,0 +1,27 @@
+[tasks.prepare-obs-debug]
+command = "cargo"
+args = ["obs-build", "--", "--profile debug"]
+
+[tasks.prepare-obs-release]
+command = "cargo"
+args = ["obs-build", "--", "--profile release"]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["prepare-obs-debug"]
+
+[tasks.test]
+command = "cargo"
+args = ["test"]
+dependencies = ["prepare-obs-debug"]
+
+[tasks.dev]
+command = "cargo"
+args = ["run"]
+dependencies = ["prepare-obs-debug"]
+
+[tasks.release]
+command = "cargo"
+args = ["build", "--release"]
+dependencies = ["prepare-obs-release"]

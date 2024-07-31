@@ -1,9 +1,6 @@
 use git::{clone_repo, fetch_latest};
 use metadata::{get_main_meta, read_val_from_meta};
-use std::{
-    fs,
-    path::PathBuf,
-};
+use std::{env::args, fs, path::PathBuf};
 use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
 
 use clap::Parser;
@@ -24,7 +21,7 @@ struct RunArgs {
     profile: String,
 
     /// The location where the OBS Studio sources should be cloned to
-    #[arg(short='o', long, default_value = "obs-build")]
+    #[arg(short = 'o', long, default_value = "obs-build")]
     cache_dir: PathBuf,
 
     /// The github repository to clone OBS Studio from
@@ -37,7 +34,12 @@ struct RunArgs {
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = RunArgs::parse();
+    let mut args: Vec<_> = args().collect();
+    if args.get(1).is_some_and(|e| e == "obs-build") {
+        args.remove(1);
+    }
+
+    let args = RunArgs::parse_from(args);
 
     let RunArgs {
         cache_dir,
@@ -89,12 +91,15 @@ fn main() -> anyhow::Result<()> {
         #[cfg(target_family = "windows")]
         win::copy_files(&repo_dir, &build_out, &build_type)?;
 
-
         #[cfg(not(target_family = "windows"))]
         println!("Unsupported platform");
     }
 
-    println!("Copying files from {} to {}", build_out.display().to_string().green(), target_out_dir.display().to_string().green());
+    println!(
+        "Copying files from {} to {}",
+        build_out.display().to_string().green(),
+        target_out_dir.display().to_string().green()
+    );
     copy_to_dir(&build_out, &target_out_dir, None)?;
 
     println!("Done!");
