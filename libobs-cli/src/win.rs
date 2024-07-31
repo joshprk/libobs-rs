@@ -20,10 +20,7 @@ pub fn copy_files(
     let bin_dir = build_out.join("bin");
     let bin_arch_dir = bin_dir.join("64bit");
 
-    println!("Copying files from {} to {}", bin_arch_dir.display().to_string().green(), copy_dir.display().to_string().green());
     copy_to_dir(&bin_arch_dir, &copy_dir, None)?;
-
-    println!("Copying files from {} to {}", build_out.display().to_string().green(), copy_dir.display().to_string().green());
     copy_to_dir(&build_out, &copy_dir, Some(&bin_dir))?;
 
     Ok(())

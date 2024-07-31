@@ -85,16 +85,19 @@ fn main() -> anyhow::Result<()> {
 
         fs::create_dir_all(&build_out)?;
 
+        delete_all_except(&repo_dir, Some(&build_out))?;
         #[cfg(target_family = "windows")]
         win::copy_files(&repo_dir, &build_out, &build_type)?;
 
-        delete_all_except(&repo_dir, Some(&build_out))?;
 
         #[cfg(not(target_family = "windows"))]
         println!("Unsupported platform");
     }
 
+    println!("Copying files from {} to {}", build_out.display().to_string().green(), target_out_dir.display().to_string().green());
     copy_to_dir(&build_out, &target_out_dir, None)?;
+
+    println!("Done!");
 
     Ok(())
 }
