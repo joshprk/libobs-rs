@@ -1,10 +1,10 @@
 [tasks.prepare-obs-debug]
 command = "cargo"
-args = ["obs-build", "--", "--profile debug"]
+args = ["obs-build", "--profile", "debug"]
 
 [tasks.prepare-obs-release]
 command = "cargo"
-args = ["obs-build", "--", "--profile release"]
+args = ["obs-build", "--profile", "release"]
 
 [tasks.build]
 command = "cargo"
