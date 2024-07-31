@@ -3,6 +3,10 @@ name = "cargo-obs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
 version = "0.1.0"
 readme = "README.md"
+license = "MIT"
+repository = "https://github.com/joshprk/libobs-rs"
+authors = ["sshcrack"]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording", "build", "prepare"]
 edition = "2021"
 
 [dependencies]
