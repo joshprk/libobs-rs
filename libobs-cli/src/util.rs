@@ -1,7 +1,12 @@
-use std::{path::Path, process::Command};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use colored::Colorize;
 use anyhow::bail;
+use colored::Colorize;
+use walkdir::WalkDir;
 
 fn add_disabled_features(cmd: &mut Command) {
     cmd.arg("-DCMAKE_BUILD_TYPE=RelWithDebInfo");
@@ -17,7 +22,7 @@ fn add_disabled_features(cmd: &mut Command) {
     cmd.arg("-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF");
 }
 
-pub fn configure_cmake(dir: &Path, preset: &str) -> anyhow::Result<()> {
+pub fn configure_cmake(dir: &Path, preset: &str, build_type: &str) -> anyhow::Result<()> {
     let mut cmd = Command::new("cmake");
 
     cmd.arg("-S")
@@ -26,6 +31,7 @@ pub fn configure_cmake(dir: &Path, preset: &str) -> anyhow::Result<()> {
         .arg("build")
         .arg("--preset")
         .arg(preset)
+        .arg(format!("-DCMAKE_BUILD_TYPE={}", build_type))
         .current_dir(dir);
 
     add_disabled_features(&mut cmd);
@@ -39,18 +45,47 @@ pub fn configure_cmake(dir: &Path, preset: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn build_cmake(dir: &Path) -> anyhow::Result<()> {
+pub fn build_cmake(dir: &Path, build_type: &str) -> anyhow::Result<()> {
     println!("{}", "Building OBS studio...".yellow());
     let cmd = Command::new("cmake")
         .arg("--build")
         .arg("build")
         .arg("--config")
-        .arg("RelWithDebInfo")
+        .arg(build_type)
         .current_dir(dir)
         .status()?;
 
     if !cmd.success() {
         bail!("Failed to build OBS Studio");
+    }
+
+    Ok(())
+}
+
+pub fn get_build_out(repo_dir: &Path, preset: &str) -> PathBuf {
+    repo_dir.join("build").join("rundir").join(preset)
+}
+
+pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow::Result<()> {
+    for entry in WalkDir::new(&src) {
+        if entry.is_err() {
+            continue;
+        }
+
+        let entry = entry.unwrap();
+        let path = entry.path();
+
+        if except_dir.is_some_and(|e| path.starts_with(e)) {
+            continue;
+        }
+
+        let copy_to = out.join(path.strip_prefix(src).unwrap());
+        if path.is_dir() {
+            fs::create_dir_all(&copy_to)?;
+            continue;
+        }
+
+        fs::copy(entry.path(), copy_to)?;
     }
 
     Ok(())
