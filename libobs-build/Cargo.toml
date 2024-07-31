@@ -1,7 +1,8 @@
 [package]
-name = "libobs-cli"
+name = "libobs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
 version = "0.1.0"
+readme = "README.md"
 edition = "2021"
 
 [dependencies]
