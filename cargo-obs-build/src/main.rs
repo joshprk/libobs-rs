@@ -1,7 +1,7 @@
 use git::{clone_repo, fetch_latest};
 use metadata::{get_main_meta, read_val_from_meta};
 use std::{env::args, fs, path::PathBuf};
-use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
+use util::{build_cmake, configure_cmake, copy_deps, copy_to_dir, delete_all_except};
 
 use clap::Parser;
 use colored::Colorize;
@@ -77,6 +77,7 @@ fn main() -> anyhow::Result<()> {
 
     if !exists {
         clone_repo(&repo_id, &tag, &repo_dir)?;
+        fs::create_dir_all(&build_out)?;
 
         let obs_preset = if cfg!(target_family = "windows") {
             "windows-x64"
@@ -89,7 +90,6 @@ fn main() -> anyhow::Result<()> {
         configure_cmake(&repo_dir, obs_preset, &build_type)?;
         build_cmake(&repo_dir, &build_out, &build_type)?;
 
-        fs::create_dir_all(&build_out)?;
 
         if !no_remove {
             delete_all_except(&repo_dir, Some(&build_out))?;

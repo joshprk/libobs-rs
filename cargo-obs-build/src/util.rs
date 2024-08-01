@@ -17,10 +17,11 @@ fn add_disabled_features(cmd: &mut Command) {
     cmd.arg("-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF");
 }
 
-fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
+pub fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
     let deps = repo_dir.join(".deps");
     let mut obs_dep_dir = None;
 
+    println!("Finding OBS Studio dependencies in {}...", deps.display().to_string().blue());
     for entry in deps.read_dir()? {
         if entry.is_err() {
             continue;
@@ -33,7 +34,7 @@ fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
         if let Some(f) = file_name {
             if path.is_dir() {
                 let f = f.to_str().unwrap();
-                if f.contains("obs-deps") && f.ends_with("x64") {
+                if f.contains("obs-deps") && f.ends_with("x64") && !f.contains("-qt") {
                     obs_dep_dir = Some(path);
                 }
             }
@@ -50,6 +51,7 @@ fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
     // Copy DLLS here
     //TODO also handle linux libraries
 
+    println!("Copying dependencies from {}...", bin_dir.display().to_string().blue());
     for entry in bin_dir.read_dir()? {
         if entry.is_err() {
             continue;
@@ -63,6 +65,9 @@ fn copy_deps(repo_dir: &Path, out_dir: &Path) -> anyhow::Result<()> {
             let file_name = file_name.to_str().unwrap();
 
             if file_name.ends_with(".dll") {
+                let copy_to = out_dir.join(file_name);
+
+                println!("{} to {}", path.display().to_string().yellow(), copy_to.display().to_string().green());
                 fs::copy(&path, out_dir.join(file_name))?;
             }
         }

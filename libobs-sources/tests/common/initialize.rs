@@ -3,7 +3,7 @@ use libobs::wrapper::{
     VideoEncoderInfo,
 };
 
-pub fn initialize_obs() -> anyhow::Result<(ObsContext, ObsOutput)> {
+pub fn initialize_obs<'a>() -> anyhow::Result<(ObsContext, &'a mut ObsOutput)> {
     // Start the OBS context
     let startup_info = StartupInfo::default();
     let mut context = ObsContext::new(startup_info).unwrap();
@@ -47,5 +47,5 @@ pub fn initialize_obs() -> anyhow::Result<(ObsContext, ObsOutput)> {
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler)?;
 
-    todo!();
+    todo!("Properly return the output type here instead of just the &mut type");
 }
