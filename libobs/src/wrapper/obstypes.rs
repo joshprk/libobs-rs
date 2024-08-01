@@ -1,16 +1,18 @@
 use std::borrow::Borrow;
-use std::fmt::Display;
-use std::{env, ptr};
 use std::ffi::{c_char, CStr, CString};
+use std::fmt::Display;
 use std::path::{Path, PathBuf};
+use std::{env, ptr};
 
 use display_info::DisplayInfo;
 use num_derive::{FromPrimitive, ToPrimitive};
 
-use crate::{audio_output, obs_audio_info, obs_audio_info2, obs_data, obs_encoder, obs_output, obs_source, obs_video_info, video_output};
+use crate::{
+    audio_output, obs_audio_info, obs_audio_info2, obs_data, obs_encoder, obs_output, obs_source,
+    obs_video_info, video_output,
+};
 
 use super::{AudioEncoderInfo, SourceInfo, VideoEncoderInfo};
-
 
 #[cfg(target_os = "windows")]
 type OsEnumType = i32;
@@ -37,7 +39,7 @@ pub enum ObsError {
     /// pointer.
     NullPointer,
     OutputAlreadyActive,
-    OutputStartFailure(Option<String>)
+    OutputStartFailure(Option<String>),
 }
 
 impl Display for ObsError {
@@ -57,12 +59,12 @@ impl Display for ObsError {
     }
 }
 
-impl std::error::Error for ObsError { }
+impl std::error::Error for ObsError {}
 
 /// String wrapper for OBS function calls.
-/// 
-/// This struct wraps `CString` internally with included helper 
-/// functions. Note that any NUL byte is stripped before 
+///
+/// This struct wraps `CString` internally with included helper
+/// functions. Note that any NUL byte is stripped before
 /// conversion to a `CString` to prevent panicking.
 #[derive(Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsString {
@@ -75,7 +77,7 @@ impl ObsString {
     /// bytes are removed before conversion to a
     /// `ObsString` as C-type strings do not allow
     /// premature NUL bytes.
-    /// 
+    ///
     /// These are CString wrappers internally, with
     /// included helper functions to reduce repetitive
     /// code and ensure safety.
@@ -86,7 +88,7 @@ impl ObsString {
     /// Returns a safe pointer to a C-type string
     /// used by libobs. This pointer will be valid
     /// for as long as this ObsString exists.
-    /// 
+    ///
     /// Note that this pointer is read-only--writing
     /// to it is undefined behavior.
     pub fn as_ptr(&self) -> *const c_char {
@@ -94,10 +96,19 @@ impl ObsString {
     }
 }
 
+impl ToString for ObsString {
+    fn to_string(&self) -> String {
+        // We can use the lossy method here since the c_string is guaranteed to be UTF-8.
+        self.c_string.to_string_lossy().to_string()
+    }
+}
+
 impl From<&str> for ObsString {
     fn from(value: &str) -> Self {
         let value = value.replace("\0", "");
-        Self { c_string: CString::new(value).unwrap() }
+        Self {
+            c_string: CString::new(value).unwrap(),
+        }
     }
 }
 
@@ -128,7 +139,7 @@ pub struct ObsData {
 impl ObsData {
     /// Creates a new empty `ObsData` wrapper for the
     /// libobs `obs_data` data structure.
-    /// 
+    ///
     /// `ObsData` can then be populated using the set
     /// functions, which take ownership of the
     /// `ObsString` types to prevent them from being
@@ -148,17 +159,15 @@ impl ObsData {
 
     /// Sets a string in `obs_data` and stores it so
     /// it in `ObsData` does not get freed.
-    pub fn set_string(&mut self, key: impl Into<ObsString>, value: impl Into<ObsString>) -> &mut Self {
+    pub fn set_string(
+        &mut self,
+        key: impl Into<ObsString>,
+        value: impl Into<ObsString>,
+    ) -> &mut Self {
         let key = key.into();
         let value = value.into();
 
-        unsafe { 
-            crate::obs_data_set_string(
-                self.obs_data, 
-                key.as_ptr(), 
-                value.as_ptr()
-            ) 
-        }
+        unsafe { crate::obs_data_set_string(self.obs_data, key.as_ptr(), value.as_ptr()) }
 
         self.strings.push(key);
         self.strings.push(value);
@@ -171,13 +180,7 @@ impl ObsData {
     pub fn set_int(&mut self, key: impl Into<ObsString>, value: i64) -> &mut Self {
         let key = key.into();
 
-        unsafe { 
-            crate::obs_data_set_int(
-                self.obs_data, 
-                key.as_ptr(), 
-                value.into()
-            ) 
-        }
+        unsafe { crate::obs_data_set_int(self.obs_data, key.as_ptr(), value.into()) }
 
         self.strings.push(key);
 
@@ -189,13 +192,7 @@ impl ObsData {
     pub fn set_bool(&mut self, key: impl Into<ObsString>, value: bool) -> &mut Self {
         let key = key.into();
 
-        unsafe { 
-            crate::obs_data_set_bool(
-                self.obs_data, 
-                key.as_ptr(), 
-                value
-            ) 
-        }
+        unsafe { crate::obs_data_set_bool(self.obs_data, key.as_ptr(), value) }
 
         self.strings.push(key);
 
@@ -207,13 +204,7 @@ impl ObsData {
     pub fn set_double(&mut self, key: impl Into<ObsString>, value: f64) -> &mut Self {
         let key = key.into();
 
-        unsafe { 
-            crate::obs_data_set_double(
-                self.obs_data, 
-                key.as_ptr(), 
-                value
-            ) 
-        }
+        unsafe { crate::obs_data_set_double(self.obs_data, key.as_ptr(), value) }
 
         self.strings.push(key);
 
@@ -228,10 +219,10 @@ impl Drop for ObsData {
 }
 
 /// Builds into an `ObsString` that represents a path used
-/// by libobs. 
-/// 
-/// Note that only this path only supports UTF-8 for the 
-/// entire absolute path because libobs only supports 
+/// by libobs.
+///
+/// Note that only this path only supports UTF-8 for the
+/// entire absolute path because libobs only supports
 /// UTF-8.
 #[derive(Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsPath {
@@ -241,7 +232,7 @@ pub struct ObsPath {
 impl ObsPath {
     /// Creates a new `ObsPath` strictly using the path
     /// `path_str` without any modifications.
-    /// 
+    ///
     /// If you want to create a relative path, use
     /// `ObsPath::from_relative`.
     pub fn new(path_str: &str) -> Self {
@@ -251,14 +242,13 @@ impl ObsPath {
     }
 
     /// Creates a new `ObsPath` with `path_str`
-    /// appended to the path of the directory which the 
+    /// appended to the path of the directory which the
     /// executable file is in.
-    /// 
+    ///
     /// If you want to create an absolute path, use
     /// `ObsPath::new`.
     pub fn from_relative(path_str: &str) -> Self {
-        let mut relative_path = env::current_exe()
-            .unwrap();
+        let mut relative_path = env::current_exe().unwrap();
 
         relative_path.pop();
 
@@ -292,22 +282,19 @@ impl ObsPath {
         self.path.pop();
         self
     }
-    
+
     /// Consumes the `ObsPath` to create a new
     /// immutable ObsString that encodes a UTF-8
     /// C-type string which describes the path that
     /// the `ObsPath` is pointing to.
-    /// 
+    ///
     /// Note that this function is lossy in that
     /// any non-Unicode data is completely removed
     /// from the string. This is because libobs
     /// does not support non-Unicode characters in
     /// its path.
     pub fn build(self) -> ObsString {
-        let mut bytes = self.path
-            .display()
-            .to_string()
-            .replace("\\", "/");
+        let mut bytes = self.path.display().to_string().replace("\\", "/");
 
         if self.path.is_dir() {
             bytes = bytes + "/";
@@ -365,12 +352,12 @@ pub enum ObsVideoFormat {
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
 pub enum ObsColorspace {
-    CS2100HLG   = crate::video_colorspace_VIDEO_CS_2100_HLG,
-    CS2100PQ    = crate::video_colorspace_VIDEO_CS_2100_PQ,
-    CS601       = crate::video_colorspace_VIDEO_CS_601,
-    CS709       = crate::video_colorspace_VIDEO_CS_709,
-    Default     = crate::video_colorspace_VIDEO_CS_DEFAULT,
-    CSRGB       = crate::video_colorspace_VIDEO_CS_SRGB,
+    CS2100HLG = crate::video_colorspace_VIDEO_CS_2100_HLG,
+    CS2100PQ = crate::video_colorspace_VIDEO_CS_2100_PQ,
+    CS601 = crate::video_colorspace_VIDEO_CS_601,
+    CS709 = crate::video_colorspace_VIDEO_CS_709,
+    Default = crate::video_colorspace_VIDEO_CS_DEFAULT,
+    CSRGB = crate::video_colorspace_VIDEO_CS_SRGB,
 }
 
 #[cfg_attr(target_os = "windows", repr(i32))]
@@ -382,7 +369,7 @@ pub enum ObsColorspace {
 pub enum ObsVideoRange {
     Default = crate::video_range_type_VIDEO_RANGE_DEFAULT,
     Partial = crate::video_range_type_VIDEO_RANGE_PARTIAL,
-    Full    = crate::video_range_type_VIDEO_RANGE_FULL,
+    Full = crate::video_range_type_VIDEO_RANGE_FULL,
 }
 
 #[cfg_attr(target_os = "windows", repr(i32))]
@@ -409,7 +396,7 @@ pub enum ObsGraphicsModule {
 }
 
 /// A wrapper for `obs_video_info`, which is used
-/// to pass information to libobs for the new OBS 
+/// to pass information to libobs for the new OBS
 /// video context after resetting the old OBS
 /// video context.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -423,14 +410,17 @@ pub struct ObsVideoInfo {
 }
 
 impl ObsVideoInfo {
-    /// Creates a new `ObsVideoInfo`. 
-    /// 
-    /// Note that this function is not meant to 
-    /// be used externally. The recommended, 
+    /// Creates a new `ObsVideoInfo`.
+    ///
+    /// Note that this function is not meant to
+    /// be used externally. The recommended,
     /// supported way to build new `ObsVideoInfo`
     /// structs is through `ObsVideoInfoBuilder`.
     pub fn new(ovi: obs_video_info, graphics_module: ObsString) -> Self {
-        Self { ovi, graphics_module }
+        Self {
+            ovi,
+            graphics_module,
+        }
     }
 
     /// Returns an `ObsVideoInfo` pointer.
@@ -474,8 +464,8 @@ impl ObsVideoInfoBuilder {
     /// Creates a new `ObsVideoInfoBuilder`
     /// for creating new `ObsVideoInfo` to
     /// pass to the video context reset
-    /// function. 
-    /// 
+    /// function.
+    ///
     /// This function comes with
     /// sensible default values and chooses
     /// the backend depending on which
@@ -494,9 +484,9 @@ impl ObsVideoInfoBuilder {
 
         Self {
             adapter: 0,
-            #[cfg(target_family="unix")]
+            #[cfg(target_family = "unix")]
             graphics_module: ObsGraphicsModule::OpenGL,
-            #[cfg(target_family="windows")]
+            #[cfg(target_family = "windows")]
             graphics_module: ObsGraphicsModule::DirectX11,
             fps_num: 30,
             fps_den: 1,
@@ -511,7 +501,7 @@ impl ObsVideoInfoBuilder {
             scale_type: ObsScaleType::Lanczos,
         }
     }
-    
+
     /// Consumes the `ObsVideoInfoBuilder`
     /// to create an `ObsVideoInfo`.
     pub fn build(self) -> ObsVideoInfo {
@@ -741,10 +731,10 @@ pub struct ObsOutput {
 
 impl ObsOutput {
     pub fn new(
-        id: impl Into<ObsString>, 
-        name: impl Into<ObsString>, 
-        settings: Option<ObsData>, 
-        hotkey_data: Option<ObsData>
+        id: impl Into<ObsString>,
+        name: impl Into<ObsString>,
+        settings: Option<ObsData>,
+        hotkey_data: Option<ObsData>,
     ) -> Result<Self, ObsError> {
         // Likely unnecessary as this is private and only
         // constructible with ObsContext member functions.
@@ -761,25 +751,20 @@ impl ObsOutput {
 
         let settings_ptr = match settings.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
         let hotkey_data_ptr = match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
-        let output = unsafe { 
-            crate::obs_output_create(
-                id.as_ptr(),
-                name.as_ptr(),
-                settings_ptr,
-                hotkey_data_ptr,
-            ) 
+        let output = unsafe {
+            crate::obs_output_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr)
         };
 
         if output == ptr::null_mut() {
-            return Err(ObsError::NullPointer)
+            return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
@@ -799,34 +784,29 @@ impl ObsOutput {
     }
 
     pub fn video_encoder(
-        &mut self, 
+        &mut self,
         info: VideoEncoderInfo,
-        handler: *mut video_output
+        handler: *mut video_output,
     ) -> Result<&mut ObsVideoEncoder, ObsError> {
-        let video_enc = ObsVideoEncoder::new(
-            info.id,
-            info.name,
-            info.settings,
-            info.hotkey_data,
-        );
+        let video_enc = ObsVideoEncoder::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match video_enc {
-            Ok(x)   => {
+            Ok(x) => {
                 unsafe { crate::obs_encoder_set_video(x.encoder, handler) }
                 unsafe { crate::obs_output_set_video_encoder(self.output, x.encoder) }
                 self.video_encoders.push(x);
 
                 Ok(self.video_encoders.last_mut().unwrap())
-            },
-            Err(x)  => Err(x),
-        }
+            }
+            Err(x) => Err(x),
+        };
     }
 
     pub fn audio_encoder(
-        &mut self, 
-        info: AudioEncoderInfo, 
+        &mut self,
+        info: AudioEncoderInfo,
         mixer_idx: usize,
-        handler: *mut audio_output
+        handler: *mut audio_output,
     ) -> Result<&mut ObsAudioEncoder, ObsError> {
         let audio_enc = ObsAudioEncoder::new(
             info.id,
@@ -837,54 +817,42 @@ impl ObsOutput {
         );
 
         return match audio_enc {
-            Ok(x)   => {
+            Ok(x) => {
                 unsafe { crate::obs_encoder_set_audio(x.encoder, handler) }
                 unsafe { crate::obs_output_set_audio_encoder(self.output, x.encoder, mixer_idx) }
                 self.audio_encoders.push(x);
-                
+
                 Ok(self.audio_encoders.last_mut().unwrap())
-            },
-            Err(x)  => Err(x),
-        }
+            }
+            Err(x) => Err(x),
+        };
     }
 
-    pub fn source(
-        &mut self,
-        info: SourceInfo,
-        channel: u32,
-    ) -> Result<&mut ObsSource, ObsError> {
-        let source = ObsSource::new(
-            info.id,
-            info.name,
-            info.settings,
-            info.hotkey_data
-        );
+    pub fn source(&mut self, info: SourceInfo, channel: u32) -> Result<&mut ObsSource, ObsError> {
+        let source = ObsSource::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match source {
-            Ok(x)   => {
+            Ok(x) => {
                 unsafe { crate::obs_set_output_source(channel, x.source) }
                 self.sources.push(x);
                 Ok(self.sources.last_mut().unwrap())
             }
-            Err(x)  => {
-                Err(x)
-            }
-        }
+            Err(x) => Err(x),
+        };
     }
 
     pub fn start(&mut self) -> Result<(), ObsError> {
         if unsafe { !crate::obs_output_active(self.output) } {
             let res = unsafe { crate::obs_output_start(self.output) };
             if res {
-                return Ok(())
+                return Ok(());
             }
 
             let err = unsafe { crate::obs_output_get_last_error(self.output) };
             let c_str = unsafe { CStr::from_ptr(err) };
-            let err_str = c_str.to_str().ok()
-                .map(|x| x.to_string());
+            let err_str = c_str.to_str().ok().map(|x| x.to_string());
 
-            return Err(ObsError::OutputStartFailure(err_str))
+            return Err(ObsError::OutputStartFailure(err_str));
         }
 
         Err(ObsError::OutputAlreadyActive)
@@ -893,10 +861,39 @@ impl ObsOutput {
     pub fn stop(&mut self) -> bool {
         if unsafe { crate::obs_output_active(self.output) } {
             unsafe { crate::obs_output_stop(self.output) }
-            return unsafe { crate::obs_output_active(self.output) }
+            return unsafe { crate::obs_output_active(self.output) };
         }
 
         false
+    }
+
+    // Getters
+    pub fn name(&self) -> &ObsString {
+        &self.name
+    }
+
+    pub fn id(&self) -> &ObsString {
+        &self.id
+    }
+
+    pub fn settings(&self) -> &Option<ObsData> {
+        &self.settings
+    }
+
+    pub fn hotkey_data(&self) -> &Option<ObsData> {
+        &self.hotkey_data
+    }
+
+    pub fn video_encoders(&self) -> &Vec<ObsVideoEncoder> {
+        &self.video_encoders
+    }
+
+    pub fn audio_encoders(&self) -> &Vec<ObsAudioEncoder> {
+        &self.audio_encoders
+    }
+
+    pub fn sources(&self) -> &Vec<ObsSource> {
+        &self.sources
     }
 }
 
@@ -917,35 +914,35 @@ pub struct ObsVideoEncoder {
 
 impl ObsVideoEncoder {
     pub fn new(
-        id: impl Into<ObsString>, 
+        id: impl Into<ObsString>,
         name: impl Into<ObsString>,
         settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>
+        hotkey_data: Option<ObsData>,
     ) -> Result<Self, ObsError> {
         let id = id.into();
         let name = name.into();
 
         let settings_ptr = match settings.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
         let hotkey_data_ptr = match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
-        let encoder = unsafe { 
+        let encoder = unsafe {
             crate::obs_video_encoder_create(
                 id.as_ptr(),
                 name.as_ptr(),
                 settings_ptr,
                 hotkey_data_ptr,
-            ) 
+            )
         };
 
         if encoder == ptr::null_mut() {
-            return Err(ObsError::NullPointer)
+            return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
@@ -979,37 +976,37 @@ pub struct ObsAudioEncoder {
 
 impl ObsAudioEncoder {
     pub fn new(
-        id: impl Into<ObsString>, 
+        id: impl Into<ObsString>,
         name: impl Into<ObsString>,
         settings: Option<ObsData>,
         mixer_idx: usize,
-        hotkey_data: Option<ObsData>
+        hotkey_data: Option<ObsData>,
     ) -> Result<Self, ObsError> {
         let id = id.into();
         let name = name.into();
 
         let settings_ptr = match settings.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
         let hotkey_data_ptr = match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
-        let encoder = unsafe { 
+        let encoder = unsafe {
             crate::obs_audio_encoder_create(
                 id.as_ptr(),
                 name.as_ptr(),
                 settings_ptr,
                 mixer_idx,
                 hotkey_data_ptr,
-            ) 
+            )
         };
 
         if encoder == ptr::null_mut() {
-            return Err(ObsError::NullPointer)
+            return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
@@ -1045,32 +1042,32 @@ pub enum ObsVideoEncoderType {
 impl From<&str> for ObsVideoEncoderType {
     fn from(value: &str) -> ObsVideoEncoderType {
         return match value {
-            "jim_av1"           => ObsVideoEncoderType::JIM_AV1,
-            "jim_nvenc"         => ObsVideoEncoderType::JIM_NVENC,
-            "ffmpeg_nvenc"      => ObsVideoEncoderType::FFMPEG_NVENC,
-            "amd_amf_av1"       => ObsVideoEncoderType::AMD_AMF_AV1,
-            "amd_amf_h264"      => ObsVideoEncoderType::AMD_AMF_H264,
-            "obs_qsv11_av1"     => ObsVideoEncoderType::OBS_QSV11_AV1,
-            "obs_qsv11_h264"    => ObsVideoEncoderType::OBS_QSV11_H264,
-            "obs_x264"          => ObsVideoEncoderType::OBS_X264,
-            _                   => ObsVideoEncoderType::OBS_X264,
-        }
+            "jim_av1" => ObsVideoEncoderType::JIM_AV1,
+            "jim_nvenc" => ObsVideoEncoderType::JIM_NVENC,
+            "ffmpeg_nvenc" => ObsVideoEncoderType::FFMPEG_NVENC,
+            "amd_amf_av1" => ObsVideoEncoderType::AMD_AMF_AV1,
+            "amd_amf_h264" => ObsVideoEncoderType::AMD_AMF_H264,
+            "obs_qsv11_av1" => ObsVideoEncoderType::OBS_QSV11_AV1,
+            "obs_qsv11_h264" => ObsVideoEncoderType::OBS_QSV11_H264,
+            "obs_x264" => ObsVideoEncoderType::OBS_X264,
+            _ => ObsVideoEncoderType::OBS_X264,
+        };
     }
 }
 
 impl Into<ObsString> for ObsVideoEncoderType {
     fn into(self) -> ObsString {
         return match self {
-            ObsVideoEncoderType::JIM_AV1        => ObsString::new("jim_av1"),
-            ObsVideoEncoderType::JIM_NVENC      => ObsString::new("jim_nvenc"),
-            ObsVideoEncoderType::FFMPEG_NVENC   => ObsString::new("ffmpeg_nvenc"),
-            ObsVideoEncoderType::AMD_AMF_AV1    => ObsString::new("amd_amf_av1"),
-            ObsVideoEncoderType::AMD_AMF_H264   => ObsString::new("amd_amf_h264"),
-            ObsVideoEncoderType::OBS_QSV11_AV1  => ObsString::new("obs_qsv11_av1"),
+            ObsVideoEncoderType::JIM_AV1 => ObsString::new("jim_av1"),
+            ObsVideoEncoderType::JIM_NVENC => ObsString::new("jim_nvenc"),
+            ObsVideoEncoderType::FFMPEG_NVENC => ObsString::new("ffmpeg_nvenc"),
+            ObsVideoEncoderType::AMD_AMF_AV1 => ObsString::new("amd_amf_av1"),
+            ObsVideoEncoderType::AMD_AMF_H264 => ObsString::new("amd_amf_h264"),
+            ObsVideoEncoderType::OBS_QSV11_AV1 => ObsString::new("obs_qsv11_av1"),
             ObsVideoEncoderType::OBS_QSV11_H264 => ObsString::new("obs_qsv11_h264"),
-            ObsVideoEncoderType::OBS_X264       => ObsString::new("obs_x264"),
-            _                                   => ObsString::new("obs_x264"),
-        }
+            ObsVideoEncoderType::OBS_X264 => ObsString::new("obs_x264"),
+            _ => ObsString::new("obs_x264"),
+        };
     }
 }
 
@@ -1085,35 +1082,30 @@ pub struct ObsSource {
 
 impl ObsSource {
     pub fn new(
-        id: impl Into<ObsString>, 
+        id: impl Into<ObsString>,
         name: impl Into<ObsString>,
         settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>
+        hotkey_data: Option<ObsData>,
     ) -> Result<Self, ObsError> {
         let id = id.into();
         let name = name.into();
 
         let settings_ptr = match settings.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
         let hotkey_data_ptr = match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
-            None    => ptr::null_mut(),
+            None => ptr::null_mut(),
         };
 
-        let source = unsafe { 
-            crate::obs_source_create(
-                id.as_ptr(),
-                name.as_ptr(),
-                settings_ptr,
-                hotkey_data_ptr,
-            ) 
+        let source = unsafe {
+            crate::obs_source_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr)
         };
 
         if source == ptr::null_mut() {
-            return Err(ObsError::NullPointer)
+            return Err(ObsError::NullPointer);
         }
 
         Ok(Self {

@@ -11,11 +11,15 @@ mod obstypes;
 pub mod sources;
 
 use std::ffi::{c_char, CStr};
-use std::{sync::Mutex, thread};
-use std::thread::ThreadId;
 use std::ptr;
+use std::thread::ThreadId;
+use std::{sync::Mutex, thread};
 
-pub use obstypes::{ObsVideoRange, ObsVideoFormat, ObsScaleType, ObsColorspace, ObsGraphicsModule, ObsAudioInfo, ObsData, ObsError, ObsVideoEncoderType, ObsPath, ObsResetVideoStatus, ObsString, ObsVideoInfo, ObsVideoInfoBuilder};
+pub use obstypes::{
+    ObsAudioInfo, ObsColorspace, ObsData, ObsError, ObsGraphicsModule, ObsPath,
+    ObsResetVideoStatus, ObsScaleType, ObsString, ObsVideoEncoderType, ObsVideoFormat,
+    ObsVideoInfo, ObsVideoInfoBuilder, ObsVideoRange,
+};
 pub use obstypes::{ObsOutput, ObsSource};
 
 use crate::{audio_output, video_output};
@@ -26,7 +30,7 @@ static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 /// can exist across all threads and any attempt to
 /// create a new context while there is an existing
 /// one will error.
-/// 
+///
 /// Note that the order of the struct values is
 /// important! OBS is super specific about how it
 /// does everything. Things are freed early to
@@ -57,7 +61,7 @@ impl ObsContext {
     /// Note that there can be only one ObsContext
     /// initialized at a time. This is because
     /// libobs is not completely thread-safe.
-    /// 
+    ///
     /// Also note that this might leak a very tiny
     /// amount of memory. As a result, it is
     /// probably a good idea not to restart the
@@ -84,12 +88,12 @@ impl ObsContext {
             // Directly checks if the value of the
             // Mutex is false. If true, then error.
             if *mutex_value != None {
-                return Err(ObsError::ThreadFailure)
+                return Err(ObsError::ThreadFailure);
             }
 
             // If the Mutex is None, then change
-            // it to current thread ID so that no 
-            // other thread can use libobs while 
+            // it to current thread ID so that no
+            // other thread can use libobs while
             // the current thread is using it.
             *mutex_value = Some(thread::current().id());
         } else {
@@ -101,38 +105,33 @@ impl ObsContext {
 
     /// Initializes the libobs context and prepares
     /// it for recording.
-    /// 
+    ///
     /// More specifically, it calls `obs_startup`,
     /// `obs_reset_video`, `obs_reset_audio`, and
     /// registers the video and audio encoders.
-    /// 
-    /// At least on Windows x64, it seems that 
+    ///
+    /// At least on Windows x64, it seems that
     /// resetting video and audio is necessary to
     /// prevent a memory leak when restarting the
     /// OBS context. This memory leak is not severe
     /// (~10 KB per restart), but the point is
     /// safety. Thank you @tt2468 for the help!
     fn init(mut info: StartupInfo) -> Result<ObsContext, ObsError> {
-        // Locale will only be used internally by 
+        // Locale will only be used internally by
         // libobs for logging purposes, making it
         // unnecessary to support other languages.
         let locale_str = ObsString::new("en-US");
-        let startup_status = unsafe { crate::obs_startup(
-            locale_str.as_ptr(), 
-            ptr::null(), 
-            ptr::null_mut()
-        ) };
+        let startup_status =
+            unsafe { crate::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
 
         if !startup_status {
-            return Err(ObsError::Failure)
+            return Err(ObsError::Failure);
         }
-        
-        unsafe { 
-            crate::obs_add_data_path(
-                info.startup_paths.libobs_data_path().as_ptr()
-            );
+
+        unsafe {
+            crate::obs_add_data_path(info.startup_paths.libobs_data_path().as_ptr());
         }
-        
+
         // Resets the video context. Note that this
         // is similar to Self::reset_video, but it
         // does not call that function because the
@@ -142,7 +141,7 @@ impl ObsContext {
         let reset_video_status = Self::reset_video_internal(&mut info.obs_video_info);
 
         if reset_video_status != ObsResetVideoStatus::Success {
-            return Err(ObsError::ResetVideoFailure(reset_video_status))
+            return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
         // Note that audio is meant to only be reset
@@ -152,11 +151,11 @@ impl ObsContext {
         unsafe {
             crate::obs_reset_audio(info.obs_audio_info.as_ptr());
         }
-        
+
         unsafe {
             crate::obs_add_module_path(
-                info.startup_paths.plugin_bin_path().as_ptr(), 
-                info.startup_paths.plugin_data_path().as_ptr()
+                info.startup_paths.plugin_bin_path().as_ptr(),
+                info.startup_paths.plugin_data_path().as_ptr(),
             );
 
             crate::obs_load_all_modules();
@@ -175,98 +174,98 @@ impl ObsContext {
     /// Resets the OBS video context. This is often called
     /// when one wants to change a setting related to the
     /// OBS video info sent on startup.
-    /// 
+    ///
     /// It is important to register your video encoders to
     /// a video handle after you reset the video context
     /// if you are using a video handle other than the
     /// main video handle. For convenience, this function
     /// sets all video encoder back to the main video handler
     /// by default.
-    /// 
+    ///
     /// Note that you cannot reset the graphics module
-    /// without destroying the entire OBS context. Trying 
+    /// without destroying the entire OBS context. Trying
     /// so will result in an error.
     pub fn reset_video(&mut self, mut ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
         if self.startup_info.obs_video_info.graphics_module() != ovi.graphics_module() {
-            return Err(ObsError::ResetVideoFailureGraphicsModule)
+            return Err(ObsError::ResetVideoFailureGraphicsModule);
         }
 
         let reset_video_status = Self::reset_video_internal(&mut ovi);
-        
+
         if reset_video_status != ObsResetVideoStatus::Success {
-            return Err(ObsError::ResetVideoFailure(reset_video_status))
+            return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
             for output in self.outputs.iter_mut() {
                 for video_encoder in output.get_video_encoders().iter_mut() {
-                    unsafe { crate::obs_encoder_set_video(video_encoder.as_ptr(), ObsContext::get_video_ptr().unwrap()) }
+                    unsafe {
+                        crate::obs_encoder_set_video(
+                            video_encoder.as_ptr(),
+                            ObsContext::get_video_ptr().unwrap(),
+                        )
+                    }
                 }
             }
 
             self.startup_info.obs_video_info = ovi;
-            return Ok(())
+            return Ok(());
         }
     }
 
     fn reset_video_internal(ovi: &mut ObsVideoInfo) -> ObsResetVideoStatus {
-        let status = num_traits::FromPrimitive::from_i32(
-            unsafe { crate::obs_reset_video(ovi.as_ptr()) }
-        );
-        
+        let status =
+            num_traits::FromPrimitive::from_i32(unsafe { crate::obs_reset_video(ovi.as_ptr()) });
+
         return match status {
             Some(x) => x,
-            None    => ObsResetVideoStatus::Failure,
-        }
+            None => ObsResetVideoStatus::Failure,
+        };
     }
 
     pub fn output(&mut self, info: OutputInfo) -> Result<&mut ObsOutput, ObsError> {
-        let output = ObsOutput::new(
-            info.id,
-            info.name, 
-            info.settings, 
-            info.hotkey_data,
-        );
+        let output = ObsOutput::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match output {
-            Ok(x)   => {
+            Ok(x) => {
                 self.outputs.push(x);
                 Ok(self.outputs.last_mut().unwrap())
-            },
+            }
 
-            Err(x)  => Err(x),
-        }
+            Err(x) => Err(x),
+        };
+    }
+
+    pub fn get_output(&mut self, name: &str) -> Option<&mut ObsOutput> {
+        self.outputs.iter_mut().find(|x| x.name().to_string().as_str() == name)
     }
 
     pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
         if let Ok(mutex_value) = OBS_THREAD_ID.lock() {
             if *mutex_value != Some(thread::current().id()) {
-                return Err(ObsError::ThreadFailure)
-            } 
+                return Err(ObsError::ThreadFailure);
+            }
         } else {
-            return Err(ObsError::MutexFailure)
+            return Err(ObsError::MutexFailure);
         }
 
         Ok(unsafe { crate::obs_get_video() })
     }
-    
+
     pub fn get_audio_ptr() -> Result<*mut audio_output, ObsError> {
         if let Ok(mutex_value) = OBS_THREAD_ID.lock() {
             if *mutex_value != Some(thread::current().id()) {
-                return Err(ObsError::ThreadFailure)
-            } 
+                return Err(ObsError::ThreadFailure);
+            }
         } else {
-            return Err(ObsError::MutexFailure)
+            return Err(ObsError::MutexFailure);
         }
 
         Ok(unsafe { crate::obs_get_audio() })
     }
 
     pub fn get_best_encoder() -> ObsVideoEncoderType {
-        Self::get_available_encoders()
-            .first()
-            .unwrap()
-            .clone()
+        Self::get_available_encoders().first().unwrap().clone()
     }
 
     pub fn get_available_encoders() -> Vec<ObsVideoEncoderType> {
@@ -301,10 +300,10 @@ pub struct ObjectInfo {
 
 impl ObjectInfo {
     pub fn new(
-        id: impl Into<ObsString>, 
-        name: impl Into<ObsString>, 
-        settings: Option<ObsData>, 
-        hotkey_data: Option<ObsData>
+        id: impl Into<ObsString>,
+        name: impl Into<ObsString>,
+        settings: Option<ObsData>,
+        hotkey_data: Option<ObsData>,
     ) -> Self {
         let id = id.into();
         let name = name.into();
@@ -355,7 +354,7 @@ impl Default for StartupInfo {
 
 /// Contains the necessary paths for starting the
 /// libobs context built from `ObsPath`.
-/// 
+///
 /// Note that these strings are copied when parsed,
 /// meaning that these can be freed immediately
 /// after all three strings have been used.
@@ -367,7 +366,11 @@ pub struct StartupPaths {
 }
 
 impl StartupPaths {
-    pub fn new(libobs_data_path: ObsPath, plugin_bin_path: ObsPath, plugin_data_path: ObsPath) -> StartupPaths {
+    pub fn new(
+        libobs_data_path: ObsPath,
+        plugin_bin_path: ObsPath,
+        plugin_data_path: ObsPath,
+    ) -> StartupPaths {
         Self {
             libobs_data_path: libobs_data_path.build(),
             plugin_bin_path: plugin_bin_path.build(),
@@ -446,7 +449,7 @@ struct _ObsContextShutdownZST {}
 impl Drop for _ObsContextShutdownZST {
     fn drop(&mut self) {
         unsafe { crate::obs_shutdown() }
-        
+
         if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {
             *mutex_value = None;
         } else if !thread::panicking() {
