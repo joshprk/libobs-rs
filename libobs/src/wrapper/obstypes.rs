@@ -40,6 +40,7 @@ pub enum ObsError {
     NullPointer,
     OutputAlreadyActive,
     OutputStartFailure(Option<String>),
+    OutputStopFailure(Option<String>),
 }
 
 impl Display for ObsError {
@@ -55,6 +56,7 @@ impl Display for ObsError {
             ObsError::NullPointer => write!(f, "The function returned a null pointer, often indicating an error with creating the object of the requested pointer."),
             ObsError::OutputAlreadyActive => write!(f, "Output is already active."),
             ObsError::OutputStartFailure(s) => write!(f, "Output failed to start. Error is {:?}", s),
+            ObsError::OutputStopFailure(s) => write!(f, "Output failed to stop. Error is {:?}", s),
         }
     }
 }
@@ -858,13 +860,23 @@ impl ObsOutput {
         Err(ObsError::OutputAlreadyActive)
     }
 
-    pub fn stop(&mut self) -> bool {
+    pub fn stop(&mut self) -> Result<(), ObsError> {
         if unsafe { crate::obs_output_active(self.output) } {
             unsafe { crate::obs_output_stop(self.output) }
-            return unsafe { crate::obs_output_active(self.output) };
+
+            let still_active = unsafe { crate::obs_output_active(self.output) };
+            if !still_active {
+                return Ok(());
+            }
+
+            let err = unsafe { crate::obs_output_get_last_error(self.output) };
+            let c_str = unsafe { CStr::from_ptr(err) };
+            let err_str = c_str.to_str().ok().map(|x| x.to_string());
+
+            return Err(ObsError::OutputStopFailure(err_str));
         }
 
-        false
+        return Err(ObsError::OutputStopFailure(Some("Output is not active.".to_string())));
     }
 
     // Getters
