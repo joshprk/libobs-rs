@@ -1,9 +1,6 @@
 mod initialize;
 
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use essi_ffmpeg::FFmpeg;
 pub use initialize::*;

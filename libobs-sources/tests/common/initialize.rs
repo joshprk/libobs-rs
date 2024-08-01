@@ -1,5 +1,5 @@
 use libobs::wrapper::{
-    AudioEncoderInfo, ObsContext, ObsData, ObsPath, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo
+    AudioEncoderInfo, ObsContext, ObsData, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo
 };
 
 /// The string returned is the name of the obs output
