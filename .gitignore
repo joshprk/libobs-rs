@@ -1,3 +1,5 @@
 target
 src/bindings.rs
 obs-build
+rtmp-services
+win-capture

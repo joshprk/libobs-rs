@@ -1,18 +1,19 @@
 use libobs::wrapper::{
-    AudioEncoderInfo, ObsContext, ObsData, ObsOutput, ObsPath, OutputInfo, StartupInfo,
-    VideoEncoderInfo,
+    AudioEncoderInfo, ObsContext, ObsData, ObsPath, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo
 };
 
-pub fn initialize_obs<'a>() -> anyhow::Result<(ObsContext, &'a mut ObsOutput)> {
+/// The string returned is the name of the obs output
+pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
     // Start the OBS context
     let startup_info = StartupInfo::default();
     let mut context = ObsContext::new(startup_info).unwrap();
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
-    output_settings.set_string("path", ObsPath::from_relative("test_record.mp4").build());
+    output_settings.set_string("path", rec_file);
 
-    let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
+    let output_name = "output";
+    let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
 
     let output = context.output(output_info).unwrap();
 
@@ -35,7 +36,7 @@ pub fn initialize_obs<'a>() -> anyhow::Result<(ObsContext, &'a mut ObsOutput)> {
     );
 
     let video_handler = ObsContext::get_video_ptr().unwrap();
-    output.video_encoder(video_info, video_handler)?;
+    output.video_encoder(video_info, video_handler).unwrap();
 
     // Register the audio encoder
     let mut audio_settings = ObsData::new();
@@ -45,7 +46,7 @@ pub fn initialize_obs<'a>() -> anyhow::Result<(ObsContext, &'a mut ObsOutput)> {
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
-    output.audio_encoder(audio_info, 0, audio_handler)?;
+    output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
-    todo!("Properly return the output type here instead of just the &mut type");
+    (context, output_name.to_string())
 }

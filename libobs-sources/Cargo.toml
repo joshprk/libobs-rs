@@ -19,7 +19,9 @@ display-info = "0.5.1"
 libobs-window-helper = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
+essi-ffmpeg = "0.2.0"
 lazy_static = "1.5.0"
+tokio = "1.39.2"
 
 [package.metadata]
 libobs-version="30.2.2"

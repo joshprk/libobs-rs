@@ -1,7 +1,7 @@
 use git::{clone_repo, fetch_latest};
 use metadata::{get_main_meta, read_val_from_meta};
 use std::{env::args, fs, path::PathBuf};
-use util::{build_cmake, configure_cmake, copy_deps, copy_to_dir, delete_all_except};
+use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
 
 use clap::Parser;
 use colored::Colorize;

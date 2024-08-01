@@ -41,7 +41,7 @@ pub fn main() {
     );
 
     let video_handler = ObsContext::get_video_ptr().unwrap();
-    output.video_encoder(video_info, video_handler);
+    output.video_encoder(video_info, video_handler).unwrap();
     
     // Register the audio encoder
     let mut audio_settings = ObsData::new();
@@ -55,7 +55,7 @@ pub fn main() {
     );
 
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
-    output.audio_encoder(audio_info, 0, audio_handler);
+    output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
     // Create the video source using game capture
     let mut video_source_data = ObsData::new();
@@ -72,13 +72,13 @@ pub fn main() {
     );
 
     // Register the source and record
-    output.source(video_source_info, 0);
-    output.start();
+    output.source(video_source_info, 0).unwrap();
+    output.start().unwrap();
 
     println!("recording for 10 seconds...");
     thread::sleep(Duration::new(10, 0));
 
     // Open any fullscreen application and
     // Success!
-    output.stop();
+    output.stop().unwrap();
 }
