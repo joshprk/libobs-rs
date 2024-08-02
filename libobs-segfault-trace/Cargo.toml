@@ -1,0 +1,15 @@
+[package]
+name = "libobs-segfault-trace"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+crash-handler = "0.6.2"
+libobs = { path = "../libobs" }
+minidumper = "0.8.3"
+
+
+[package.metadata]
+libobs-version = "30.2.2"
+libobs-cache-dir = "../obs-build"

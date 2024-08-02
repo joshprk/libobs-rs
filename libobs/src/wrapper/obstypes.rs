@@ -731,6 +731,10 @@ pub struct ObsOutput {
     sources: Vec<ObsSource>,
 }
 
+extern "C" {
+
+}
+
 impl ObsOutput {
     pub fn new(
         id: impl Into<ObsString>,
@@ -768,6 +772,10 @@ impl ObsOutput {
         if output == ptr::null_mut() {
             return Err(ObsError::NullPointer);
         }
+
+        //TODO connect signal handler
+        let handler = unsafe { crate::obs_output_get_signal_handler(output) };
+        let handler = unsafe { crate::obs_signal_handler_connect(handler, Some(signal_handler), ptr::null_mut()) };
 
         Ok(Self {
             output,
@@ -870,8 +878,12 @@ impl ObsOutput {
             }
 
             let err = unsafe { crate::obs_output_get_last_error(self.output) };
+            let err_str = if err != ptr::null_mut() {
             let c_str = unsafe { CStr::from_ptr(err) };
-            let err_str = c_str.to_str().ok().map(|x| x.to_string());
+            c_str.to_str().ok().map(|x| x.to_string())
+            } else {
+                Some("Unknown error.".to_string())
+            };
 
             return Err(ObsError::OutputStopFailure(err_str));
         }
