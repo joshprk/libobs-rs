@@ -1,28 +1,9 @@
-#![warn(non_upper_case_globals)]
-#![warn(non_camel_case_types)]
-#![warn(non_snake_case)]
-#![warn(clippy::approx_constant)]
-#![warn(clippy::unreadable_literal)]
-#![warn(rustdoc::bare_urls)]
-#![warn(dead_code)]
+use std::{ffi::{c_char, CStr}, ptr, sync::Mutex, thread::{self, ThreadId}};
 
-#[allow(dead_code)]
-mod obstypes;
-pub mod sources;
+use libobs::{audio_output, video_output};
 
-use std::ffi::{c_char, CStr};
-use std::ptr;
-use std::thread::ThreadId;
-use std::{sync::Mutex, thread};
+use crate::{data::{output::ObsOutput, video::ObsVideoInfo}, enums::{ObsResetVideoStatus, ObsVideoEncoderType}, utils::{ObsError, ObsString, OutputInfo, StartupInfo}};
 
-pub use obstypes::{
-    ObsAudioInfo, ObsColorspace, ObsData, ObsError, ObsGraphicsModule, ObsPath,
-    ObsResetVideoStatus, ObsScaleType, ObsString, ObsVideoEncoderType, ObsVideoFormat,
-    ObsVideoInfo, ObsVideoInfoBuilder, ObsVideoRange,
-};
-pub use obstypes::{ObsOutput, ObsSource};
-
-use crate::{audio_output, video_output};
 
 static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 
@@ -122,14 +103,14 @@ impl ObsContext {
         // unnecessary to support other languages.
         let locale_str = ObsString::new("en-US");
         let startup_status =
-            unsafe { crate::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
+            unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
 
         if !startup_status {
             return Err(ObsError::Failure);
         }
 
         unsafe {
-            crate::obs_add_data_path(info.startup_paths.libobs_data_path().as_ptr());
+            libobs::obs_add_data_path(info.startup_paths.libobs_data_path().as_ptr());
         }
 
         // Resets the video context. Note that this
@@ -149,18 +130,18 @@ impl ObsContext {
         //
         // https://docs.obsproject.com/frontends
         unsafe {
-            crate::obs_reset_audio(info.obs_audio_info.as_ptr());
+            libobs::obs_reset_audio(info.obs_audio_info.as_ptr());
         }
 
         unsafe {
-            crate::obs_add_module_path(
+            libobs::obs_add_module_path(
                 info.startup_paths.plugin_bin_path().as_ptr(),
                 info.startup_paths.plugin_data_path().as_ptr(),
             );
 
-            crate::obs_load_all_modules();
-            crate::obs_post_load_modules();
-            crate::obs_log_loaded_modules();
+            libobs::obs_load_all_modules();
+            libobs::obs_post_load_modules();
+            libobs::obs_log_loaded_modules();
         }
 
         Ok(Self {
@@ -200,7 +181,7 @@ impl ObsContext {
             for output in self.outputs.iter_mut() {
                 for video_encoder in output.get_video_encoders().iter_mut() {
                     unsafe {
-                        crate::obs_encoder_set_video(
+                        libobs::obs_encoder_set_video(
                             video_encoder.as_ptr(),
                             ObsContext::get_video_ptr().unwrap(),
                         )
@@ -215,7 +196,7 @@ impl ObsContext {
 
     fn reset_video_internal(ovi: &mut ObsVideoInfo) -> ObsResetVideoStatus {
         let status =
-            num_traits::FromPrimitive::from_i32(unsafe { crate::obs_reset_video(ovi.as_ptr()) });
+            num_traits::FromPrimitive::from_i32(unsafe { libobs::obs_reset_video(ovi.as_ptr()) });
 
         return match status {
             Some(x) => x,
@@ -249,7 +230,7 @@ impl ObsContext {
             return Err(ObsError::MutexFailure);
         }
 
-        Ok(unsafe { crate::obs_get_video() })
+        Ok(unsafe { libobs::obs_get_video() })
     }
 
     pub fn get_audio_ptr() -> Result<*mut audio_output, ObsError> {
@@ -261,7 +242,7 @@ impl ObsContext {
             return Err(ObsError::MutexFailure);
         }
 
-        Ok(unsafe { crate::obs_get_audio() })
+        Ok(unsafe { libobs::obs_get_audio() })
     }
 
     pub fn get_best_encoder() -> ObsVideoEncoderType {
@@ -273,7 +254,7 @@ impl ObsContext {
         let mut n = 0;
         let mut encoders = Vec::new();
         let mut ptr: *const c_char = unsafe { std::mem::zeroed() };
-        while unsafe { crate::obs_enum_encoder_types(n, &mut ptr) } {
+        while unsafe { libobs::obs_enum_encoder_types(n, &mut ptr) } {
             n += 1;
             let cstring = unsafe { CStr::from_ptr(ptr) };
             if let Ok(enc) = cstring.to_str() {
@@ -285,170 +266,14 @@ impl ObsContext {
     }
 }
 
-pub type VideoEncoderInfo = OutputInfo;
-pub type AudioEncoderInfo = ObjectInfo;
-pub type SourceInfo = ObjectInfo;
-pub type OutputInfo = ObjectInfo;
 
-#[derive(Debug)]
-pub struct ObjectInfo {
-    id: ObsString,
-    name: ObsString,
-    settings: Option<ObsData>,
-    hotkey_data: Option<ObsData>,
-}
-
-impl ObjectInfo {
-    pub fn new(
-        id: impl Into<ObsString>,
-        name: impl Into<ObsString>,
-        settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>,
-    ) -> Self {
-        let id = id.into();
-        let name = name.into();
-
-        Self {
-            id,
-            name,
-            settings,
-            hotkey_data,
-        }
-    }
-}
-
-/// Contains information to start a libobs context.
-/// This is passed to the creation of `ObsContext`.
-#[derive(Clone, Debug)]
-pub struct StartupInfo {
-    startup_paths: StartupPaths,
-    obs_video_info: ObsVideoInfo,
-    obs_audio_info: ObsAudioInfo,
-}
-
-impl StartupInfo {
-    pub fn new() -> StartupInfo {
-        Self::default()
-    }
-
-    pub fn set_startup_paths(mut self, paths: StartupPaths) -> Self {
-        self.startup_paths = paths;
-        self
-    }
-
-    pub fn set_video_info(mut self, ovi: ObsVideoInfo) -> Self {
-        self.obs_video_info = ovi;
-        self
-    }
-}
-
-impl Default for StartupInfo {
-    fn default() -> StartupInfo {
-        Self {
-            startup_paths: StartupPaths::default(),
-            obs_video_info: ObsVideoInfo::default(),
-            obs_audio_info: ObsAudioInfo::default(),
-        }
-    }
-}
-
-/// Contains the necessary paths for starting the
-/// libobs context built from `ObsPath`.
-///
-/// Note that these strings are copied when parsed,
-/// meaning that these can be freed immediately
-/// after all three strings have been used.
-#[derive(Clone, Debug)]
-pub struct StartupPaths {
-    libobs_data_path: ObsString,
-    plugin_bin_path: ObsString,
-    plugin_data_path: ObsString,
-}
-
-impl StartupPaths {
-    pub fn new(
-        libobs_data_path: ObsPath,
-        plugin_bin_path: ObsPath,
-        plugin_data_path: ObsPath,
-    ) -> StartupPaths {
-        Self {
-            libobs_data_path: libobs_data_path.build(),
-            plugin_bin_path: plugin_bin_path.build(),
-            plugin_data_path: plugin_data_path.build(),
-        }
-    }
-
-    pub fn libobs_data_path(&self) -> &ObsString {
-        &(self.libobs_data_path)
-    }
-
-    pub fn plugin_bin_path(&self) -> &ObsString {
-        &(self.plugin_bin_path)
-    }
-
-    pub fn plugin_data_path(&self) -> &ObsString {
-        &(self.plugin_data_path)
-    }
-}
-
-impl Default for StartupPaths {
-    fn default() -> Self {
-        StartupPathsBuilder::new().build()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct StartupPathsBuilder {
-    libobs_data_path: ObsPath,
-    plugin_bin_path: ObsPath,
-    plugin_data_path: ObsPath,
-}
-
-impl StartupPathsBuilder {
-    fn new() -> Self {
-        Self {
-            libobs_data_path: ObsPath::from_relative("data/libobs"),
-            plugin_bin_path: ObsPath::from_relative("obs-plugins/64bit"),
-            plugin_data_path: ObsPath::from_relative("data/obs-plugins/%module%"),
-        }
-    }
-
-    pub fn build(self) -> StartupPaths {
-        StartupPaths {
-            libobs_data_path: self.libobs_data_path.build(),
-            plugin_bin_path: self.plugin_bin_path.build(),
-            plugin_data_path: self.plugin_data_path.build(),
-        }
-    }
-
-    pub fn libobs_data_path(mut self, value: ObsPath) -> Self {
-        self.libobs_data_path = value;
-        self
-    }
-
-    pub fn plugin_bin_path(mut self, value: ObsPath) -> Self {
-        self.plugin_bin_path = value;
-        self
-    }
-
-    pub fn plugin_data_path(mut self, value: ObsPath) -> Self {
-        self.plugin_data_path = value;
-        self
-    }
-}
-
-impl Default for StartupPathsBuilder {
-    fn default() -> StartupPathsBuilder {
-        Self::new()
-    }
-}
 
 #[derive(Debug)]
 struct _ObsContextShutdownZST {}
 
 impl Drop for _ObsContextShutdownZST {
     fn drop(&mut self) {
-        unsafe { crate::obs_shutdown() }
+        unsafe { libobs::obs_shutdown() }
 
         if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {
             *mutex_value = None;

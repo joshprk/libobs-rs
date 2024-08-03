@@ -1,7 +1,8 @@
 //! Use the `libobs-source` crate to create sources like `window_capture` for obs
 
+use crate::{data::{output::ObsOutput, ObsData}, utils::{ObsError, ObsString, SourceInfo}};
 
-use super::{ObsData, ObsError, ObsOutput, ObsSource, ObsString, SourceInfo};
+use super::ObsSource;
 
 pub trait StringEnum {
     fn to_str(&self) -> &str;

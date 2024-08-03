@@ -613,9 +613,6 @@ name = "libobs"
 version = "0.1.3"
 dependencies = [
  "bindgen",
- "display-info",
- "num-derive",
- "num-traits",
 ]
 
 [[package]]

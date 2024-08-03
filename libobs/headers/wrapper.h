@@ -1,8 +1,10 @@
 #include "obs/obs.h"
 
+#include "obs/callback/signal.h"
+#include "obs/callback/calldata.h"
+
 #ifdef _WIN32
 #include "obs/util/windows/window-helpers.h"
-#include "obs/callback/signal.h"
 #include "window_capture.h"
 #include "game_capture.h"
 #endif
