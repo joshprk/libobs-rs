@@ -21,7 +21,7 @@ use syn::{
 /// Documentation is inherited from the field to the setter function.<br>
 /// Example: <br>
 /// ```
-/// use libobs::wrapper::sources::StringEnum;
+/// use libobs_wrapper::sources::StringEnum;
 /// use libobs_source_macro::obs_source_builder;
 /// use num_derive::{FromPrimitive, ToPrimitive};
 ///
@@ -165,7 +165,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: #field_type) -> Self {
                         use num_traits::ToPrimitive;
-                        use libobs::wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::sources::ObsSourceBuilder;
                         let val = #field_name.to_i32().unwrap();
 
                         self.get_or_create_settings()
@@ -179,7 +179,8 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: #field_type) -> Self {
-                        use libobs::wrapper::sources::StringEnum;
+                        use libobs_wrapper::sources::StringEnum;
+                        use libobs_wrapper::sources::ObsSourceBuilder;
 
                         self.get_or_create_settings()
                             .set_string(#obs_settings_key, #field_name.to_str());
@@ -191,8 +192,8 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             "string" => {
                 quote! {
                     #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: impl Into<libobs::wrapper::ObsString>) -> Self {
-                        use libobs::wrapper::sources::ObsSourceBuilder;
+                    pub fn #set_field(mut self, #field_name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
+                        use libobs_wrapper::sources::ObsSourceBuilder;
                         self.get_or_create_settings()
                             .set_string(#obs_settings_key, #field_name);
                         self
@@ -203,7 +204,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: bool) -> Self {
-                        use libobs::wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::sources::ObsSourceBuilder;
                         self.get_or_create_settings()
                             .set_bool(#obs_settings_key, #field_name);
                         self
@@ -214,7 +215,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: i64) -> Self {
-                        use libobs::wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::sources::ObsSourceBuilder;
                         self.get_or_create_settings()
                             .set_int(#obs_settings_key, #field_name);
                         self
@@ -235,13 +236,13 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[allow(dead_code)]
         #visibility struct #name #generics {
             #(#fields_tokens,)*
-            settings: Option<libobs::wrapper::ObsData>,
-            hotkeys: Option<libobs::wrapper::ObsData>,
-            name: libobs::wrapper::ObsString
+            settings: Option<libobs_wrapper::data::ObsData>,
+            hotkeys: Option<libobs_wrapper::data::ObsData>,
+            name: libobs_wrapper::utils::ObsString
         }
 
-        impl libobs::wrapper::sources::ObsSourceBuilder for #name {
-            fn new(name: impl Into<libobs::wrapper::ObsString>) -> Self {
+        impl libobs_wrapper::sources::ObsSourceBuilder for #name {
+            fn new(name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
                 Self {
                     #(#field_initializers,)*
                     settings: None,
@@ -250,27 +251,27 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
 
-            fn get_settings(&self) -> &Option<libobs::wrapper::ObsData> {
+            fn get_settings(&self) -> &Option<libobs_wrapper::data::ObsData> {
                 &self.settings
             }
 
-            fn get_settings_mut(&mut self) -> &mut Option<libobs::wrapper::ObsData> {
+            fn get_settings_mut(&mut self) -> &mut Option<libobs_wrapper::data::ObsData> {
                 &mut self.settings
             }
 
-            fn get_hotkeys(&self) -> &Option<libobs::wrapper::ObsData> {
+            fn get_hotkeys(&self) -> &Option<libobs_wrapper::data::ObsData> {
                 &self.hotkeys
             }
 
-            fn get_hotkeys_mut(&mut self) -> &mut Option<libobs::wrapper::ObsData> {
+            fn get_hotkeys_mut(&mut self) -> &mut Option<libobs_wrapper::data::ObsData> {
                 &mut self.hotkeys
             }
 
-            fn get_name(&self) -> libobs::wrapper::ObsString {
+            fn get_name(&self) -> libobs_wrapper::utils::ObsString {
                 self.name.clone()
             }
 
-            fn get_id() -> libobs::wrapper::ObsString {
+            fn get_id() -> libobs_wrapper::utils::ObsString {
                 #id_value.into()
             }
         }

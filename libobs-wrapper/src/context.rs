@@ -1,10 +1,17 @@
-use std::{ffi::{c_char, CStr}, ptr, sync::Mutex, thread::{self, ThreadId}};
+use std::{
+    ffi::{c_char, CStr},
+    ptr,
+    sync::Mutex,
+    thread::{self, ThreadId},
+};
 
+use crate::{
+    data::{output::ObsOutput, video::ObsVideoInfo},
+    enums::{ObsResetVideoStatus, ObsVideoEncoderType},
+    utils::{ObsError, ObsString, OutputInfo, StartupInfo},
+};
+use anyhow::Result;
 use libobs::{audio_output, video_output};
-
-use crate::{data::{output::ObsOutput, video::ObsVideoInfo}, enums::{ObsResetVideoStatus, ObsVideoEncoderType}, utils::{ObsError, ObsString, OutputInfo, StartupInfo}};
-
-
 static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 
 /// Interface to the OBS context. Only one context
@@ -29,7 +36,8 @@ pub struct ObsContext {
     /// Outputs must be stored in order to prevent
     /// early freeing.
     #[allow(dead_code)]
-    outputs: Vec<ObsOutput>,
+    pub(crate) outputs: Vec<ObsOutput>,
+
     /// This allows us to call obs_shutdown() after
     /// everything else has been freed. Doing other-
     /// wise completely crashes the program.
@@ -218,7 +226,9 @@ impl ObsContext {
     }
 
     pub fn get_output(&mut self, name: &str) -> Option<&mut ObsOutput> {
-        self.outputs.iter_mut().find(|x| x.name().to_string().as_str() == name)
+        self.outputs
+            .iter_mut()
+            .find(|x| x.name().to_string().as_str() == name)
     }
 
     pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
@@ -265,8 +275,6 @@ impl ObsContext {
         encoders
     }
 }
-
-
 
 #[derive(Debug)]
 struct _ObsContextShutdownZST {}

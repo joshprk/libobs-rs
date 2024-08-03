@@ -1,8 +1,8 @@
 use std::{path::PathBuf, time::Duration};
 
-use libobs::wrapper::{sources::ObsSourceBuilder, ObsPath};
 use libobs_sources::windows::WindowCaptureSourceBuilder;
 use libobs_window_helper::WindowSearchMode;
+use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs, test_video};
 

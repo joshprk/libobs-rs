@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 libobs = { path = "../libobs", version = "0.1.3" }
+libobs-wrapper = { path = "../libobs-wrapper", version = "0.1.0" }
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 libobs-source-macro = { path = "../libobs-source-macro", version = "0.1.0" }

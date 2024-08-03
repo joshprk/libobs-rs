@@ -1,13 +1,23 @@
 use std::ffi::CString;
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::{borrow::Borrow, ffi::CStr, ptr};
 
-use libobs::{audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active, obs_output_create, obs_output_get_last_error, obs_output_get_signal_handler, obs_output_release, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_set_output_source, signal_handler_connect, video_output};
+use libobs::{
+    audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video,
+    obs_output, obs_output_active, obs_output_create, obs_output_get_last_error,
+    obs_output_get_name, obs_output_get_signal_handler, obs_output_release,
+    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop,
+    obs_set_output_source, signal_handler_connect, video_output,
+};
 
-use crate::enums::ObsOutputSignals;
+use crate::enums::ObsOutputSignal;
+use crate::signals::{rec_output_signal, OUTPUT_SIGNALS};
 use crate::utils::{AudioEncoderInfo, SourceInfo, VideoEncoderInfo};
 
-use crate::{encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder}, sources::ObsSource, utils::{ObsError, ObsString}};
+use crate::{
+    encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
+    sources::ObsSource,
+    utils::{ObsError, ObsString},
+};
 
 use super::ObsData;
 
@@ -21,8 +31,6 @@ pub struct ObsOutput {
     pub(crate) video_encoders: Vec<ObsVideoEncoder>,
     pub(crate) audio_encoders: Vec<ObsAudioEncoder>,
     pub(crate) sources: Vec<ObsSource>,
-    signal_sender: Sender<ObsOutputSignals>,
-    signal_receiver: Receiver<ObsOutputSignals>
 }
 
 impl ObsOutput {
@@ -55,9 +63,8 @@ impl ObsOutput {
             None => ptr::null_mut(),
         };
 
-        let output = unsafe {
-            obs_output_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr)
-        };
+        let output =
+            unsafe { obs_output_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr) };
 
         if output == ptr::null_mut() {
             return Err(ObsError::NullPointer);
@@ -65,12 +72,16 @@ impl ObsOutput {
 
         //TODO connect signal handler
         let handler = unsafe { obs_output_get_signal_handler(output) };
-        let handler = unsafe {
+        unsafe {
             let signal = ObsString::new("stop");
-            signal_handler_connect(handler, signal.as_ptr(), Some(signal_handler), ptr::null_mut())
+            signal_handler_connect(
+                handler,
+                signal.as_ptr(),
+                Some(signal_handler),
+                ptr::null_mut(),
+            )
         };
 
-        let (send, rec) = channel();
         Ok(Self {
             output,
             id,
@@ -80,8 +91,6 @@ impl ObsOutput {
             video_encoders: vec![],
             audio_encoders: vec![],
             sources: vec![],
-            signal_receiver: rec,
-            signal_sender: send
         })
     }
 
@@ -168,23 +177,20 @@ impl ObsOutput {
         if unsafe { obs_output_active(self.output) } {
             unsafe { obs_output_stop(self.output) }
 
-            let still_active = unsafe { obs_output_active(self.output) };
-            if !still_active {
+            let signal = rec_output_signal(&self)
+                .map_err(|e| ObsError::OutputStopFailure(Some(e.to_string())))?;
+
+            log::debug!("Signal: {:?}", signal);
+            if signal == ObsOutputSignal::Success {
                 return Ok(());
             }
 
-            let err = unsafe { obs_output_get_last_error(self.output) };
-            let err_str = if err != ptr::null_mut() {
-            let c_str = unsafe { CStr::from_ptr(err) };
-            c_str.to_str().ok().map(|x| x.to_string())
-            } else {
-                Some("Unknown error.".to_string())
-            };
-
-            return Err(ObsError::OutputStopFailure(err_str));
+            return Err(ObsError::OutputStopFailure(Some(signal.to_string())));
         }
 
-        return Err(ObsError::OutputStopFailure(Some("Output is not active.".to_string())));
+        return Err(ObsError::OutputStopFailure(Some(
+            "Output is not active.".to_string(),
+        )));
     }
 
     // Getters
@@ -225,20 +231,49 @@ impl Drop for ObsOutput {
 
 extern "C" fn signal_handler(_data: *mut std::ffi::c_void, cd: *mut calldata_t) {
     unsafe {
-        let output = ptr::null_mut();
+        let mut output = ptr::null_mut();
         let output_str = CString::new("output").unwrap();
-        let output_got = calldata_get_data(cd, output_str.as_ptr(), output, size_of::<*mut std::ffi::c_void>());
+        let output_got = calldata_get_data(
+            cd,
+            output_str.as_ptr(),
+            &mut output as *mut _ as *mut std::ffi::c_void,
+            size_of::<*mut std::ffi::c_void>(),
+        );
         if !output_got {
             return;
         }
 
         let mut code = 0i64;
         let code_str = CString::new("code").unwrap();
-        let code_got = calldata_get_data(cd, code_str.as_ptr(), &mut code as *mut _ as *mut std::ffi::c_void, size_of::<i64>());
+        let code_got = calldata_get_data(
+            cd,
+            code_str.as_ptr(),
+            &mut code as *mut _ as *mut std::ffi::c_void,
+            size_of::<i64>(),
+        );
 
         if !code_got {
             return;
         }
-        println!("Output stopped");
+
+        let name = obs_output_get_name(output as *mut _);
+        let name_str = CStr::from_ptr(name).to_string_lossy().to_string();
+
+        let signal = ObsOutputSignal::try_from(code as i32);
+        if signal.is_err() {
+            return;
+        }
+
+        let signal = signal.unwrap();
+        let r = OUTPUT_SIGNALS.read();
+        if r.is_err() {
+            return;
+        }
+
+        let r = r.unwrap().0.send((name_str, signal));
+        if let Err(e) = r {
+            eprintln!("Couldn't send msg {:?}", e);
+            return;
+        }
     }
 }

@@ -1,6 +1,6 @@
-use libobs::wrapper::sources::{ObsSourceBuilder, StringEnum};
 use libobs_source_macro::obs_source_builder;
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
+use libobs_wrapper::sources::StringEnum;
 
 use super::{ObsHookRate, ObsWindowPriority};
 

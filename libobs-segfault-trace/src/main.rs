@@ -14,6 +14,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use crash_handler::CrashHandler;
+use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo}};
 use std::{
     env::{args, current_dir},
     fs::File,
@@ -21,10 +22,6 @@ use std::{
     path::PathBuf,
     time::{SystemTime, UNIX_EPOCH, Duration},
     thread
-};
-use libobs::wrapper::{
-    StartupInfo, ObsContext, OutputInfo, ObsData, VideoEncoderInfo, 
-    AudioEncoderInfo, SourceInfo, ObsPath
 };
 
 /// Attaches a crash handler to the client process
@@ -232,6 +229,8 @@ fn main() {
 }
 
 pub fn run_basic_obs() -> Result<()> {
+    env_logger::init();
+
     // Start the OBS context
     let startup_info = StartupInfo::default();
     let mut context = ObsContext::new(startup_info).unwrap();

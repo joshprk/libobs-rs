@@ -1,6 +1,5 @@
-use libobs::wrapper::{
-    AudioEncoderInfo, ObsContext, ObsData, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo
-};
+use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+
 
 /// The string returned is the name of the obs output
 pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
