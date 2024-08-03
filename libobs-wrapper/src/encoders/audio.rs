@@ -5,6 +5,7 @@ use crate::{data::ObsData, utils::{ObsError, ObsString}};
 
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ObsAudioEncoder {
     pub(crate) encoder: *mut obs_encoder,
     pub(crate) id: ObsString,

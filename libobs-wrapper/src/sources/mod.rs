@@ -6,6 +6,7 @@ use std::{borrow::Borrow, ptr};
 use crate::{data::ObsData, utils::{ObsError, ObsString}};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct ObsSource {
     pub(crate) source: *mut obs_source,
     pub(crate) id: ObsString,
