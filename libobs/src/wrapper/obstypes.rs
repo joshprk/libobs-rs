@@ -775,7 +775,10 @@ impl ObsOutput {
 
         //TODO connect signal handler
         let handler = unsafe { crate::obs_output_get_signal_handler(output) };
-        let handler = unsafe { crate::obs_signal_handler_connect(handler, Some(signal_handler), ptr::null_mut()) };
+        let handler = unsafe {
+            let signal = ObsString::new("signal");
+            crate::signal_handler_connect(handler, signal.as_ptr(), Some(signal_handler), ptr::null_mut())
+        };
 
         Ok(Self {
             output,
@@ -1146,4 +1149,8 @@ impl Drop for ObsSource {
     fn drop(&mut self) {
         unsafe { crate::obs_source_release(self.source) }
     }
+}
+
+extern "C" fn signal_handler(data: crate::calldata_t) {
+
 }
