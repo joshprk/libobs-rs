@@ -12,6 +12,7 @@ num-traits = "0.2.19"
 lazy_static = "1.5.0"
 crossbeam-channel = "0.5.13"
 log = "0.4.22"
+vsprintf = "2.0.0"
 
 
 [package.metadata]

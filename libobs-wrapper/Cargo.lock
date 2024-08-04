@@ -311,6 +311,7 @@ dependencies = [
  "log",
  "num-derive",
  "num-traits",
+ "vsprintf",
 ]
 
 [[package]]
@@ -559,6 +560,16 @@ name = "unicode-ident"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
+
+[[package]]
+name = "vsprintf"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aec2f81b75ca063294776b4f7e8da71d1d5ae81c2b1b149c8d89969230265d63"
+dependencies = [
+ "cc",
+ "libc",
+]
 
 [[package]]
 name = "wayland-backend"

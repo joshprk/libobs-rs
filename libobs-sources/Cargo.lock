@@ -680,6 +680,7 @@ dependencies = [
  "log",
  "num-derive",
  "num-traits",
+ "vsprintf",
 ]
 
 [[package]]
@@ -1464,6 +1465,16 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
+
+[[package]]
+name = "vsprintf"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aec2f81b75ca063294776b4f7e8da71d1d5ae81c2b1b149c8d89969230265d63"
+dependencies = [
+ "cc",
+ "libc",
+]
 
 [[package]]
 name = "want"

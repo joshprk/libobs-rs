@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use crate::context::ObsContext;
 use crate::data::ObsData;
+use crate::logger::ObsLogger;
 use crate::utils::{
     AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
 };
@@ -10,8 +11,12 @@ use crate::utils::{
 #[test]
 pub fn main_test() {
     // Start the OBS context
-    let startup_info = StartupInfo::default();
+    let startup_info = StartupInfo::default()
+        .set_log_callback(|level, message| {
+        println!("(custom log)[{}] {}", level, message);
+    }).unwrap();
     let mut context = ObsContext::new(startup_info).unwrap();
+
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();

@@ -1,4 +1,5 @@
 use core::fmt;
+use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
@@ -258,28 +259,19 @@ impl TryFrom<i32> for ObsOutputSignal {
     }
 }
 
-/*
 
-
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-pub enum ObsOutputSignals {
-    /// Successfully stopped
-    Success = libobs::OBS_OUTPUT_SUCCESS,
-    /// The specified path was invalid
-    BadPath = libobs::OBS_OUTPUT_BAD_PATH,
-    /// Failed to connect to a server
-    ConnectFailed = libobs::OBS_OUTPUT_CONNECT_FAILED,
-    /// Invalid stream path
-    InvalidStream = libobs::OBS_OUTPUT_INVALID_STREAM,
-    /// Generic error
-    Error = libobs::OBS_OUTPUT_ERROR,
-    /// Unexpectedly disconnected
-    Disconnected = libobs::OBS_OUTPUT_DISCONNECTED,
-    /// The settings, video/audio format, or codecs are unsupported by this output
-    Unsupported = libobs::OBS_OUTPUT_UNSUPPORTED,
-    /// Ran out of disk space
-    NoSpace = libobs::OBS_OUTPUT_NO_SPACE,
-    /// Encoder error
-    EncodeError = libobs::OBS_OUTPUT_ENCODE_ERROR,
+pub enum ObsLogLevel {
+    Error = libobs::LOG_ERROR,
+    Warning = libobs::LOG_WARNING,
+    Info = libobs::LOG_INFO,
+    Debug = libobs::LOG_DEBUG
 }
-*/
+
+impl Display for ObsLogLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
