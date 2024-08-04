@@ -5,6 +5,7 @@ use std::{
     collections::HashMap, path::Path, process::Command
 };
 
+#[derive(Clone, Debug)]
 pub struct ReleaseInfo {
     pub tag: String,
     pub assets: Vec<Value>,
@@ -12,7 +13,7 @@ pub struct ReleaseInfo {
 }
 
 pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<ReleaseInfo> {
-    println!("Fetching release info for of {}", tag.as_ref().unwrap_or(&"latest".to_string()));
+    println!("Fetching release info for {}", tag.as_ref().unwrap_or(&"latest".to_string()));
 
     let tag = tag.clone();
     let tag = if tag.is_none() { "latest" } else { &format!("tags/{}", tag.unwrap()) };

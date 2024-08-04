@@ -1,14 +1,20 @@
-use git::{clone_repo, fetch_release};
+use git::{clone_repo, fetch_release, ReleaseInfo};
+use lock::{acquire_lock, wait_for_lock};
 use metadata::{get_main_meta, read_val_from_meta};
-use std::{env::args, fs, path::PathBuf};
+use std::{
+    env::args,
+    fs::{self, File},
+    path::{Path, PathBuf},
+};
 use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
 
 use clap::Parser;
 use colored::Colorize;
 
-mod git;
-mod metadata;
 mod download;
+mod git;
+mod lock;
+mod metadata;
 mod util;
 
 #[cfg(target_family = "windows")]
@@ -26,19 +32,24 @@ struct RunArgs {
     cache_dir: PathBuf,
 
     /// The github repository to clone OBS Studio from
-    #[arg(short, long, default_value = "obsproject/obs-studio")]
+    #[arg(long, default_value = "obsproject/obs-studio")]
     repo_id: String,
 
     /// The build config that obs should be built with (can be Release, Debug, RelWithDebInfo)
     #[arg(short, long, default_value = "RelWithDebInfo")]
     config: String,
 
-    #[arg(long, default_value_t = false)]
+    /// Enable to keep the OBS Studio sources after the build
+    #[arg(short, long, default_value_t = false)]
     no_remove: bool,
 
     /// wether the tool should download the OBS Studio binaries (to keep the signature of the win capture plugin)
-    #[arg(long, default_value_t = true)]
+    #[arg(short, long, default_value_t = true)]
     download_bin: bool,
+
+    /// When this flag is active, the cache will be cleared and a new build will be started
+    #[arg(short, long, default_value_t = false)]
+    rebuild: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -56,61 +67,68 @@ fn main() -> anyhow::Result<()> {
         config: build_type,
         no_remove,
         download_bin,
+        rebuild
     } = args;
 
     let target_out_dir = PathBuf::new().join("target").join(&target_profile);
 
     let meta = get_main_meta()?;
 
-    let mut tag = read_val_from_meta(&meta, "libobs-version")?;
     let cache_dir = read_val_from_meta(&meta, "libobs-cache-dir")
         .and_then(|e| Ok(PathBuf::from(&e)))
         .unwrap_or_else(|_e| cache_dir);
 
-    let tag_opt = if tag.trim() == "latest" {
-        None
+    let tag = read_val_from_meta(&meta, "libobs-version")?;
+    let mut release = None;
+
+    // Fetching tag name, if it's latest, we fetch the latest release and get the tag name from there
+    let tag = if tag.trim() == "latest" {
+        // Fetching latest release and setting it as tag
+        let tmp = fetch_release(&repo_id, &None)?;
+        release = Some(tmp.clone());
+
+        tmp.tag.clone()
     } else {
-        Some(tag)
+        tag
     };
 
-    let release = fetch_release(&repo_id, &tag_opt)?;
-
-    tag = release.tag.clone();
-
     let repo_dir = cache_dir.join(&tag);
-    let exists = repo_dir.is_dir();
     if !repo_dir.is_dir() {
         fs::create_dir_all(&repo_dir)?;
     }
 
-    println!("Fetching {} version of OBS Studio...", tag.on_blue());
     let build_out = repo_dir.join("build_out");
-    let build = repo_dir.join("build");
+    let lock_file = cache_dir.join(format!("{}.lock", tag));
+    let success_file = repo_dir.join(".success");
 
-    if !exists {
-        clone_repo(&repo_id, &tag, &repo_dir)?;
-        fs::create_dir_all(&build_out)?;
+    wait_for_lock(&lock_file)?;
 
-        let obs_preset = if cfg!(target_family = "windows") {
-            "windows-x64"
-        } else {
-            "linux-x64"
-        };
-
-        fs::create_dir_all(&build)?;
-
-        configure_cmake(&repo_dir, obs_preset, &build_type)?;
-        build_cmake(&repo_dir, &build_out, &build_type)?;
-
-        if !no_remove {
-            delete_all_except(&repo_dir, Some(&build_out))?;
+    if !success_file.is_file() || rebuild {
+        let lock = acquire_lock(&lock_file)?;
+        if repo_dir.is_dir() || rebuild {
+            println!("Cleaning up old build...");
+            delete_all_except(&repo_dir, None)?;
         }
 
-        #[cfg(target_family = "windows")]
-        win::process_source(&repo_dir, &build_out, &build_type, download_bin, &release)?;
+        println!("Fetching {} version of OBS Studio...", tag.on_blue());
 
-        #[cfg(not(target_family = "windows"))]
-        println!("Unsupported platform");
+        let release = release
+            .map(|e| Ok(e))
+            .unwrap_or_else(|| fetch_release(&repo_id, &Some(tag.clone())))?;
+
+        build_obs(
+            release,
+            &tag,
+            &repo_id,
+            &repo_dir,
+            &build_out,
+            &build_type,
+            no_remove,
+            download_bin,
+        )?;
+
+        File::create(&success_file)?;
+        drop(lock);
     }
 
     println!(
@@ -121,6 +139,41 @@ fn main() -> anyhow::Result<()> {
     copy_to_dir(&build_out, &target_out_dir, None)?;
 
     println!("Done!");
+
+    Ok(())
+}
+
+fn build_obs(
+    release: ReleaseInfo,
+    tag: &str,
+    repo_id: &str,
+    repo_dir: &Path,
+    build_out: &Path,
+    build_type: &str,
+    no_remove: bool,
+    download_bin: bool,
+) -> anyhow::Result<()> {
+    clone_repo(&repo_id, &tag, &repo_dir)?;
+    fs::create_dir_all(&build_out)?;
+
+    let obs_preset = if cfg!(target_family = "windows") {
+        "windows-x64"
+    } else {
+        "linux-x64"
+    };
+
+    configure_cmake(&repo_dir, obs_preset, &build_type)?;
+    build_cmake(&repo_dir, &build_out, &build_type)?;
+
+    if !no_remove {
+        delete_all_except(&repo_dir, Some(&build_out))?;
+    }
+
+    #[cfg(target_family = "windows")]
+    win::process_source(&repo_dir, &build_out, &build_type, download_bin, &release)?;
+
+    #[cfg(not(target_family = "windows"))]
+    println!("Unsupported platform");
 
     Ok(())
 }
