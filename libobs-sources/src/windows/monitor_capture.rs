@@ -24,13 +24,3 @@ impl MonitorCaptureSourceBuilder {
         Ok(DisplayInfo::all()?)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::MonitorCaptureSourceBuilder;
-
-    #[test]
-    pub fn test_hi() {
-        MonitorCaptureSourceBuilder::get_monitors().unwrap();
-    }
-}

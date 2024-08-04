@@ -2,6 +2,7 @@ mod initialize;
 
 use std::path::Path;
 
+use anyhow::bail;
 use essi_ffmpeg::FFmpeg;
 pub use initialize::*;
 use tokio::process::Command;
@@ -23,6 +24,20 @@ pub async fn check_ffmpeg() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
+    let parts: Vec<&str> = duration.split(':').collect();
+    if parts.len() != 3 {
+        bail!("Invalid duration format");
+    }
+
+    let hours: f64 = parts[0].parse()?;
+    let minutes: f64 = parts[1].parse()?;
+    let seconds: f64 = parts[2].parse()?;
+
+    let total_seconds = hours * 3600.0 + minutes * 60.0 + seconds;
+    Ok(total_seconds)
+}
+
 pub async fn test_video(vid_path: &Path) -> anyhow::Result<()> {
     check_ffmpeg().await?;
 
@@ -39,27 +54,38 @@ pub async fn test_video(vid_path: &Path) -> anyhow::Result<()> {
         .output()
         .await?;
 
-    let stdout = String::from_utf8_lossy(&cmd.stdout);
+    let stdout = format!("{}\n{}", String::from_utf8_lossy(&cmd.stdout), String::from_utf8_lossy(&cmd.stderr));
     let stdout = stdout.replace("\r", "");
 
     let duration = stdout
         .split("\n")
         .find(|l| l.contains("Duration"))
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?;
+        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?
+        .trim();
+
     let duration = duration.split(" ").collect::<Vec<_>>()[1];
     let duration = duration.replace(",", "");
-    let duration = duration.parse::<f64>()?;
+    let duration = parse_ffmpeg_duration(&duration)?;
 
     let split = stdout
         .split("\n")
         .find(|l| l.contains("black_start"))
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find black_start"))?;
+        .ok_or_else(|| anyhow::anyhow!("Couldn't find black_start"))?
+        .trim()
+        .split("]")
+        .nth(1)
+        .expect("Couldn't find black_start");
 
+        println!("Split {:?}", split);
     let comps = split.split(" ").into_iter().collect::<Vec<_>>();
 
     let black_duration = comps
         .get(2)
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?;
+        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?
+        .split(":")
+        .nth(1)
+        .expect("Couldn't find black duration");
+
     let black_duration = black_duration.parse::<f64>()?;
 
     let max_no_black = 0.7;

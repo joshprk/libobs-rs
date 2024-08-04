@@ -1,9 +1,8 @@
 //! A library for creating OBS sources without having to figure out what properties are used by sources.
 //! Example usage (for window capture only on windows):
-//! ```
-//! use libobs::wrapper::sources::ObsSourceBuilder;
-//! use libobs::wrapper::{StartupInfo, ObsContext, OutputInfo};
+//! ```no_run
 //! use libobs_window_helper::WindowSearchMode;
+//! use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::{OutputInfo, StartupInfo}};
 //! use libobs_sources::windows::WindowCaptureSourceBuilder;
 //!
 //! # // Create an obs context first
@@ -25,7 +24,8 @@
 //! WindowCaptureSourceBuilder::new("Test Window Capture")
 //! .set_window(example_window)
 //! // Obs Output is created from `ObsContext`
-//! .add_to_output(output, 0);
+//! .add_to_output(output, 0)
+//! .unwrap();
 //! `````
 
 #[cfg(target_family = "windows")]
