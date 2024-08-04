@@ -8,6 +8,19 @@ use anyhow::bail;
 use colored::Colorize;
 use walkdir::WalkDir;
 
+
+fn get_build_dir_name() -> String {
+    "build".to_string()
+}
+
+pub fn get_cmake_build(repo_dir: &Path) -> PathBuf {
+    repo_dir.join(get_build_dir_name())
+}
+
+pub fn get_rundir_out(repo_dir: &Path, preset: &str) -> PathBuf {
+    get_cmake_build(repo_dir).join("rundir").join(preset)
+}
+
 fn add_disabled_features(cmd: &mut Command) {
     cmd.arg("-DENABLE_BROWSER:BOOL=OFF ");
     cmd.arg("-DENABLE_VLC:BOOL=OFF ");
@@ -82,7 +95,7 @@ pub fn configure_cmake(dir: &Path, preset: &str, build_type: &str) -> anyhow::Re
     cmd.arg("-S")
         .arg(".")
         .arg("-B")
-        .arg("build")
+        .arg(get_build_dir_name())
         .arg("--preset")
         .arg(preset)
         .arg(format!("-DCMAKE_BUILD_TYPE={}", build_type))
@@ -103,7 +116,7 @@ pub fn build_cmake(dir: &Path, final_build_out: &Path, build_type: &str) -> anyh
     println!("{}", "Building OBS studio...".yellow());
     let cmd = Command::new("cmake")
         .arg("--build")
-        .arg("build")
+        .arg(get_build_dir_name())
         .arg("--config")
         .arg(build_type)
         .current_dir(dir)
@@ -119,9 +132,6 @@ pub fn build_cmake(dir: &Path, final_build_out: &Path, build_type: &str) -> anyh
     Ok(())
 }
 
-pub fn get_build_out(repo_dir: &Path, preset: &str) -> PathBuf {
-    repo_dir.join("build").join("rundir").join(preset)
-}
 
 pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow::Result<()> {
     for entry in WalkDir::new(&src) {

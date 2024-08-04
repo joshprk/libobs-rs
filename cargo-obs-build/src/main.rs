@@ -1,4 +1,4 @@
-use git::{clone_repo, fetch_latest};
+use git::{clone_repo, fetch_release};
 use metadata::{get_main_meta, read_val_from_meta};
 use std::{env::args, fs, path::PathBuf};
 use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
@@ -8,6 +8,7 @@ use colored::Colorize;
 
 mod git;
 mod metadata;
+mod download;
 mod util;
 
 #[cfg(target_family = "windows")]
@@ -32,8 +33,12 @@ struct RunArgs {
     #[arg(short, long, default_value = "RelWithDebInfo")]
     config: String,
 
-    #[arg(long, default_value_t=false)]
-    no_remove: bool
+    #[arg(long, default_value_t = false)]
+    no_remove: bool,
+
+    /// wether the tool should download the OBS Studio binaries (to keep the signature of the win capture plugin)
+    #[arg(long, default_value_t = true)]
+    download_bin: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -49,7 +54,8 @@ fn main() -> anyhow::Result<()> {
         repo_id,
         profile: target_profile,
         config: build_type,
-        no_remove
+        no_remove,
+        download_bin,
     } = args;
 
     let target_out_dir = PathBuf::new().join("target").join(&target_profile);
@@ -61,9 +67,15 @@ fn main() -> anyhow::Result<()> {
         .and_then(|e| Ok(PathBuf::from(&e)))
         .unwrap_or_else(|_e| cache_dir);
 
-    if tag == "latest" {
-        tag = fetch_latest(&repo_id)?;
-    }
+    let tag_opt = if tag.trim() == "latest" {
+        None
+    } else {
+        Some(tag)
+    };
+
+    let release = fetch_release(&repo_id, &tag_opt)?;
+
+    tag = release.tag.clone();
 
     let repo_dir = cache_dir.join(&tag);
     let exists = repo_dir.is_dir();
@@ -90,13 +102,12 @@ fn main() -> anyhow::Result<()> {
         configure_cmake(&repo_dir, obs_preset, &build_type)?;
         build_cmake(&repo_dir, &build_out, &build_type)?;
 
-
         if !no_remove {
             delete_all_except(&repo_dir, Some(&build_out))?;
         }
 
         #[cfg(target_family = "windows")]
-        win::copy_files(&repo_dir, &build_out, &build_type)?;
+        win::process_source(&repo_dir, &build_out, &build_type, download_bin, &release)?;
 
         #[cfg(not(target_family = "windows"))]
         println!("Unsupported platform");
