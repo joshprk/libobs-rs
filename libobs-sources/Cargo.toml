@@ -1,6 +1,13 @@
 [package]
 name = "libobs-sources"
+description = "A helper crate to create sources for OBS"
 version = "0.1.0"
+repository = "https://github.com/sshcrack/libobs-rs"
+readme = "README.md"
+authors = ["sshcrack"]
+categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
+license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
