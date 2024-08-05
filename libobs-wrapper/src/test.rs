@@ -3,20 +3,26 @@ use std::time::Duration;
 
 use crate::context::ObsContext;
 use crate::data::ObsData;
-use crate::logger::ObsLogger;
+use crate::enums::ObsLogLevel;
+use crate::logger::{ObsLogger, ObsStartupLog};
 use crate::utils::{
     AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
 };
+
+struct TestLogger;
+impl ObsLogger for TestLogger {
+    fn log(&mut self, level: ObsLogLevel, msg: String) {
+        println!("[{:?}] {}", level, msg);
+    }
+}
 
 #[test]
 pub fn main_test() {
     // Start the OBS context
     let startup_info = StartupInfo::default()
-        .set_log_callback(|level, message| {
-        println!("(custom log)[{}] {}", level, message);
-    }).unwrap();
+        .set_log_callback(Box::new(TestLogger {}))
+        .unwrap();
     let mut context = ObsContext::new(startup_info).unwrap();
-
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
