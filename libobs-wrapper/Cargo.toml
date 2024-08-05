@@ -1,5 +1,6 @@
 [package]
 name = "libobs-wrapper"
+description = "A safe wrapper around libobs-new"
 version = "0.1.0"
 repository = "https://github.com/sshcrack/libobs-rs"
 readme = "README.md"
