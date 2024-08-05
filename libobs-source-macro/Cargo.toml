@@ -2,7 +2,7 @@
 name = "libobs-source-macro"
 description = "Helper macro for libobs-sources"
 repository = "https://github.com/sshcrack/libobs-rs"
-readme = "../README.md"
+readme = "README.md"
 authors = ["sshcrack"]
 categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
 keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
