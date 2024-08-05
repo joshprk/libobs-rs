@@ -12,7 +12,7 @@ pub struct FileLogger {
 impl FileLogger {
     pub fn from_dir(dir: &Path) -> anyhow::Result<Self> {
         let current_local = Local::now();
-        let custom_format = current_local.format("%Y-%m-%d %H:%M:%S");
+        let custom_format = current_local.format("%Y-%m-%d-%H-%M-%S");
 
         Ok(Self {
             file: File::create(dir.join(format!("obs-{}.log", custom_format)))?,
