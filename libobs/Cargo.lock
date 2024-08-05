@@ -135,8 +135,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "libobs"
-version = "0.1.3"
+name = "libobs-new"
+version = "2.0.0"
 dependencies = [
  "bindgen",
 ]

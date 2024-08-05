@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-libobs = { path = "../libobs", version = "0.1.3" }
+libobs-new = { path = "../libobs", version = "2.0.0" }
 libobs-wrapper = { path = "../libobs-wrapper", version = "0.1.0" }
 num-derive = "0.4.2"
 num-traits = "0.2.19"
