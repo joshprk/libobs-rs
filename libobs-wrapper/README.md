@@ -2,6 +2,33 @@
 
 This is a simple wrapper for the `libobs-new` crate.
 
+## Prerequisites
+Make sure that the OBS binaries are in your target directory. There's even a tool to help you build OBS from source! <br>
+Install the tool
+```bash
+cargo install cargo-obs-build
+```
+
+Add the following to your `Cargo.toml`
+```toml
+[package.metadata]
+# The libobs version to use (can either be a specific version or "latest")
+libobs-version="30.2.2"
+# The directory in which to store the OBS build (optional)
+libobs-cache-dir="../obs-build"
+
+```
+
+Build OBS
+```bash
+# for debugging
+cargo obs-build --profile debug
+# for release
+cargo obs-build --profile release
+# for testing
+cargo obs-build --profile (debug|release)/deps
+```
+
 ## Usage
 
 Note: This is the usage without using the `libobs-sources` crate (which makes it significantly easier to create sources)
