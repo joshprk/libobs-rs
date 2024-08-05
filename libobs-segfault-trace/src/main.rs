@@ -16,12 +16,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use crash_handler::CrashHandler;
 use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo}};
 use std::{
-    env::{args, current_dir},
-    fs::File,
-    io::Write,
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH, Duration},
-    thread
+    env::{args, current_dir, current_exe}, fs::File, io::Write, path::PathBuf, thread, time::{Duration, SystemTime, UNIX_EPOCH}
 };
 
 /// Attaches a crash handler to the client process
@@ -215,7 +210,7 @@ fn main() {
     // Attempt to connect to the server
     let (client, _server) = start_server_and_connect().unwrap();
 
-    let handler = CrashHandler::attach(unsafe {
+    let _handler = CrashHandler::attach(unsafe {
         crash_handler::make_crash_event(move |crash_context| {
             let handled = client.request_dump(crash_context).is_ok();
             eprintln!("Firezone crashed and wrote a crash dump.");
@@ -225,6 +220,7 @@ fn main() {
     .context("failed to attach signal handler")
     .unwrap();
 
+    println!("{:?} {:?}", current_dir(), current_exe());
     run_basic_obs().unwrap();
 }
 

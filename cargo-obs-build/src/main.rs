@@ -93,6 +93,8 @@ fn main() -> anyhow::Result<()> {
     };
 
     let repo_dir = cache_dir.join(&tag);
+    let repo_exists = repo_dir.is_dir();
+
     if !repo_dir.is_dir() {
         fs::create_dir_all(&repo_dir)?;
     }
@@ -105,7 +107,7 @@ fn main() -> anyhow::Result<()> {
 
     if !success_file.is_file() || rebuild {
         let lock = acquire_lock(&lock_file)?;
-        if repo_dir.is_dir() || rebuild {
+        if repo_exists || rebuild {
             println!("Cleaning up old build...");
             delete_all_except(&repo_dir, None)?;
         }
@@ -165,15 +167,17 @@ fn build_obs(
     configure_cmake(&repo_dir, obs_preset, &build_type)?;
     build_cmake(&repo_dir, &build_out, &build_type)?;
 
-    if !no_remove {
-        delete_all_except(&repo_dir, Some(&build_out))?;
-    }
 
     #[cfg(target_family = "windows")]
     win::process_source(&repo_dir, &build_out, &build_type, download_bin, &release)?;
 
     #[cfg(not(target_family = "windows"))]
     println!("Unsupported platform");
+
+
+    if !no_remove {
+        delete_all_except(&repo_dir, Some(&build_out))?;
+    }
 
     Ok(())
 }
