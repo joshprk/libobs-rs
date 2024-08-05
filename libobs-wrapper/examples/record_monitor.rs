@@ -1,9 +1,10 @@
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
-use libobs::wrapper::{
-    StartupInfo, ObsContext, OutputInfo, ObsData, VideoEncoderInfo, 
-    AudioEncoderInfo, SourceInfo, ObsPath
+use libobs_wrapper::context::ObsContext;
+use libobs_wrapper::data::ObsData;
+use libobs_wrapper::utils::{
+    AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
 };
 
 pub fn main() {
@@ -13,12 +14,9 @@ pub fn main() {
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
-    output_settings
-        .set_string("path", ObsPath::from_relative("recording.mp4").build());
+    output_settings.set_string("path", ObsPath::from_relative("recording.mp4").build());
 
-    let output_info = OutputInfo::new(
-        "ffmpeg_muxer", "output", Some(output_settings), None
-    );
+    let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
 
     let output = context.output(output_info).unwrap();
 
@@ -42,17 +40,13 @@ pub fn main() {
 
     let video_handler = ObsContext::get_video_ptr().unwrap();
     output.video_encoder(video_info, video_handler).unwrap();
-    
+
     // Register the audio encoder
     let mut audio_settings = ObsData::new();
     audio_settings.set_int("bitrate", 160);
 
-    let audio_info = AudioEncoderInfo::new(
-        "ffmpeg_aac", 
-        "audio_encoder", 
-        Some(audio_settings), 
-        None
-    );
+    let audio_info =
+        AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler).unwrap();
@@ -63,12 +57,12 @@ pub fn main() {
         .set_string("capture_mode", "window")
         .set_string("window", "")
         .set_bool("capture_cursor", true);
-        
+
     let video_source_info = SourceInfo::new(
-        "game_capture", 
-        "video_source", 
-        Some(video_source_data), 
-        None
+        "game_capture",
+        "video_source",
+        Some(video_source_data),
+        None,
     );
 
     // Register the source and record

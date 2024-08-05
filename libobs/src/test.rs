@@ -11,7 +11,7 @@ pub fn test_obs() {
         let version = CStr::from_ptr(obs_get_version_string());
         println!("LibOBS version {}", version.to_str().unwrap());
 
-        let locale = CString::from("en_US");
+        let locale = CString::new("en_US").unwrap();
         let res = obs_startup(locale.as_ptr(), std::ptr::null(), std::ptr::null_mut());
 
         if !res {
@@ -27,9 +27,9 @@ pub fn test_obs() {
         let tmp3 = parent + "/data/obs-plugins/%module%";
 
         println!("{} {} {}", tmp1, tmp2, tmp3);
-        let data = CString::new(&tmp1);
-        let module_bin = CString::new(&tmp2);
-        let data_str = CString::new(&tmp3);
+        let data = CString::new(tmp1.as_str()).unwrap();
+        let module_bin = CString::new(tmp2.as_str()).unwrap();
+        let data_str = CString::new(tmp3.as_str()).unwrap();
 
         obs_add_data_path(data.as_ptr());
         obs_add_module_path(module_bin.as_ptr(), data_str.as_ptr());
@@ -43,7 +43,7 @@ pub fn test_obs() {
         let main_width = 1360;
         let main_height = 768;
 
-        let opengl = CString::new("libobs-opengl");
+        let opengl = CString::new("libobs-opengl").unwrap();
         let mut ovi = obs_video_info {
             adapter: 0,
             graphics_module: opengl.as_ptr(),
@@ -70,31 +70,25 @@ pub fn test_obs() {
         obs_post_load_modules();
 
 
-        let vid_src_id = CString::new("monitor_capture");
-        let vid_name = CString::new("Screen Capture Source");
+        let vid_src_id = CString::new("monitor_capture").unwrap();
+        let vid_name = CString::new("Screen Capture Source").unwrap();
 
-        let vid_settings = obs_data_create();
-        let restore_token = CString::new("RestoreToken");
-        let restore_token_val = CString::new("2cd8ddf7-5d1c-4d97-823d-07d528677f88");
-
-        obs_data_set_string(vid_settings, restore_token.as_ptr(), restore_token_val.as_ptr());
-        let vid_src = obs_source_create(vid_src_id.as_ptr(), vid_name.as_ptr(), vid_settings, std::ptr::null_mut());
-        obs_data_release(vid_settings);
+        let vid_src = obs_source_create(vid_src_id.as_ptr(), vid_name.as_ptr(), std::ptr::null_mut(), std::ptr::null_mut());
 
 
         obs_set_output_source(0, vid_src);
 
         let vid_enc_settings = obs_data_create();
-        let use_buf_size = CString::new("use_bufsize");
-        let profile = CString::new("profile");
-        let profile_val = CString::new("high");
+        let use_buf_size = CString::new("use_bufsize").unwrap();
+        let profile = CString::new("profile").unwrap();
+        let profile_val = CString::new("high").unwrap();
 
-        let preset = CString::new("preset");
-        let preset_val = CString::new("veryfast");
+        let preset = CString::new("preset").unwrap();
+        let preset_val = CString::new("veryfast").unwrap();
 
-        let rate_control = CString::new("rate_control");
-        let rate_control_val = CString::new("CRF");
-        let crf = CString::new("crf");
+        let rate_control = CString::new("rate_control").unwrap();
+        let rate_control_val = CString::new("CRF").unwrap();
+        let crf = CString::new("crf").unwrap();
 
         obs_data_set_bool(vid_enc_settings, use_buf_size.as_ptr(), true);
         obs_data_set_string(vid_enc_settings, profile.as_ptr(), profile_val.as_ptr());
@@ -103,8 +97,8 @@ pub fn test_obs() {
     
         obs_data_set_int(vid_enc_settings, crf.as_ptr(), 20);
 
-        let vid_enc_id = CString::new("obs_x264");
-        let vid_enc_idk = CString::new("simple_h264_recording");
+        let vid_enc_id = CString::new("obs_x264").unwrap();
+        let vid_enc_idk = CString::new("simple_h264_recording").unwrap();
 
         let vid_enc = obs_video_encoder_create(vid_enc_id.as_ptr(), vid_enc_idk.as_ptr(), vid_enc_settings, std::ptr::null_mut());
         obs_encoder_set_video(vid_enc, obs_get_video());
@@ -112,35 +106,35 @@ pub fn test_obs() {
         obs_data_release(vid_enc_settings);
 
         let audio_enc_settings = obs_data_create();
-        let device_id = CString::new("device_id");
-        let device_id_val = CString::new("default");
+        let device_id = CString::new("device_id").unwrap();
+        let device_id_val = CString::new("default").unwrap();
 
         obs_data_set_string(audio_enc_settings, device_id.as_ptr(), device_id_val.as_ptr());
 
-        let audio_enc_id = CString::new("pulse_output_capture");
-        let audio_enc_name = CString::new("Audio Capture Source");
+        let audio_enc_id = CString::new("pulse_output_capture").unwrap();
+        let audio_enc_name = CString::new("Audio Capture Source").unwrap();
 
         let audio_src = obs_source_create(audio_enc_id.as_ptr(), audio_enc_name.as_ptr(), audio_enc_settings, std::ptr::null_mut());
         obs_data_release(audio_enc_settings);
 
         obs_set_output_source(1, audio_src);
 
-        let audio_enc_id = CString::new("ffmpeg_aac");
-        let audio_enc_name = CString::new("simple_aac_recording");
+        let audio_enc_id = CString::new("ffmpeg_aac").unwrap();
+        let audio_enc_name = CString::new("simple_aac_recording").unwrap();
         let audio_enc = obs_audio_encoder_create(audio_enc_id.as_ptr(), audio_enc_name.as_ptr(), std::ptr::null_mut(), 0, std::ptr::null_mut());
         obs_encoder_set_audio(audio_enc, obs_get_audio());
 
         let rec_settings = obs_data_create();
-        let rec_path = CString::new("path");
+        let rec_path = CString::new("path").unwrap();
 
         let out_path = current_dir().unwrap().to_str().unwrap().to_owned() + "/recording.mp4";
         println!("Outputting to {}", out_path);
-        let rec_path_val = CString::new(&out_path);
+        let rec_path_val = CString::new(out_path.as_str()).unwrap();
 
         obs_data_set_string(rec_settings, rec_path.as_ptr(), rec_path_val.as_ptr());
 
-        let rec_id = CString::new("ffmpeg_muxer");
-        let rec_name = CString::new("simple_ffmpeg_output");
+        let rec_id = CString::new("ffmpeg_muxer").unwrap();
+        let rec_name = CString::new("simple_ffmpeg_output").unwrap();
 
         let rec_out = obs_output_create(rec_id.as_ptr(), rec_name.as_ptr(), rec_settings, std::ptr::null_mut());
         obs_data_release(rec_settings);
