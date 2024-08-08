@@ -1,2 +1,7 @@
-/target
-/src/bindings.rs
+target
+src/bindings.rs
+obs-build
+rtmp-services
+win-capture
+*.dmp
+*.mp4
