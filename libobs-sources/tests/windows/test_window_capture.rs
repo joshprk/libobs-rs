@@ -2,7 +2,7 @@ use std::{path::PathBuf, process::Command, time::Duration};
 
 use libobs_sources::windows::WindowCaptureSourceBuilder;
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
-use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
+use libobs_wrapper::{data::ObsObjectBuilder, sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs, test_video};
 
@@ -35,15 +35,17 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-
     let (mut context, output) = initialize_obs(rec_file);
-    let output = context.get_output(&output).unwrap();
+    let scene = context.scene("main");
 
     WindowCaptureSourceBuilder::new("test_capture")
         .set_window(&window)
-        .add_to_output(output, 0)
+        .add_to_scene(scene)
         .unwrap();
 
+    scene.add_and_set(0);
+
+    let output = context.get_output(&output).unwrap();
     output.start().unwrap();
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));

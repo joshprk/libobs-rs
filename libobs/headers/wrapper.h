@@ -2,6 +2,7 @@
 
 #include "obs/callback/signal.h"
 #include "obs/callback/calldata.h"
+#include "obs/graphics/graphics.h"
 
 #ifdef _WIN32
 #include "obs/util/windows/window-helpers.h"

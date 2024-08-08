@@ -4,3 +4,4 @@ obs-build
 rtmp-services
 win-capture
 *.dmp
+*.mp4

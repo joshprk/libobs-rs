@@ -1,6 +1,6 @@
 [package]
 name = "libobs-new"
-version = "2.0.0"
+version = "2.0.1"
 description = "Fork with revamped API. Wrapper for simple, safe video recording with libobs"
 repository = "https://github.com/sshcrack/libobs-rs"
 readme = "../README.md"
@@ -13,7 +13,7 @@ build = "build.rs"
 
 [build-dependencies]
 bindgen = "0.69.4"
-
+cc = "1.1.7"
 
 [package.metadata]
 libobs-version="30.2.2"

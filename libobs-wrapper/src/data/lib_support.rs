@@ -1,8 +1,6 @@
 //! Use the `libobs-source` crate to create sources like `window_capture` for obs
 
-use crate::{data::{output::ObsOutput, ObsData}, utils::{ObsError, ObsString, SourceInfo}};
-
-use super::ObsSource;
+use crate::{data::ObsData, utils::{ObjectInfo, ObsString}};
 
 pub trait StringEnum {
     fn to_str(&self) -> &str;
@@ -10,26 +8,21 @@ pub trait StringEnum {
 
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
-pub trait ObsSourceBuilder {
+pub trait ObsObjectBuilder {
     fn new(name: impl Into<ObsString>) -> Self;
 
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
     /// Adds the obs source to the output on the given channel
-    fn add_to_output<'a>(
-        mut self,
-        output: &'a mut ObsOutput,
-        channel: u32,
-    ) -> Result<&'a mut ObsSource, ObsError>
+    fn build(mut self) -> ObjectInfo
     where
         Self: Sized,
     {
         let settings = self.get_settings_mut().take();
         let hotkeys = self.get_hotkeys_mut().take();
 
-        let source = SourceInfo::new(Self::get_id(), self.get_name(), settings, hotkeys);
-        output.source(source, channel)
+        ObjectInfo::new(Self::get_id(), self.get_name(), settings, hotkeys)
     }
 
     fn get_settings(&self) -> &Option<ObsData>;

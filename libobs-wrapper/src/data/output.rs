@@ -1,36 +1,41 @@
 use std::ffi::CString;
 use std::{borrow::Borrow, ffi::CStr, ptr};
 
+use getters0::Getters;
 use libobs::{
     audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video,
-    obs_output, obs_output_active, obs_output_create, obs_output_get_last_error,
+    obs_output_active, obs_output_create, obs_output_get_last_error,
     obs_output_get_name, obs_output_get_signal_handler, obs_output_release,
-    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop,
-    obs_set_output_source, signal_handler_connect, video_output,
+    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, signal_handler_connect, video_output,
 };
 
 use crate::enums::ObsOutputSignal;
 use crate::signals::{rec_output_signal, OUTPUT_SIGNALS};
-use crate::utils::{AudioEncoderInfo, SourceInfo, VideoEncoderInfo};
+use crate::unsafe_send::WrappedObsOutput;
+use crate::utils::{AudioEncoderInfo, VideoEncoderInfo};
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
-    sources::ObsSource,
     utils::{ObsError, ObsString},
 };
 
 use super::ObsData;
 
-#[derive(Debug)]
+#[derive(Debug, Getters)]
+#[skip_new]
 pub struct ObsOutput {
-    pub(crate) output: *mut obs_output,
+    #[skip_getter]
+    pub(crate) output: WrappedObsOutput,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
     pub(crate) settings: Option<ObsData>,
     pub(crate) hotkey_data: Option<ObsData>,
+
+    #[get_mut]
     pub(crate) video_encoders: Vec<ObsVideoEncoder>,
+
+    #[get_mut]
     pub(crate) audio_encoders: Vec<ObsAudioEncoder>,
-    pub(crate) sources: Vec<ObsSource>,
 }
 
 impl ObsOutput {
@@ -83,14 +88,13 @@ impl ObsOutput {
         };
 
         Ok(Self {
-            output,
+            output: WrappedObsOutput(output),
             id,
             name,
             settings,
             hotkey_data,
             video_encoders: vec![],
-            audio_encoders: vec![],
-            sources: vec![],
+            audio_encoders: vec![]
         })
     }
 
@@ -107,8 +111,8 @@ impl ObsOutput {
 
         return match video_enc {
             Ok(x) => {
-                unsafe { obs_encoder_set_video(x.encoder, handler) }
-                unsafe { obs_output_set_video_encoder(self.output, x.encoder) }
+                unsafe { obs_encoder_set_video(x.encoder.0, handler) }
+                unsafe { obs_output_set_video_encoder(self.output.0, x.encoder.0) }
                 self.video_encoders.push(x);
 
                 Ok(self.video_encoders.last_mut().unwrap())
@@ -133,8 +137,8 @@ impl ObsOutput {
 
         return match audio_enc {
             Ok(x) => {
-                unsafe { obs_encoder_set_audio(x.encoder, handler) }
-                unsafe { obs_output_set_audio_encoder(self.output, x.encoder, mixer_idx) }
+                unsafe { obs_encoder_set_audio(x.encoder.0, handler) }
+                unsafe { obs_output_set_audio_encoder(self.output.0, x.encoder.0, mixer_idx) }
                 self.audio_encoders.push(x);
 
                 Ok(self.audio_encoders.last_mut().unwrap())
@@ -143,27 +147,14 @@ impl ObsOutput {
         };
     }
 
-    pub fn source(&mut self, info: SourceInfo, channel: u32) -> Result<&mut ObsSource, ObsError> {
-        let source = ObsSource::new(info.id, info.name, info.settings, info.hotkey_data);
-
-        return match source {
-            Ok(x) => {
-                unsafe { obs_set_output_source(channel, x.source) }
-                self.sources.push(x);
-                Ok(self.sources.last_mut().unwrap())
-            }
-            Err(x) => Err(x),
-        };
-    }
-
-    pub fn start(&mut self) -> Result<(), ObsError> {
-        if unsafe { !obs_output_active(self.output) } {
-            let res = unsafe { obs_output_start(self.output) };
+    pub fn start(&self) -> Result<(), ObsError> {
+        if unsafe { !obs_output_active(self.output.0) } {
+            let res = unsafe { obs_output_start(self.output.0) };
             if res {
                 return Ok(());
             }
 
-            let err = unsafe { obs_output_get_last_error(self.output) };
+            let err = unsafe { obs_output_get_last_error(self.output.0) };
             let c_str = unsafe { CStr::from_ptr(err) };
             let err_str = c_str.to_str().ok().map(|x| x.to_string());
 
@@ -174,8 +165,8 @@ impl ObsOutput {
     }
 
     pub fn stop(&mut self) -> Result<(), ObsError> {
-        if unsafe { obs_output_active(self.output) } {
-            unsafe { obs_output_stop(self.output) }
+        if unsafe { obs_output_active(self.output.0) } {
+            unsafe { obs_output_stop(self.output.0) }
 
             let signal = rec_output_signal(&self)
                 .map_err(|e| ObsError::OutputStopFailure(Some(e.to_string())))?;
@@ -192,40 +183,11 @@ impl ObsOutput {
             "Output is not active.".to_string(),
         )));
     }
-
-    // Getters
-    pub fn name(&self) -> &ObsString {
-        &self.name
-    }
-
-    pub fn id(&self) -> &ObsString {
-        &self.id
-    }
-
-    pub fn settings(&self) -> &Option<ObsData> {
-        &self.settings
-    }
-
-    pub fn hotkey_data(&self) -> &Option<ObsData> {
-        &self.hotkey_data
-    }
-
-    pub fn video_encoders(&self) -> &Vec<ObsVideoEncoder> {
-        &self.video_encoders
-    }
-
-    pub fn audio_encoders(&self) -> &Vec<ObsAudioEncoder> {
-        &self.audio_encoders
-    }
-
-    pub fn sources(&self) -> &Vec<ObsSource> {
-        &self.sources
-    }
 }
 
 impl Drop for ObsOutput {
     fn drop(&mut self) {
-        unsafe { obs_output_release(self.output) }
+        unsafe { obs_output_release(self.output.0) }
     }
 }
 

@@ -36,6 +36,7 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     // This should be the whole directory, but cargo would have to check the whole directory with a lot of files which takes long
     println!("cargo:rerun-if-changed=headers/wrapper.h");
+    println!("cargo:rerun-if-changed=headers/vec4.c");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
@@ -48,7 +49,6 @@ fn main() {
     if let Some(path) = env::var("LIBOBS_PATH").ok() {
         println!("cargo:rustc-link-search=native={}", path);
     }
-    // println!("cargo:rustc-env=LIBOBS_BINDINGS_FILE=bindings.rs");
 
     let bindings = bindgen::builder()
         .header("headers/wrapper.h")
@@ -72,4 +72,8 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
+
+        cc::Build::new()
+        .file("headers/vec4.c")
+        .compile("libvec4.a");
 }

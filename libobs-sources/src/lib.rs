@@ -31,3 +31,5 @@
 #[cfg(target_family = "windows")]
 /// Windows-specific functionality. Contains a builder for e.g. `window-capture` sources.
 pub mod windows;
+
+pub mod encoders;

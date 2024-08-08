@@ -1,16 +1,18 @@
 use std::{
-    ffi::{c_char, CStr},
-    ptr,
-    sync::Mutex,
-    thread::{self, ThreadId},
+    ffi::{c_char, CStr}, ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
 };
 
 use crate::{
     data::{output::ObsOutput, video::ObsVideoInfo},
-    enums::{ObsResetVideoStatus, ObsVideoEncoderType},
+    display::{ObsDisplay, ObsDisplayCreationData, VertexBuffers},
+    enums::{ObsLogLevel, ObsResetVideoStatus, ObsVideoEncoderType},
+    logger::{extern_log_callback, LOGGER},
+    scenes::ObsScene,
+    unsafe_send::WrappedObsScene,
     utils::{ObsError, ObsString, OutputInfo, StartupInfo},
 };
 use anyhow::Result;
+use getters0::Getters;
 use libobs::{audio_output, video_output};
 static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 
@@ -23,7 +25,8 @@ static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 /// important! OBS is super specific about how it
 /// does everything. Things are freed early to
 /// latest from top to bottom.
-#[derive(Debug)]
+#[derive(Debug, Getters)]
+#[skip_new]
 pub struct ObsContext {
     /// This string must be stored to keep the
     /// pointer passed to libobs valid.
@@ -33,14 +36,29 @@ pub struct ObsContext {
     /// prevents any use-after-free as these do not
     /// get copied in libobs.
     startup_info: StartupInfo,
+
+    #[get_mut]
+    displays: Vec<ObsDisplay>,
+
+    #[skip_getter]
+    vertex_buffers: VertexBuffers,
+
     /// Outputs must be stored in order to prevent
     /// early freeing.
     #[allow(dead_code)]
+    #[get_mut]
     pub(crate) outputs: Vec<ObsOutput>,
+
+    #[get_mut]
+    pub(crate) scenes: Vec<ObsScene>,
+
+    #[skip_getter]
+    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 
     /// This allows us to call obs_shutdown() after
     /// everything else has been freed. Doing other-
     /// wise completely crashes the program.
+    #[skip_getter]
     _context_shutdown_zst: _ObsContextShutdownZST,
 }
 
@@ -92,6 +110,16 @@ impl ObsContext {
         Self::init(info)
     }
 
+    pub fn get_version() -> String {
+        format!("{}.{}.{}", libobs::LIBOBS_API_MAJOR_VER, libobs::LIBOBS_API_MINOR_VER, libobs::LIBOBS_API_PATCH_VER)
+    }
+
+    pub fn log(&self, level: ObsLogLevel, msg: &str) {
+        let mut log = LOGGER.lock().unwrap();
+        log.log(level, msg.to_string());
+    }
+
+
     /// Initializes the libobs context and prepares
     /// it for recording.
     ///
@@ -106,6 +134,18 @@ impl ObsContext {
     /// (~10 KB per restart), but the point is
     /// safety. Thank you @tt2468 for the help!
     fn init(mut info: StartupInfo) -> Result<ObsContext, ObsError> {
+        // Sets the logger to the one passed in
+        unsafe {
+            libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
+        }
+
+        let mut log_callback = LOGGER.lock()
+        .map_err(|_e| ObsError::MutexFailure)?;
+
+        *log_callback = info.logger.take().expect("Logger can never be null");
+
+        drop(log_callback);
+
         // Locale will only be used internally by
         // libobs for logging purposes, making it
         // unnecessary to support other languages.
@@ -113,12 +153,29 @@ impl ObsContext {
         let startup_status =
             unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
 
+        let mut log = LOGGER.lock().unwrap();
+        log.log(ObsLogLevel::Info, format!("OBS {}", Self::get_version()));
+        log.log(ObsLogLevel::Info, "---------------------------------".to_string());
+        drop(log);
+
         if !startup_status {
             return Err(ObsError::Failure);
         }
 
         unsafe {
             libobs::obs_add_data_path(info.startup_paths.libobs_data_path().as_ptr());
+            libobs::obs_add_module_path(
+                info.startup_paths.plugin_bin_path().as_ptr(),
+                info.startup_paths.plugin_data_path().as_ptr(),
+            );
+        }
+
+        // Note that audio is meant to only be reset
+        // once. See the link below for information.
+        //
+        // https://docs.obsproject.com/frontends
+        unsafe {
+            libobs::obs_reset_audio(info.obs_audio_info.as_ptr());
         }
 
         // Resets the video context. Note that this
@@ -133,29 +190,22 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
-        // Note that audio is meant to only be reset
-        // once. See the link below for information.
-        //
-        // https://docs.obsproject.com/frontends
         unsafe {
-            libobs::obs_reset_audio(info.obs_audio_info.as_ptr());
-        }
-
-        unsafe {
-            libobs::obs_add_module_path(
-                info.startup_paths.plugin_bin_path().as_ptr(),
-                info.startup_paths.plugin_data_path().as_ptr(),
-            );
-
             libobs::obs_load_all_modules();
             libobs::obs_post_load_modules();
             libobs::obs_log_loaded_modules();
         }
 
+        let vertex_buffers = unsafe { VertexBuffers::initialize() };
+
         Ok(Self {
             locale: locale_str,
             startup_info: info,
             outputs: vec![],
+            vertex_buffers,
+            displays: vec![],
+            active_scene: Arc::new(Mutex::new(None)),
+            scenes: vec![],
             _context_shutdown_zst: _ObsContextShutdownZST {},
         })
     }
@@ -225,6 +275,24 @@ impl ObsContext {
         };
     }
 
+    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<&mut ObsDisplay, ObsError> {
+        self.displays.push(ObsDisplay::new(
+            &self.vertex_buffers,
+            &self.active_scene,
+            data,
+        ));
+
+        Ok(self.displays.last_mut().unwrap())
+    }
+
+    pub fn remove_display(&mut self, display: &ObsDisplay) {
+        self.remove_display_by_id(display.get_id());
+    }
+
+    pub fn remove_display_by_id(&mut self, id: usize) {
+        self.displays.retain(|x| x.get_id() != id);
+    }
+
     pub fn get_output(&mut self, name: &str) -> Option<&mut ObsOutput> {
         self.outputs
             .iter_mut()
@@ -274,6 +342,13 @@ impl ObsContext {
         encoders.sort_unstable();
         encoders
     }
+
+    pub fn scene(&mut self, name: impl Into<ObsString>) -> &mut ObsScene {
+        let scene = ObsScene::new(name.into(), self.active_scene.clone());
+        self.scenes.push(scene);
+
+        self.scenes.last_mut().unwrap()
+    }
 }
 
 #[derive(Debug)]
@@ -282,6 +357,17 @@ struct _ObsContextShutdownZST {}
 impl Drop for _ObsContextShutdownZST {
     fn drop(&mut self) {
         unsafe { libobs::obs_shutdown() }
+
+        let r = LOGGER.lock();
+        match r {
+            Ok(mut logger) => {
+                logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
+                logger.log(ObsLogLevel::Info, format!("Number of memory leaks: {}", unsafe { libobs::bnum_allocs() }))
+            }
+            Err(_) => {
+                println!("OBS context shutdown. (but couldn't lock logger)");
+            }
+        }
 
         if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {
             *mutex_value = None;

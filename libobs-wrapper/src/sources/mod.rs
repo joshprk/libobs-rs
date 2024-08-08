@@ -1,14 +1,15 @@
-mod lib_support;
-pub use lib_support::*;
-use libobs::{obs_source, obs_source_create, obs_source_release};
+mod builder;
+pub use builder::*;
+
+use libobs::{obs_source_create, obs_source_release};
 
 use std::{borrow::Borrow, ptr};
-use crate::{data::ObsData, utils::{ObsError, ObsString}};
+use crate::{data::ObsData, unsafe_send::WrappedObsSource, utils::{ObsError, ObsString}};
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct ObsSource {
-    pub(crate) source: *mut obs_source,
+    pub(crate) source: WrappedObsSource,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
     pub(crate) settings: Option<ObsData>,
@@ -44,7 +45,7 @@ impl ObsSource {
         }
 
         Ok(Self {
-            source,
+            source: WrappedObsSource(source),
             id,
             name,
             settings,
@@ -55,6 +56,6 @@ impl ObsSource {
 
 impl Drop for ObsSource {
     fn drop(&mut self) {
-        unsafe { obs_source_release(self.source) }
+        unsafe { obs_source_release(self.source.0) }
     }
 }

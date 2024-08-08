@@ -5,6 +5,7 @@ use chrono::Local;
 use super::ObsLogger;
 
 /// A logger that writes logs to a file
+#[derive(Debug)]
 pub struct FileLogger {
     file: File,
 }

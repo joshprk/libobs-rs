@@ -1,6 +1,6 @@
-use libobs_source_macro::obs_source_builder;
+use libobs_source_macro::obs_object_builder;
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::sources::StringEnum;
+use libobs_wrapper::data::StringEnum;
 
 use super::{ObsHookRate, ObsWindowPriority};
 
@@ -43,7 +43,7 @@ impl StringEnum for ObsGameCaptureMode {
 }
 
 #[derive(Debug)]
-#[obs_source_builder("game_capture")]
+#[obs_object_builder("game_capture")]
 pub struct GameCaptureSourceBuilder {
     /// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
     #[obs_property(type_t = "enum_string")]

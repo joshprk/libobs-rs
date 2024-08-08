@@ -275,3 +275,17 @@ impl Display for ObsLogLevel {
         write!(f, "{:?}", self)
     }
 }
+
+#[cfg(feature="color-logger")]
+impl ObsLogLevel {
+    pub fn colorize(&self, s: &str) -> String {
+        use colored::Colorize;
+
+        match self {
+            ObsLogLevel::Error => s.on_red().to_string(),
+            ObsLogLevel::Warning => s.yellow().to_string(),
+            ObsLogLevel::Info => s.green().bold().to_string(),
+            ObsLogLevel::Debug => s.blue().to_string(),
+        }
+    }
+}

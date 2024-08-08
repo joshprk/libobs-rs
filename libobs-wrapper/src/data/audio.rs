@@ -17,7 +17,7 @@ impl ObsAudioInfo {
     pub fn new(samples_per_second: ObsSamplesPerSecond, speakers: ObsSpeakerLayout) -> Self {
         Self {
             samples_per_sec: samples_per_second,
-            speakers: speakers,
+            speakers,
         }
     }
 

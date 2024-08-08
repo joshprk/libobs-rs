@@ -1,14 +1,16 @@
-use crate::{data::{audio::ObsAudioInfo, video::ObsVideoInfo}, utils::{ObsPath, ObsString}};
+use crate::{data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsPath, ObsString}};
 
 
 
 /// Contains information to start a libobs context.
 /// This is passed to the creation of `ObsContext`.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct StartupInfo {
     pub(crate) startup_paths: StartupPaths,
     pub(crate) obs_video_info: ObsVideoInfo,
     pub(crate) obs_audio_info: ObsAudioInfo,
+    // Option because logger is taken when creating
+    pub(crate) logger: Option<Box<dyn ObsLogger>>
 }
 
 impl StartupInfo {
@@ -25,6 +27,11 @@ impl StartupInfo {
         self.obs_video_info = ovi;
         self
     }
+
+    pub fn set_logger(mut self, logger: Box<dyn ObsLogger>) -> Self {
+        self.logger = Some(logger);
+        self
+    }
 }
 
 impl Default for StartupInfo {
@@ -33,6 +40,7 @@ impl Default for StartupInfo {
             startup_paths: StartupPaths::default(),
             obs_video_info: ObsVideoInfo::default(),
             obs_audio_info: ObsAudioInfo::default(),
+            logger: Some(Box::new(ConsoleLogger::new())),
         }
     }
 }

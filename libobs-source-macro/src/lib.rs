@@ -21,8 +21,8 @@ use syn::{
 /// Documentation is inherited from the field to the setter function.<br>
 /// Example: <br>
 /// ```
-/// use libobs_wrapper::sources::StringEnum;
-/// use libobs_source_macro::obs_source_builder;
+/// use libobs_wrapper::data::StringEnum;
+/// use libobs_source_macro::obs_object_builder;
 /// use num_derive::{FromPrimitive, ToPrimitive};
 ///
 /// #[repr(i32)]
@@ -50,7 +50,7 @@ use syn::{
 ///
 /// /// Provides a easy to use builder for the window capture source.
 /// #[derive(Debug)]
-/// #[obs_source_builder("window_capture")]
+/// #[obs_object_builder("window_capture")]
 /// pub struct WindowCaptureSourceBuilder {
 ///     #[obs_property(type_t="enum")]
 ///     /// Sets the capture method for the window capture
@@ -69,7 +69,7 @@ use syn::{
 ///     capture_mode: ObsGameCaptureMode,
 /// }
 /// ```
-pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     let id = parse_macro_input!(attr as LitStr);
 
     let input = parse_macro_input!(item as DeriveInput);
@@ -165,7 +165,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: #field_type) -> Self {
                         use num_traits::ToPrimitive;
-                        use libobs_wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::data::ObsObjectBuilder;
                         let val = #field_name.to_i32().unwrap();
 
                         self.get_or_create_settings()
@@ -174,13 +174,12 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                         self
                     }
                 }
-            },
+            }
             "enum_string" => {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: #field_type) -> Self {
-                        use libobs_wrapper::sources::StringEnum;
-                        use libobs_wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::data::{ObsObjectBuilder, StringEnum};
 
                         self.get_or_create_settings()
                             .set_string(#obs_settings_key, #field_name.to_str());
@@ -188,12 +187,12 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                         self
                     }
                 }
-            },
+            }
             "string" => {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
-                        use libobs_wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::data::ObsObjectBuilder;
                         self.get_or_create_settings()
                             .set_string(#obs_settings_key, #field_name);
                         self
@@ -204,18 +203,18 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: bool) -> Self {
-                        use libobs_wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::data::ObsObjectBuilder;
                         self.get_or_create_settings()
                             .set_bool(#obs_settings_key, #field_name);
                         self
                     }
                 }
-            },
+            }
             "int" => {
                 quote! {
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: i64) -> Self {
-                        use libobs_wrapper::sources::ObsSourceBuilder;
+                        use libobs_wrapper::data::ObsObjectBuilder;
                         self.get_or_create_settings()
                             .set_int(#obs_settings_key, #field_name);
                         self
@@ -241,7 +240,7 @@ pub fn obs_source_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             name: libobs_wrapper::utils::ObsString
         }
 
-        impl libobs_wrapper::sources::ObsSourceBuilder for #name {
+        impl libobs_wrapper::data::ObsObjectBuilder for #name {
             fn new(name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
                 Self {
                     #(#field_initializers,)*

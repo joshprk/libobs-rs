@@ -1,17 +1,19 @@
 use libobs::{obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double, obs_data_set_int, obs_data_set_string};
 
-use crate::utils::ObsString;
+use crate::{unsafe_send::WrappedObsData, utils::ObsString};
 
 pub mod video;
 pub mod audio;
 pub mod output;
+mod lib_support;
+pub use lib_support::*;
 
 /// Contains `obs_data` and its related strings. Note that
 /// this struct prevents string pointers from being freed
 /// by keeping them owned.
 #[derive(Debug)]
 pub struct ObsData {
-    obs_data: *mut obs_data,
+    obs_data: WrappedObsData,
     strings: Vec<ObsString>,
 }
 
@@ -27,13 +29,13 @@ impl ObsData {
     pub fn new() -> Self {
         let obs_data = unsafe { obs_data_create() };
         let strings = Vec::new();
-        ObsData { obs_data, strings }
+        ObsData { obs_data: WrappedObsData(obs_data), strings }
     }
 
     /// Returns a pointer to the raw `obs_data`
     /// represented by `ObsData`.
     pub fn as_ptr(&self) -> *mut obs_data {
-        self.obs_data
+        self.obs_data.0
     }
 
     /// Sets a string in `obs_data` and stores it so
@@ -46,7 +48,7 @@ impl ObsData {
         let key = key.into();
         let value = value.into();
 
-        unsafe { obs_data_set_string(self.obs_data, key.as_ptr(), value.as_ptr()) }
+        unsafe { obs_data_set_string(self.obs_data.0, key.as_ptr(), value.as_ptr()) }
 
         self.strings.push(key);
         self.strings.push(value);
@@ -59,7 +61,7 @@ impl ObsData {
     pub fn set_int(&mut self, key: impl Into<ObsString>, value: i64) -> &mut Self {
         let key = key.into();
 
-        unsafe { obs_data_set_int(self.obs_data, key.as_ptr(), value.into()) }
+        unsafe { obs_data_set_int(self.obs_data.0, key.as_ptr(), value.into()) }
 
         self.strings.push(key);
 
@@ -71,7 +73,7 @@ impl ObsData {
     pub fn set_bool(&mut self, key: impl Into<ObsString>, value: bool) -> &mut Self {
         let key = key.into();
 
-        unsafe { obs_data_set_bool(self.obs_data, key.as_ptr(), value) }
+        unsafe { obs_data_set_bool(self.obs_data.0, key.as_ptr(), value) }
 
         self.strings.push(key);
 
@@ -83,7 +85,7 @@ impl ObsData {
     pub fn set_double(&mut self, key: impl Into<ObsString>, value: f64) -> &mut Self {
         let key = key.into();
 
-        unsafe { obs_data_set_double(self.obs_data, key.as_ptr(), value) }
+        unsafe { obs_data_set_double(self.obs_data.0, key.as_ptr(), value) }
 
         self.strings.push(key);
 
@@ -93,6 +95,6 @@ impl ObsData {
 
 impl Drop for ObsData {
     fn drop(&mut self) {
-        unsafe { obs_data_release(self.obs_data) }
+        unsafe { obs_data_release(self.obs_data.0) }
     }
 }

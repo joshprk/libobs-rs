@@ -1,14 +1,15 @@
 use std::thread;
 use std::time::Duration;
 
-use crate::context::ObsContext;
-use crate::data::ObsData;
-use crate::enums::ObsLogLevel;
-use crate::logger::{ObsLogger, ObsStartupLog};
-use crate::utils::{
+use libobs_wrapper::context::ObsContext;
+use libobs_wrapper::data::ObsData;
+use libobs_wrapper::enums::ObsLogLevel;
+use libobs_wrapper::logger::ObsLogger;
+use libobs_wrapper::utils::{
     AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
 };
 
+#[derive(Debug)]
 struct TestLogger;
 impl ObsLogger for TestLogger {
     fn log(&mut self, level: ObsLogLevel, msg: String) {
@@ -17,12 +18,33 @@ impl ObsLogger for TestLogger {
 }
 
 #[test]
-pub fn main_test() {
+pub fn record_test() {
     // Start the OBS context
     let startup_info = StartupInfo::default()
-        .set_log_callback(Box::new(TestLogger {}))
-        .unwrap();
+        .set_logger(Box::new(TestLogger {}));
     let mut context = ObsContext::new(startup_info).unwrap();
+
+    let scene = context.scene("main");
+
+    // Create the video source using game capture
+    let mut video_source_data = ObsData::new();
+    video_source_data
+        .set_string("capture_mode", "window")
+        .set_string("window", "")
+        .set_bool("capture_cursor", true);
+
+    let video_source_info = SourceInfo::new(
+        "game_capture",
+        "video_source",
+        Some(video_source_data),
+        None,
+    );
+
+    scene.add_source(video_source_info).unwrap();
+
+    // Register the source and record
+
+    scene.add_and_set(0);
 
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
@@ -63,22 +85,6 @@ pub fn main_test() {
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
-    // Create the video source using game capture
-    let mut video_source_data = ObsData::new();
-    video_source_data
-        .set_string("capture_mode", "window")
-        .set_string("window", "")
-        .set_bool("capture_cursor", true);
-
-    let video_source_info = SourceInfo::new(
-        "game_capture",
-        "video_source",
-        Some(video_source_data),
-        None,
-    );
-
-    // Register the source and record
-    output.source(video_source_info, 0).unwrap();
     output.start().unwrap();
 
     println!("recording for 10 seconds...");

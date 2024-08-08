@@ -12,6 +12,27 @@ pub fn main() {
     let startup_info = StartupInfo::default();
     let mut context = ObsContext::new(startup_info).unwrap();
 
+
+    // Create the video source using game capture
+    let mut video_source_data = ObsData::new();
+    video_source_data
+        .set_string("capture_mode", "window")
+        .set_string("window", "")
+        .set_bool("capture_cursor", true);
+
+    let video_source_info = SourceInfo::new(
+        "game_capture",
+        "video_source",
+        Some(video_source_data),
+        None,
+    );
+
+    let scene = context.scene("main");
+    scene.add_source(video_source_info).unwrap();
+
+    // Register the source and record
+    scene.add_and_set(0);
+
     // Set up output to ./recording.mp4
     let mut output_settings = ObsData::new();
     output_settings.set_string("path", ObsPath::from_relative("recording.mp4").build());
@@ -51,22 +72,6 @@ pub fn main() {
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
-    // Create the video source using game capture
-    let mut video_source_data = ObsData::new();
-    video_source_data
-        .set_string("capture_mode", "window")
-        .set_string("window", "")
-        .set_bool("capture_cursor", true);
-
-    let video_source_info = SourceInfo::new(
-        "game_capture",
-        "video_source",
-        Some(video_source_data),
-        None,
-    );
-
-    // Register the source and record
-    output.source(video_source_info, 0).unwrap();
     output.start().unwrap();
 
     println!("recording for 10 seconds...");

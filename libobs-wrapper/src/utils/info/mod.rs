@@ -33,7 +33,7 @@ impl ObjectInfo {
 }
 
 
-pub type VideoEncoderInfo = OutputInfo;
-pub type AudioEncoderInfo = ObjectInfo;
-pub type SourceInfo = ObjectInfo;
 pub type OutputInfo = ObjectInfo;
+pub type SourceInfo = ObjectInfo;
+pub type AudioEncoderInfo = ObjectInfo;
+pub type VideoEncoderInfo = ObjectInfo;

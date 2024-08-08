@@ -67,3 +67,12 @@ impl From<Vec<u8>> for ObsString {
         }
     }
 }
+
+impl From<String> for ObsString {
+    fn from(value: String) -> Self {
+        let value = value.replace("\0", "");
+        Self {
+            c_string: CString::new(value).unwrap(),
+        }
+    }
+}

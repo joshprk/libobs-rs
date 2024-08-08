@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use std::thread;
 use std::time::Duration;
 
-use crate::{obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string, obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create, obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video, obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup, obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO, video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12, video_range_type_VIDEO_RANGE_DEFAULT};
+use crate::{vec4_create, vec4_set, obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string, obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create, obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video, obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup, obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO, video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12, video_range_type_VIDEO_RANGE_DEFAULT};
 
 #[test]
 pub fn test_obs() {
@@ -11,7 +11,7 @@ pub fn test_obs() {
         let version = CStr::from_ptr(obs_get_version_string());
         println!("LibOBS version {}", version.to_str().unwrap());
 
-        let locale = CString::new("en_US").unwrap();
+        let locale = CString::new("en-US").unwrap();
         let res = obs_startup(locale.as_ptr(), std::ptr::null(), std::ptr::null_mut());
 
         if !res {
@@ -73,8 +73,17 @@ pub fn test_obs() {
         let vid_src_id = CString::new("monitor_capture").unwrap();
         let vid_name = CString::new("Screen Capture Source").unwrap();
 
-        let vid_src = obs_source_create(vid_src_id.as_ptr(), vid_name.as_ptr(), std::ptr::null_mut(), std::ptr::null_mut());
+        let vid_data = obs_data_create();
+        let vid_data_id = CString::new("monitor_id").unwrap();
+        let vid_data_id_1 = CString::new("monitor").unwrap();
+        let vid_data_id_val = CString::new("\\\\.\\DISPLAY1").unwrap();
 
+        obs_data_set_int(vid_data, vid_data_id_1.as_ptr(), 1);
+        obs_data_set_string(vid_data, vid_data_id.as_ptr(), vid_data_id_val.as_ptr());
+
+
+        let vid_src = obs_source_create(vid_src_id.as_ptr(), vid_name.as_ptr(), vid_data, std::ptr::null_mut());
+        obs_data_release(vid_data);
 
         obs_set_output_source(0, vid_src);
 
@@ -157,4 +166,25 @@ pub fn test_obs() {
 
         thread::sleep(Duration::new(3, 0));
     }
+}
+
+#[test]
+pub fn vec_test() {
+    unsafe {
+        let x = 0.3f32;
+        let y = 0.2f32;
+        let z = 0.7f32;
+        let w = 0.1f32;
+
+        let mut v = vec4_create();
+        let v = vec4_set(&mut v, x, y, z, w);
+        let m = v.__bindgen_anon_1.m.m128_f32;
+
+        println!("{:?}", m);
+        assert_eq!(m[0], x);
+        assert_eq!(m[1], y);
+        assert_eq!(m[2], z);
+        assert_eq!(m[3], w);
+    }
+
 }

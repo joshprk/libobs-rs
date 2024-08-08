@@ -1,0 +1,150 @@
+CPU Name: AMD Ryzen 7 2700X Eight-Core Processor         
+CPU Speed: 4000MHz
+Physical Cores: 8, Logical Cores: 16
+Physical Memory: 16300MB Total, 1742MB Free
+Windows Version: 10.0 Build 22631 (release: 23H2; revision: 3880; 64-bit)
+Running as administrator: false
+Windows 10/11 Gaming Features:
+	Game DVR: On
+	Game Mode: Off
+Sec. Software Status:
+	Microsoft Defender Antivirus: enabled (AV)
+	Windows Firewall: enabled (FW)
+OBS 30.2.0
+---------------------------------
+---------------------------------
+audio settings reset:
+	samples per sec: 44100
+	speakers:        2
+	max buffering:   1044 milliseconds
+	buffering type:  dynamically increasing
+---------------------------------
+Initializing D3D11...
+Available Video Adapters: 
+	Adapter 0: Radeon RX Vega
+	  Dedicated VRAM: 8513564672 (7.9 GiB)
+	  Shared VRAM:    8546048000 (8.0 GiB)
+	  PCI ID:         1002:687f
+	  HAGS Status:    Disabled (Default: No, Driver status: Unsupported)
+	  Driver Version: 31.0.21916.2
+	  output 0:
+	    name=24G2W1G4
+	    pos={0, 0}
+	    size={1920, 1080}
+	    attached=true
+	    refresh=144
+	    bits_per_color=8
+	    space=RGB_FULL_G22_NONE_P709
+	    primaries=[r=(0.664062, 0.308594), g=(0.275391, 0.669922), b=(0.154297, 0.050781), wp=(0.313477, 0.329102)]
+	    relative_gamut_area=[709=1.269063, P3=0.935517, 2020=0.671171]
+	    sdr_white_nits=80
+	    nit_range=[min=0.500000, max=270.000000, max_full_frame=270.000000]
+	    dpi=96 (100%)
+	    id=\\?\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+	    alt_id=\\.\DISPLAY3
+	  output 1:
+	    name=SAMSUNG
+	    pos={-1366, -66}
+	    size={1366, 768}
+	    attached=true
+	    refresh=60
+	    bits_per_color=10
+	    space=RGB_FULL_G22_NONE_P709
+	    primaries=[r=(0.639648, 0.330078), g=(0.299805, 0.599609), b=(0.150391, 0.059570), wp=(0.312500, 0.329102)]
+	    relative_gamut_area=[709=0.998664, P3=0.736186, 2020=0.528164]
+	    sdr_white_nits=80
+	    nit_range=[min=0.500000, max=270.000000, max_full_frame=270.000000]
+	    dpi=96 (100%)
+	    id=\\?\DISPLAY#SAM0C3C#7&11e44168&3&UID264#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+	    alt_id=\\.\DISPLAY1
+	  output 2:
+	    name=2460G5
+	    pos={1920, -1}
+	    size={1920, 1080}
+	    attached=true
+	    refresh=59
+	    bits_per_color=8
+	    space=RGB_FULL_G22_NONE_P709
+	    primaries=[r=(0.655273, 0.327148), g=(0.301758, 0.599609), b=(0.143555, 0.080078), wp=(0.313477, 0.329102)]
+	    relative_gamut_area=[709=1.011899, P3=0.745943, 2020=0.535164]
+	    sdr_white_nits=80
+	    nit_range=[min=0.500000, max=270.000000, max_full_frame=270.000000]
+	    dpi=96 (100%)
+	    id=\\?\DISPLAY#AOC246A#7&11e44168&3&UID260#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}
+	    alt_id=\\.\DISPLAY2
+	Adapter 1: Radeon RX Vega
+	  Dedicated VRAM: 8513564672 (7.9 GiB)
+	  Shared VRAM:    8546048000 (8.0 GiB)
+	  PCI ID:         1002:687f
+	  HAGS Status:    Disabled (Default: No, Driver status: Unsupported)
+	  Driver Version: 31.0.21916.2
+Loading up D3D11 on adapter Radeon RX Vega (0)
+D3D11 loaded successfully, feature level used: b000
+DXGI increase maximum frame latency success
+---------------------------------
+video settings reset:
+	base resolution:   1920x1080
+	output resolution: 1920x1080
+	downscale filter:  Lanczos
+	fps:               30/1
+	format:            NV12
+	YUV mode:          Rec. 709/Partial
+NV12 texture support enabled
+P010 texture support not available
+No AJA devices found, skipping loading AJA plugin
+Failed to initialize module 'aja.dll'
+[CoreAudio encoder]: CoreAudio AAC encoder not installed on the system or couldn't be loaded
+A DeckLink iterator could not be created.  The DeckLink drivers may not be installed
+Failed to initialize module 'decklink.dll'
+[noise suppress]: NVIDIA denoiser disabled, redistributable not found or could not be loaded.
+Failed to get NVVideoEffects.dll version info size
+[NVIDIA VIDEO FX]: FX disabled, redistributable not found or could not be loaded.
+  Loaded Modules:
+    win-wasapi.dll
+    win-dshow.dll
+    win-capture.dll
+    text-freetype2.dll
+    rtmp-services.dll
+    obs-x264.dll
+    obs-webrtc.dll
+    obs-transitions.dll
+    obs-text.dll
+    obs-qsv11.dll
+    obs-outputs.dll
+    obs-filters.dll
+    obs-ffmpeg.dll
+    image-source.dll
+    coreaudio-encoder.dll
+[duplicator-monitor-capture: 'monitor_test'] update settings:
+	display: SAMSUNG (1366x768)
+	cursor: true
+	method: DXGI
+	id: 
+	alt_id: \\.\DISPLAY1
+	setting_id: \\.\DISPLAY1
+	force SDR: false
+---------------------------------
+[x264 encoder: 'video_encoder'] preset: fast
+[x264 encoder: 'video_encoder'] profile: high
+[x264 encoder: 'video_encoder'] settings:
+	rate_control: cbr
+	bitrate:      10000
+	buffer size:  10000
+	crf:          23
+	fps_num:      30
+	fps_den:      1
+	width:        1920
+	height:       1080
+	keyint:       250
+
+---------------------------------
+[FFmpeg aac encoder: 'audio_encoder'] bitrate: 160, channels: 2, channel_layout: stereo
+
+[ffmpeg muxer: 'output'] Writing file 'E:/Rust/libobs-rs/libobs-sources/target/debug/deps/monitor_capture.mp4'...
+[ffmpeg muxer: 'output'] Output of file 'E:/Rust/libobs-rs/libobs-sources/target/debug/deps/monitor_capture.mp4' stopped
+Output 'output': stopping
+Output 'output': Total frames output: 151
+Output 'output': Total drawn frames: 209
+Freeing OBS context data
+OBS context shutdown.
+Number of memory leaks: 3

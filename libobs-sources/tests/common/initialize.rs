@@ -1,10 +1,33 @@
-use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use std::{env::current_dir, fs::File, io::Write};
 
+pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
+    initialize_obs_with_log(rec_file, false)
+}
+
+#[derive(Debug)]
+struct DebugLogger {
+    f: File
+}
+impl ObsLogger for DebugLogger {
+    fn log(&mut self, level: libobs_wrapper::enums::ObsLogLevel, msg: String) {
+        if level == ObsLogLevel::Debug {
+            return;
+        }
+
+        self.f.write_all(format!("{}\n", msg).as_bytes()).unwrap();
+    }
+}
 
 /// The string returned is the name of the obs output
-pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
+pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (ObsContext, String) {
     // Start the OBS context
-    let startup_info = StartupInfo::default();
+    let mut startup_info = StartupInfo::default();
+    if file_logger {
+        let l = DebugLogger { f: File::create(current_dir().unwrap().join("obs.log")).unwrap() };
+        startup_info = startup_info.set_logger(Box::new(l));
+    }
+
     let mut context = ObsContext::new(startup_info).unwrap();
 
     // Set up output to ./recording.mp4
@@ -23,7 +46,7 @@ pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
         .set_bool("psycho_aq", true)
         .set_bool("lookahead", true)
         .set_string("profile", "high")
-        .set_string("preset", "hq")
+        .set_string("preset", "fast")
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000);
 
