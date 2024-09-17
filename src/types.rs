@@ -10,12 +10,20 @@ use std::path::PathBuf;
 use crate::ffi::obs_audio_info;
 use crate::ffi::obs_video_info;
 
+/// String type specifically designed to interface with libobs.
+///
+/// It internally wraps a CString and is completely immutable during
+/// its lifetime. Furthermore, all ObsStrings are valid C-style strings
+/// as all null bytes are removed when constructing the internal CString.
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsString {
     inner: CString,
 }
 
 impl ObsString {
+    /// Creates a new ObsString where the given input can be loselessly
+    /// translated into an UTF-8 byte array and have all its null bytes 
+    /// stripped before an internal CString is made.
     pub fn new<T: Into<Vec<u8>>>(t: T) -> Self {
         let v = t.into()
             .into_iter()
@@ -25,7 +33,8 @@ impl ObsString {
 
         Self { inner: CString::from(v) }
     }
-
+    
+    /// Returns the FFI pointer of the internal CString.
     pub fn as_ptr(&self) -> *const c_char {
         self.inner.as_ptr()
     }
