@@ -70,12 +70,23 @@ impl From<Vec<u8>> for ObsString {
     }
 }
 
+/// Mutable path type specifically for inputting path arguments
+/// to this library.
+///
+/// This type internally wraps a PathBuf and can easily be converted
+/// into an ``ObsString``. This type can be considered a "builder"
+/// for ``ObsString``, but for paths.
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd)]
 pub struct ObsPath {
     inner: PathBuf,
 }
 
 impl ObsPath {
+    /// Creates a new ObsPath from the relative path.
+    ///
+    /// This function takes an argument which is appended to the 
+    /// directory of the executable that this library is called from.
+    /// If an absolute path is necessary, simply input an absolute path.
     pub fn new<P: AsRef<Path>>(p: P) -> Self {
         let mut r = env::current_exe()
             .unwrap()
@@ -86,15 +97,18 @@ impl ObsPath {
 
         Self { inner: r }
     }
-
+    
+    /// Appends an extra level to the path.
     pub fn push<P: AsRef<Path>>(&mut self, p: P) {
         self.inner.push(p)
     }
 
+    /// Mutates the path to its parent.
     pub fn pop(&mut self) -> bool {
         self.inner.pop()
     }
 
+    /// Consumes the ObsPath to create an ObsString.
     pub fn into_obs_string(self) -> ObsString {
         let is_dir = self.inner.is_dir();
         let mut bytes = self.inner
