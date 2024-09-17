@@ -7,6 +7,9 @@ use std::num::NonZeroU8;
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::ffi::obs_audio_info;
+use crate::ffi::obs_video_info;
+
 #[derive(Clone, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsString {
     inner: CString,
@@ -117,4 +120,18 @@ impl<P> From<P> for ObsPath where P: AsRef<Path> {
     fn from(value: P) -> Self {
         ObsPath::new(value)
     }
+}
+
+pub struct AudioInfo {
+    inner: obs_audio_info
+}
+
+impl AudioInfo {
+    pub fn new() -> Self {
+        todo!()
+    }
+}
+
+pub struct VideoInfo {
+    inner: obs_video_info
 }
