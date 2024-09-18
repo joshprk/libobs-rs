@@ -698,7 +698,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-new"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "bindgen",
  "cc",
@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-source-macro"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "num-traits",
  "proc-macro2",
@@ -716,7 +716,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "display-info",
