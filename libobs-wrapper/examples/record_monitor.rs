@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use libobs_wrapper::context::ObsContext;
 use libobs_wrapper::data::ObsData;
+use libobs_wrapper::encoders::ObsContextEncoders;
 use libobs_wrapper::utils::{
     AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
 };
@@ -53,7 +54,7 @@ pub fn main() {
         .set_int("bitrate", 10000);
 
     let video_info = VideoEncoderInfo::new(
-        ObsContext::get_best_encoder(),
+        ObsContext::get_best_video_encoder(),
         "video_encoder",
         Some(video_settings),
         None,
