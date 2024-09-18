@@ -1,4 +1,4 @@
-use libobs_wrapper::{context::ObsContext, data::ObsData, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
 use std::{env::current_dir, fs::File, io::Write};
 
 pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
@@ -22,10 +22,11 @@ impl ObsLogger for DebugLogger {
 /// The string returned is the name of the obs output
 pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (ObsContext, String) {
     // Start the OBS context
+    #[allow(unused_mut)]
     let mut startup_info = StartupInfo::default();
     if file_logger {
-        let l = DebugLogger { f: File::create(current_dir().unwrap().join("obs.log")).unwrap() };
-        startup_info = startup_info.set_logger(Box::new(l));
+        let _l = DebugLogger { f: File::create(current_dir().unwrap().join("obs.log")).unwrap() };
+        //startup_info = startup_info.set_logger(Box::new(_l));
     }
 
     let mut context = ObsContext::new(startup_info).unwrap();
@@ -50,8 +51,13 @@ pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (O
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000);
 
+    let encoders = ObsContext::get_available_video_encoders();
+
+    println!("Available encoders: {:?}", encoders);
+    let encoder =  encoders.iter().find(|e| **e == ObsVideoEncoderType::H264_TEXTURE_AMF || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF).unwrap();
+    println!("Using encoder {:?}", encoder);
     let video_info = VideoEncoderInfo::new(
-        ObsContext::get_best_encoder(),
+        encoder.clone(),
         "video_encoder",
         Some(video_settings),
         None,

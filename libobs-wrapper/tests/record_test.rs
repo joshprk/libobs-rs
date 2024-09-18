@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use libobs_wrapper::context::ObsContext;
 use libobs_wrapper::data::ObsData;
+use libobs_wrapper::encoders::ObsContextEncoders;
 use libobs_wrapper::enums::ObsLogLevel;
 use libobs_wrapper::logger::ObsLogger;
 use libobs_wrapper::utils::{
@@ -66,7 +67,7 @@ pub fn record_test() {
         .set_int("bitrate", 10000);
 
     let video_info = VideoEncoderInfo::new(
-        ObsContext::get_best_encoder(),
+        ObsContext::get_best_video_encoder(),
         "video_encoder",
         Some(video_settings),
         None,

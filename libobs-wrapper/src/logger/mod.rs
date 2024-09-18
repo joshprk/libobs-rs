@@ -48,3 +48,11 @@ pub(crate) unsafe extern "C" fn extern_log_callback(
 pub trait ObsLogger where Self: Send + Debug {
     fn log(&mut self, level: ObsLogLevel, msg: String);
 }
+
+pub(crate) fn internal_log_global(
+    level: ObsLogLevel,
+    msg: String,
+) {
+    let mut logger = LOGGER.lock().unwrap();
+    logger.log(level, msg);
+}

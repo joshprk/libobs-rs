@@ -1,4 +1,4 @@
-pub mod unsafe_send;
+mod unsafe_send;
 pub mod data;
 pub mod sources;
 pub mod encoders;

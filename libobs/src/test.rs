@@ -103,7 +103,7 @@ pub fn test_obs() {
         obs_data_set_string(vid_enc_settings, profile.as_ptr(), profile_val.as_ptr());
         obs_data_set_string(vid_enc_settings, preset.as_ptr(), preset_val.as_ptr());
         obs_data_set_string(vid_enc_settings, rate_control.as_ptr(), rate_control_val.as_ptr());
-    
+
         obs_data_set_int(vid_enc_settings, crf.as_ptr(), 20);
 
         let vid_enc_id = CString::new("obs_x264").unwrap();
@@ -165,6 +165,16 @@ pub fn test_obs() {
         obs_output_stop(rec_out);
 
         thread::sleep(Duration::new(3, 0));
+
+        crate::obs_source_release(vid_src);
+        crate::obs_encoder_release(audio_enc);
+        crate::obs_source_release(audio_src);
+        crate::obs_encoder_release(vid_enc);
+        crate::obs_output_release(rec_out);
+        crate::obs_shutdown();
+
+        println!("OBS shutdown");
+        println!("Allocs {}", unsafe { crate::bnum_allocs() });
     }
 }
 

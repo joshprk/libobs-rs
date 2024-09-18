@@ -1,15 +1,15 @@
 use std::{
-    ffi::{c_char, CStr}, ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
+    ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
 };
 
 use crate::{
     data::{output::ObsOutput, video::ObsVideoInfo},
     display::{ObsDisplay, ObsDisplayCreationData, VertexBuffers},
-    enums::{ObsLogLevel, ObsResetVideoStatus, ObsVideoEncoderType},
-    logger::{extern_log_callback, LOGGER},
+    enums::{ObsLogLevel, ObsResetVideoStatus},
+    logger::{extern_log_callback, internal_log_global, LOGGER},
     scenes::ObsScene,
     unsafe_send::WrappedObsScene,
-    utils::{ObsError, ObsString, OutputInfo, StartupInfo},
+    utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
 };
 use anyhow::Result;
 use getters0::Getters;
@@ -153,10 +153,8 @@ impl ObsContext {
         let startup_status =
             unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
 
-        let mut log = LOGGER.lock().unwrap();
-        log.log(ObsLogLevel::Info, format!("OBS {}", Self::get_version()));
-        log.log(ObsLogLevel::Info, "---------------------------------".to_string());
-        drop(log);
+        internal_log_global(ObsLogLevel::Info, format!("OBS {}", Self::get_version()));
+        internal_log_global(ObsLogLevel::Info, "---------------------------------".to_string());
 
         if !startup_status {
             return Err(ObsError::Failure);
@@ -175,7 +173,7 @@ impl ObsContext {
         //
         // https://docs.obsproject.com/frontends
         unsafe {
-            libobs::obs_reset_audio(info.obs_audio_info.as_ptr());
+            libobs::obs_reset_audio2(info.obs_audio_info.as_ptr());
         }
 
         // Resets the video context. Note that this
@@ -190,11 +188,11 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
-        unsafe {
-            libobs::obs_load_all_modules();
-            libobs::obs_post_load_modules();
-            libobs::obs_log_loaded_modules();
-        }
+        let m = ObsModules::load_modules();
+        m.log_if_failed();
+
+        internal_log_global(ObsLogLevel::Info, "==== Startup complete ===============================================".to_string());
+
 
         let vertex_buffers = unsafe { VertexBuffers::initialize() };
 
@@ -323,26 +321,6 @@ impl ObsContext {
         Ok(unsafe { libobs::obs_get_audio() })
     }
 
-    pub fn get_best_encoder() -> ObsVideoEncoderType {
-        Self::get_available_encoders().first().unwrap().clone()
-    }
-
-    pub fn get_available_encoders() -> Vec<ObsVideoEncoderType> {
-        // from https://github.com/FFFFFFFXXXXXXX/libobs-recorder
-        let mut n = 0;
-        let mut encoders = Vec::new();
-        let mut ptr: *const c_char = unsafe { std::mem::zeroed() };
-        while unsafe { libobs::obs_enum_encoder_types(n, &mut ptr) } {
-            n += 1;
-            let cstring = unsafe { CStr::from_ptr(ptr) };
-            if let Ok(enc) = cstring.to_str() {
-                encoders.push(enc.into());
-            }
-        }
-        encoders.sort_unstable();
-        encoders
-    }
-
     pub fn scene(&mut self, name: impl Into<ObsString>) -> &mut ObsScene {
         let scene = ObsScene::new(name.into(), self.active_scene.clone());
         self.scenes.push(scene);
@@ -362,7 +340,10 @@ impl Drop for _ObsContextShutdownZST {
         match r {
             Ok(mut logger) => {
                 logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
-                logger.log(ObsLogLevel::Info, format!("Number of memory leaks: {}", unsafe { libobs::bnum_allocs() }))
+                let allocs = unsafe { libobs::bnum_allocs() };
+
+                let level = if allocs != 0 { ObsLogLevel::Error } else { ObsLogLevel::Info };
+                logger.log(level, format!("Number of memory leaks: {}", allocs))
             }
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");

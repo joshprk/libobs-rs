@@ -3,7 +3,6 @@ use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
-use super::utils::ObsString;
 
 #[cfg(target_os = "windows")]
 pub(crate) type OsEnumType = i32;
@@ -140,51 +139,6 @@ pub enum ObsSpeakerLayout {
     Unknown = libobs::speaker_layout_SPEAKERS_UNKNOWN,
 }
 
-// from https://github.com/FFFFFFFXXXXXXX/libobs-recorder
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(non_camel_case_types)]
-pub enum ObsVideoEncoderType {
-    JIM_AV1,
-    JIM_NVENC,
-    FFMPEG_NVENC,
-    AMD_AMF_AV1,
-    AMD_AMF_H264,
-    OBS_QSV11_AV1,
-    OBS_QSV11_H264,
-    OBS_X264,
-}
-
-impl From<&str> for ObsVideoEncoderType {
-    fn from(value: &str) -> ObsVideoEncoderType {
-        return match value {
-            "jim_av1" => ObsVideoEncoderType::JIM_AV1,
-            "jim_nvenc" => ObsVideoEncoderType::JIM_NVENC,
-            "ffmpeg_nvenc" => ObsVideoEncoderType::FFMPEG_NVENC,
-            "amd_amf_av1" => ObsVideoEncoderType::AMD_AMF_AV1,
-            "amd_amf_h264" => ObsVideoEncoderType::AMD_AMF_H264,
-            "obs_qsv11_av1" => ObsVideoEncoderType::OBS_QSV11_AV1,
-            "obs_qsv11_h264" => ObsVideoEncoderType::OBS_QSV11_H264,
-            "obs_x264" => ObsVideoEncoderType::OBS_X264,
-            _ => ObsVideoEncoderType::OBS_X264,
-        };
-    }
-}
-
-impl Into<ObsString> for ObsVideoEncoderType {
-    fn into(self) -> ObsString {
-        return match self {
-            ObsVideoEncoderType::JIM_AV1 => ObsString::new("jim_av1"),
-            ObsVideoEncoderType::JIM_NVENC => ObsString::new("jim_nvenc"),
-            ObsVideoEncoderType::FFMPEG_NVENC => ObsString::new("ffmpeg_nvenc"),
-            ObsVideoEncoderType::AMD_AMF_AV1 => ObsString::new("amd_amf_av1"),
-            ObsVideoEncoderType::AMD_AMF_H264 => ObsString::new("amd_amf_h264"),
-            ObsVideoEncoderType::OBS_QSV11_AV1 => ObsString::new("obs_qsv11_av1"),
-            ObsVideoEncoderType::OBS_QSV11_H264 => ObsString::new("obs_qsv11_h264"),
-            ObsVideoEncoderType::OBS_X264 => ObsString::new("obs_x264")
-        };
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsOutputSignal {
     /// Successfully stopped
@@ -257,6 +211,14 @@ impl TryFrom<i32> for ObsOutputSignal {
             _ => Err("Invalid value"),
         }
     }
+}
+
+#[cfg_attr(target_os="windows", repr(i32))]
+#[cfg_attr(not(target_os="windows"), repr(u32))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+pub enum ObsEncoderType {
+    Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO,
+    Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO,
 }
 
 

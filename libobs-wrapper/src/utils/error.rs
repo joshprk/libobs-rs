@@ -1,6 +1,6 @@
 use std::fmt::Display;
-use crate::enums::ObsResetVideoStatus;
 
+use crate::enums::ObsResetVideoStatus;
 
 /// Error type for OBS function calls.
 #[derive(Clone, Debug, PartialEq, Eq)]
