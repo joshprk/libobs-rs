@@ -145,16 +145,46 @@ impl<P> From<P> for ObsPath where P: AsRef<Path> {
     }
 }
 
+/// Information for resetting the audio context in libobs.
+///
+/// This type wraps the ``obs_audio_info`` type in libobs,
+/// which contains information necessary to reset the internal
+/// audio context. Note that the audio context was not meant to 
+/// be reset often.
 pub struct AudioInfo {
     inner: obs_audio_info
 }
 
 impl AudioInfo {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(samples_per_sec: SamplesPerSec) -> Self {
+        let inner = obs_audio_info {
+            samples_per_sec: samples_per_sec as _,
+            speakers: todo!(),
+        };
+
+        Self { inner }
     }
 }
 
+/// Audio samples per second for a given libobs audio context.
+///
+/// This is used in AudioInfo, which is passed to libobs when
+/// resetting the audio context to set how many audio samples
+/// are used.
+///
+/// Note that the audio context is meant to only be 
+/// reset once at startup. Therefore, this has no use other 
+/// than at startup.
+pub enum SamplesPerSec {
+    HZ44100 = 44100,
+    HZ48000 = 48000,
+}
+
+/// Information for resetting the video context in libobs.
+///
+/// This type wraps the ``obs_video_info`` type in libobs,
+/// which contains information necessary to reset the internal
+/// video context.
 pub struct VideoInfo {
     inner: obs_video_info
 }

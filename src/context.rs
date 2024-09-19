@@ -162,7 +162,7 @@ pub fn is_obs_thread() -> bool {
 
 /// Gets the number of active memory allocations 
 /// that OBS is using. Useful for testing.
-pub fn get_obs_allocs() -> i32 {
+pub fn get_obs_allocs() -> i64 {
     // non-windows binaries return bnum_allocs() 
     // as i64, cross-compatibility into
     unsafe { ffi::bnum_allocs().into() }
