@@ -12,8 +12,8 @@ edition = "2021"
 build = "build.rs"
 
 [build-dependencies]
-bindgen = "0.69.4"
-cc = "1.1.7"
+bindgen = "0.70.1"
+cc = "1.1.31"
 
 [package.metadata]
 libobs-version="30.2.2"

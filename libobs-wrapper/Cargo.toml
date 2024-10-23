@@ -16,7 +16,7 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = "1.0.91"
 libobs = { package = "libobs-new", version = "2.0.2", path = "../libobs" }
 display-info = "0.5.1"
 num-derive = "0.4.2"
