@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.scss": "scss",
+        "math.h": "c",
+        "vec4.h": "c"
+    },
+    "rust-analyzer.checkOnSave": false,
+    "C_Cpp.errorSquiggles": "disabled"
+}

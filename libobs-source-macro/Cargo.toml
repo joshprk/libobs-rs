@@ -1,0 +1,22 @@
+[package]
+name = "libobs-source-macro"
+description = "Helper macro for libobs-sources"
+repository = "https://github.com/sshcrack/libobs-rs"
+readme = "README.md"
+authors = ["sshcrack"]
+categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
+license = "GPL-3.0"
+version = "0.1.1"
+edition = "2021"
+
+[dependencies]
+num-traits = "0.2.19"
+proc-macro2 = "1.0.86"
+quote = "1.0.36"
+syn = "2.0.72"
+
+[lib]
+name = "libobs_source_macro"
+path = "src/lib.rs"
+proc-macro = true
