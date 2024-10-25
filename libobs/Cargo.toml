@@ -18,3 +18,9 @@ cc = "1.1.31"
 [package.metadata]
 libobs-version="30.2.2"
 libobs-cache-dir="../obs-build"
+
+[features]
+debug-tracing = ["dep:log"]
+
+[dependencies]
+log = { version = "0.4.22", optional = true }

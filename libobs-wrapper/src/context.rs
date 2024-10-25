@@ -160,13 +160,7 @@ impl ObsContext {
             return Err(ObsError::Failure);
         }
 
-        unsafe {
-            libobs::obs_add_data_path(info.startup_paths.libobs_data_path().as_ptr());
-            libobs::obs_add_module_path(
-                info.startup_paths.plugin_bin_path().as_ptr(),
-                info.startup_paths.plugin_data_path().as_ptr(),
-            );
-        }
+        ObsModules::add_paths(&info.startup_paths);
 
         // Note that audio is meant to only be reset
         // once. See the link below for information.

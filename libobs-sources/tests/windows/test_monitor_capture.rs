@@ -19,10 +19,10 @@ pub async fn monitor_test() {
     let scene = context.scene("main");
 
     MonitorCaptureSourceBuilder::new("monitor_test")
-        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
+        //.set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
+        .set_monitor_id_raw("\\\\?\\DISPLAY#Default_Monitor#1&1f0c3c2f&0&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}")
         .add_to_scene(scene)
         .unwrap();
-
     scene.add_and_set(0);
     let output = context.get_output(&output).unwrap();
     output.start().unwrap();

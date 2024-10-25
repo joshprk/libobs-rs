@@ -13,7 +13,14 @@
 #[cfg(test)]
 mod test;
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+mod bindings {
+    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+}
+
+pub use bindings::*;
+
+#[cfg(feature="debug-tracing")]
+include!(concat!(env!("OUT_DIR"), "/bindings_wrapper.rs"));
 
 extern "C" {
     fn vec4_set1(v: *mut crate::vec4, x: f32, y: f32, z: f32, w: f32) -> crate::vec4;

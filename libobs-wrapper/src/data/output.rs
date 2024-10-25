@@ -3,10 +3,7 @@ use std::{borrow::Borrow, ffi::CStr, ptr};
 
 use getters0::Getters;
 use libobs::{
-    audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video,
-    obs_output_active, obs_output_create, obs_output_get_last_error,
-    obs_output_get_name, obs_output_get_signal_handler, obs_output_release,
-    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, signal_handler_connect, video_output,
+    audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video, obs_output_active, obs_output_create, obs_output_get_last_error, obs_output_get_name, obs_output_get_signal_handler, obs_output_release, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, signal_handler_connect, signal_handler_disconnect, video_output
 };
 
 use crate::enums::ObsOutputSignal;
@@ -24,10 +21,6 @@ use super::ObsData;
 #[derive(Debug, Getters)]
 #[skip_new]
 pub struct ObsOutput {
-    #[skip_getter]
-    pub(crate) output: WrappedObsOutput,
-    pub(crate) id: ObsString,
-    pub(crate) name: ObsString,
     pub(crate) settings: Option<ObsData>,
     pub(crate) hotkey_data: Option<ObsData>,
 
@@ -36,6 +29,11 @@ pub struct ObsOutput {
 
     #[get_mut]
     pub(crate) audio_encoders: Vec<ObsAudioEncoder>,
+
+    #[skip_getter]
+    pub(crate) output: WrappedObsOutput,
+    pub(crate) id: ObsString,
+    pub(crate) name: ObsString,
 }
 
 impl ObsOutput {
@@ -75,7 +73,6 @@ impl ObsOutput {
             return Err(ObsError::NullPointer);
         }
 
-        //TODO connect signal handler
         let handler = unsafe { obs_output_get_signal_handler(output) };
         unsafe {
             let signal = ObsString::new("stop");
@@ -187,7 +184,18 @@ impl ObsOutput {
 
 impl Drop for ObsOutput {
     fn drop(&mut self) {
-        unsafe { obs_output_release(self.output.0) }
+        unsafe {
+            let handler = obs_output_get_signal_handler(self.output.0);
+            let signal = ObsString::new("stop");
+            signal_handler_disconnect(
+                handler,
+                signal.as_ptr(),
+                Some(signal_handler),
+                ptr::null_mut(),
+            );
+
+            obs_output_release(self.output.0);
+        }
     }
 }
 

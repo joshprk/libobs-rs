@@ -1,3 +1,4 @@
+use env_logger::Env;
 use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
 use std::{env::current_dir, fs::File, io::Write};
 
@@ -21,6 +22,8 @@ impl ObsLogger for DebugLogger {
 
 /// The string returned is the name of the obs output
 pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (ObsContext, String) {
+    let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug")).is_test(true).try_init();
+
     // Start the OBS context
     #[allow(unused_mut)]
     let mut startup_info = StartupInfo::default();
@@ -43,7 +46,7 @@ pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (O
     // Register the video encoder
     let mut video_settings = ObsData::new();
     video_settings
-        .set_int("bf", 2)
+        .set_int("bf", 0)
         .set_bool("psycho_aq", true)
         .set_bool("lookahead", true)
         .set_string("profile", "high")

@@ -11,7 +11,7 @@ use anyhow::{anyhow, bail};
 use colored::Colorize;
 use http_req::{
     chunked::ChunkReader,
-    request::{Request, RequestBuilder},
+    request::{Request, RequestMessage},
     response::Response,
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
@@ -93,14 +93,14 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
     let url = get_download_url(url)?;
     let uri = Uri::try_from(url.as_str())?;
-    let mut stream = Stream::new(&uri, Some(timeout.clone()))?;
+    let mut stream = Stream::connect(&uri, Some(timeout.clone()))?;
 
     stream.set_read_timeout(Some(timeout.clone()))?;
     stream.set_write_timeout(Some(timeout.clone()))?;
 
     stream = Stream::try_to_https(stream, &uri, None)?;
 
-    let res = RequestBuilder::new(&uri)
+    let res = RequestMessage::new(&uri)
         .header("Connection", "Close")
         .header("User-Agent", "cargo-obs-build")
         .parse();

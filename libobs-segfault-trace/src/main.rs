@@ -14,7 +14,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use crash_handler::CrashHandler;
-use libobs_wrapper::{context::ObsContext, data::ObsData, utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::ObsContextEncoders, utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo}};
 use std::{
     env::{args, current_dir, current_exe}, fs::File, io::Write, path::PathBuf, thread, time::{Duration, SystemTime, UNIX_EPOCH}
 };
@@ -251,7 +251,7 @@ pub fn run_basic_obs() -> Result<()> {
         .set_int("bitrate", 10000);
 
     let video_info = VideoEncoderInfo::new(
-        ObsContext::get_best_encoder(),
+        ObsContext::get_best_video_encoder(),
         "video_encoder",
         Some(video_settings),
         None,
@@ -285,7 +285,7 @@ pub fn run_basic_obs() -> Result<()> {
     );
 
     // Register the source and record
-    output.source(video_source_info, 0)?;
+    //output.source(video_source_info, 0)?;
     output.start()?;
 
     println!("recording for 10 seconds...");

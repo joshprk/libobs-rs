@@ -19,6 +19,16 @@ pub struct ObsModules {
 }
 
 impl ObsModules {
+    pub fn add_paths(paths: &StartupPaths) {
+        unsafe {
+            libobs::obs_add_data_path(paths.libobs_data_path().as_ptr());
+            libobs::obs_add_module_path(
+                paths.plugin_bin_path().as_ptr(),
+                paths.plugin_data_path().as_ptr(),
+            );
+        }
+    }
+
     pub fn load_modules() -> Self {
         unsafe {
             let mut failure_info: obs_module_failure_info = std::mem::zeroed();

@@ -1,5 +1,11 @@
 use std::{collections::HashSet, env, path::PathBuf};
 
+#[cfg(feature = "debug-tracing")]
+use std::{
+    fs::{self, File},
+    io::Write,
+};
+
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
 
@@ -30,6 +36,243 @@ fn get_ignored_macros() -> IgnoreMacros {
     ignored.insert("FP_INFINITE".to_string());
     ignored.insert("FP_NAN".to_string());
     IgnoreMacros(ignored)
+}
+
+#[cfg(feature = "debug-tracing")]
+pub const KEYWORDS: &'static [&'static str] = &[
+    "as",
+    "use",
+    "extern crate",
+    "break",
+    "const",
+    "continue",
+    "crate",
+    "else",
+    "if",
+    "if let",
+    "enum",
+    "extern",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "impl",
+    "in",
+    "for",
+    "let",
+    "loop",
+    "match",
+    "mod",
+    "move",
+    "mut",
+    "pub",
+    "impl",
+    "ref",
+    "return",
+    "Self",
+    "self",
+    "static",
+    "struct",
+    "super",
+    "trait",
+    "true",
+    "type",
+    "unsafe",
+    "use",
+    "where",
+    "while",
+    "abstract",
+    "alignof",
+    "become",
+    "box",
+    "do",
+    "final",
+    "macro",
+    "offsetof",
+    "override",
+    "priv",
+    "proc",
+    "pure",
+    "sizeof",
+    "typeof",
+    "unsized",
+    "virtual",
+    "yield",
+];
+
+#[cfg(feature = "debug-tracing")]
+fn extract_args(function: &str) -> String {
+    let function = function.replace("\n", "").replace(" ", " ");
+    let start_index = function.find("(").unwrap();
+    let end_index = function.rfind(")").unwrap();
+
+    let args = &function[start_index + 1..end_index];
+    let mut out = vec![];
+
+    let mut buf = String::new();
+    let mut nesting = 0;
+    let mut after_colon = false;
+
+    let mut prev = ' ';
+    for c in args.chars() {
+        if c == ' ' {
+            continue;
+        }
+
+        if c == ',' && nesting == 0 {
+            out.push(buf.clone());
+            buf.clear();
+            after_colon = false;
+            continue;
+        }
+
+        if c == '<' && prev != '-' {
+            nesting += 1;
+        }
+
+        if c == '>' && prev != '-' {
+            nesting -= 1;
+        }
+
+        if c == ':' {
+            after_colon = true;
+        }
+
+        if !after_colon && nesting == 0 {
+            buf.push(c);
+        }
+
+        prev = c;
+    }
+
+    if buf.len() > 0 {
+        out.push(buf);
+    }
+
+    out.join(", ")
+}
+
+#[cfg(feature = "debug-tracing")]
+fn extract_field_name(field_part: &str) -> String {
+    let mut out = String::new();
+    for c in field_part.chars() {
+        if c.is_alphanumeric() || c == '_' {
+            out.push(c);
+        } else {
+            break;
+        }
+    }
+
+    out
+}
+
+#[cfg(feature = "debug-tracing")]
+fn generate_wrapper(bindings: &str) -> String {
+    let mut indent = 0;
+    let mut in_extern_c = false;
+
+    let mut wrapper = String::new();
+    let mut functions_to_wrap = vec![];
+
+    // Only wrap obs functions for now
+    let to_wrap_start = "obs_";
+
+    let to_exclude = vec![
+        "obs_data_get_json_with_defaults",
+        "obs_data_get_json_pretty_with_defaults",
+        "obs_fader_db_to_def",
+        "obs_encoder_parent_video",
+        "obs_encoder_set_group",
+        "obs_encoder_group_create",
+        "obs_encoder_group_destroy",
+    ]
+    .iter()
+    .map(|x| x.to_string())
+    .collect::<HashSet<String>>();
+
+    let lines: Vec<_> = bindings.split("\n").collect();
+    for i in 0..lines.len() {
+        let line = &lines[i];
+        if line.contains("#") {
+            continue;
+        }
+
+        if line.contains("{") {
+            if line.starts_with("extern \"C\" {") && indent == 0 {
+                in_extern_c = true;
+            }
+            indent += 1;
+        }
+
+        if line.contains("}") {
+            indent -= 1;
+            if indent == 0 {
+                in_extern_c = false;
+            }
+        }
+
+        let line = line.trim();
+        if line.starts_with("pub") && (indent == 0 || (in_extern_c && indent == 1)) {
+            let split = line.split(" ").collect::<Vec<&str>>();
+            if split.len() < 3 {
+                eprintln!(
+                    "Warn - Couldn't process line: {} -  {} {}",
+                    line, indent, in_extern_c
+                );
+                continue;
+            }
+
+            let field_name = split
+                .iter()
+                .find(|x| !KEYWORDS.contains(&x))
+                .expect("Couldn't find field name for function");
+            let matched_field_name = extract_field_name(field_name);
+            if matched_field_name.len() == 0 {
+                eprintln!(
+                    "Warn - Couldn't process line: {} -  {} {}",
+                    line, indent, in_extern_c
+                );
+                continue;
+            }
+
+            if in_extern_c
+                && line.starts_with("pub fn")
+                && matched_field_name.starts_with(to_wrap_start)
+                && !to_exclude.contains(matched_field_name.as_str())
+            {
+                functions_to_wrap.push((i, matched_field_name))
+            }
+        }
+    }
+
+    for (function_index, name) in functions_to_wrap {
+        let mut function = vec![];
+        for i in function_index..lines.len() {
+            let line = &lines[i];
+            function.push(*line);
+
+            if line.contains(";") {
+                break;
+            }
+        }
+
+        let function = function.join("\n").replace(";", "");
+        let function = function.trim();
+
+        let args = extract_args(function);
+
+        let un_fn = function.replace("pub fn", "pub unsafe fn");
+        wrapper.push_str(&format!(
+            r#"
+{un_fn} {{
+    log::debug!("{{}}", "{name}");
+    bindings::{name}({args})
+}}
+        "#
+        ));
+    }
+
+    return wrapper;
 }
 
 fn main() {
@@ -69,11 +312,23 @@ fn main() {
         .expect("Error generating bindings");
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let bindings_path = out_path.join("bindings.rs");
+
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(&bindings_path)
         .expect("Couldn't write bindings!");
 
-        cc::Build::new()
-        .file("headers/vec4.c")
-        .compile("libvec4.a");
+    #[cfg(feature = "debug-tracing")]
+    {
+        let bindings =
+            fs::read_to_string(&bindings_path).expect("Couldn't read bindings file (somehow?)");
+        let mut wrapper_f = File::create(out_path.join("bindings_wrapper.rs"))
+            .expect("Couldn't create bindings wrapper file");
+
+        wrapper_f
+            .write(generate_wrapper(&bindings.replace("\r", "")).as_bytes())
+            .expect("Couldn't write to bindings wrapper file");
+    }
+
+    cc::Build::new().file("headers/vec4.c").compile("libvec4.a");
 }
