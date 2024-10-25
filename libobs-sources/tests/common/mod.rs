@@ -69,9 +69,14 @@ pub async fn test_video(vid_path: &Path) -> anyhow::Result<()> {
 
     let split = stdout
         .split("\n")
-        .find(|l| l.contains("black_start"))
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find black_start"))?
-        .trim()
+        .find(|l| l.contains("black_start"));
+    if split.is_none() {
+        // No black frames found,
+        return Ok(())
+    }
+
+
+    let split = split.unwrap().trim()
         .split("]")
         .nth(1)
         .expect("Couldn't find black_start");

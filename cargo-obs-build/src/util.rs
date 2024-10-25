@@ -101,7 +101,7 @@ pub fn configure_cmake(dir: &Path, preset: &str, build_type: &str) -> anyhow::Re
         .arg(format!("-DCMAKE_BUILD_TYPE={}", build_type))
         .current_dir(dir);
 
-    add_disabled_features(&mut cmd);
+    //add_disabled_features(&mut cmd);
     println!("{}", "Configuring OBS Studio...".blue());
     let res = cmd.status()?;
 

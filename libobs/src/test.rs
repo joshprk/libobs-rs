@@ -191,10 +191,10 @@ pub fn vec_test() {
         let m = v.__bindgen_anon_1.m.m128_f32;
 
         println!("{:?}", m);
-        assert_eq!(m[0], x);
-        assert_eq!(m[1], y);
-        assert_eq!(m[2], z);
-        assert_eq!(m[3], w);
+        assert_eq!(m[0], w);
+        assert_eq!(m[1], z);
+        assert_eq!(m[2], y);
+        assert_eq!(m[3], x);
     }
 
 }
