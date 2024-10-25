@@ -23,7 +23,6 @@ use crate::git::ReleaseInfo;
 
 const DEFAULT_REQ_TIMEOUT: u64 = 60 * 60;
 
-
 pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result<PathBuf> {
     let to_download = &info.assets.iter().find(|e| {
         let name = e["name"].as_str().unwrap_or("").to_lowercase();
@@ -44,11 +43,9 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         .as_str()
         .ok_or(anyhow!("No download url found"))?;
 
-        let download_path = build_dir.join("obs-prebuilt-windows.zip");
-    let hash = download_file(
-        url,
-        &download_path,
-    )?;
+    let download_path = build_dir.join("obs-prebuilt-windows.zip");
+
+    let hash = download_file(url, &download_path)?;
 
     let name = to_download["name"].as_str().unwrap_or("");
     let checksum = &info.checksums.get(&name.to_lowercase());
@@ -66,33 +63,12 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
     Ok(download_path)
 }
 
-pub fn get_download_url(url: &str) -> anyhow::Result<String> {
-    let url = Uri::try_from(url)?;
-
-    let mut body = Vec::new();
-    let res = Request::new(&url)
-        .header("User-Agent", "cargo-obs-build")
-        .method(http_req::request::Method::HEAD)
-        .send(&mut body)?;
-
-    let s = res.status_code();
-    if !s.is_redirect() {
-        return Ok(url.to_string());
-    }
-
-    let location = res.headers().get("Location");
-    if s.is_redirect() && location.is_some() {
-        return Ok(location.unwrap().to_string());
-    }
-
-    bail!("Couldn't get redirect location (status {})", s)
-}
-
 /// Returns hash
 pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
-    let url = get_download_url(url)?;
-    let uri = Uri::try_from(url.as_str())?;
+    println!("Downloading OBS binaries from {}", url.green());
+
+    let uri = Uri::try_from(url)?;
     let mut stream = Stream::connect(&uri, Some(timeout.clone()))?;
 
     stream.set_read_timeout(Some(timeout.clone()))?;
@@ -116,7 +92,12 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     thread::spawn(move || {
         buf_reader.send_head(&sender);
 
-        let params: Vec<&str> = receiver_supp.recv().unwrap();
+        let params = receiver_supp.recv();
+        if params.is_err() {
+            return;
+        }
+
+        let params: Vec<&str> = params.unwrap();
         //TODO this never exists
         if params.contains(&"chunked") {
             let mut buf_reader = ChunkReader::from(buf_reader);
@@ -124,7 +105,6 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
         } else {
             buf_reader.send_all(&sender);
         }
-
     });
 
     let deadline = Instant::now() + Duration::from_secs(DEFAULT_REQ_TIMEOUT);
@@ -136,6 +116,16 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let content_len = response.content_len().unwrap_or(1) as u64;
     let encoding = response.headers().get("Transfer-Encoding");
     let mut params = Vec::with_capacity(4);
+
+    if response.status_code().is_redirect() {
+        let location = response.headers().get("Location");
+        if location.is_none() {
+            bail!("No location header found");
+        }
+
+        let location = location.unwrap();
+        return download_file(location, path);
+    }
 
     if let Some(encode) = encoding {
         if encode == "chunked" {

@@ -1,4 +1,5 @@
-use git::{clone_repo, fetch_release, ReleaseInfo};
+use download::download_binaries;
+use git::{fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
 use metadata::{get_main_meta, read_val_from_meta};
 use std::{
@@ -6,7 +7,9 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
 };
-use util::{build_cmake, configure_cmake, copy_to_dir, delete_all_except};
+use util::{copy_to_dir, delete_all_except};
+use walkdir::WalkDir;
+use zip::ZipArchive;
 
 use clap::Parser;
 use colored::Colorize;
@@ -16,9 +19,6 @@ mod git;
 mod lock;
 mod metadata;
 mod util;
-
-#[cfg(target_family = "windows")]
-mod win;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -34,18 +34,6 @@ struct RunArgs {
     /// The github repository to clone OBS Studio from
     #[arg(long, default_value = "obsproject/obs-studio")]
     repo_id: String,
-
-    /// The build config that obs should be built with (can be Release, Debug, RelWithDebInfo)
-    #[arg(short, long, default_value = "RelWithDebInfo")]
-    config: String,
-
-    /// Enable to keep the OBS Studio sources after the build
-    #[arg(short, long, default_value_t = false)]
-    no_remove: bool,
-
-    /// wether the tool should download the OBS Studio binaries (to keep the signature of the win capture plugin)
-    #[arg(short, long, default_value_t = true)]
-    download_bin: bool,
 
     /// When this flag is active, the cache will be cleared and a new build will be started
     #[arg(short, long, default_value_t = false)]
@@ -64,10 +52,7 @@ fn main() -> anyhow::Result<()> {
         cache_dir,
         repo_id,
         profile: target_profile,
-        config: build_type,
-        no_remove,
-        download_bin,
-        rebuild
+        rebuild,
     } = args;
 
     let target_out_dir = PathBuf::new().join("target").join(&target_profile);
@@ -118,16 +103,7 @@ fn main() -> anyhow::Result<()> {
             .map(|e| Ok(e))
             .unwrap_or_else(|| fetch_release(&repo_id, &Some(tag.clone())))?;
 
-        build_obs(
-            release,
-            &tag,
-            &repo_id,
-            &repo_dir,
-            &build_out,
-            &build_type,
-            no_remove,
-            download_bin,
-        )?;
+        build_obs(release, &build_out)?;
 
         File::create(&success_file)?;
         drop(lock);
@@ -145,39 +121,53 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_obs(
-    release: ReleaseInfo,
-    tag: &str,
-    repo_id: &str,
-    repo_dir: &Path,
-    build_out: &Path,
-    build_type: &str,
-    no_remove: bool,
-    download_bin: bool,
-) -> anyhow::Result<()> {
-    clone_repo(&repo_id, &tag, &repo_dir)?;
+fn build_obs(release: ReleaseInfo, build_out: &Path) -> anyhow::Result<()> {
+    #[cfg(not(target_family = "windows"))]
+    panic!("Unsupported platform");
+
     fs::create_dir_all(&build_out)?;
 
-    let obs_preset = if cfg!(target_family = "windows") {
-        "windows-x64"
-    } else {
-        "linux-x64"
-    };
+    let obs_path = download_binaries(build_out, &release)?;
+    let obs_archive = File::open(&obs_path)?;
+    let mut archive = ZipArchive::new(&obs_archive)?;
 
-    configure_cmake(&repo_dir, obs_preset, &build_type)?;
-    build_cmake(&repo_dir, &build_out, &build_type)?;
+    println!("{} OBS Studio binaries...", "Extracting".on_blue());
+    archive.extract(&build_out)?;
+    let bin_path = build_out.join("bin").join("64bit");
+    copy_to_dir(&bin_path, &build_out, None)?;
+    fs::remove_dir_all(build_out.join("bin"))?;
 
+    let to_exclude = vec![
+        "obs64",
+        "frontend-tools",
+        "obs-browser",
+        "obs-browser-page",
+        "obs-webrtc",
+        "obs-websocket",
+        "decklink",
+    ];
 
-    #[cfg(target_family = "windows")]
-    win::process_source(&repo_dir, &build_out, &build_type, download_bin, &release)?;
+    println!("{} unnecessary files...", "Cleaning up".red());
+    for entry in WalkDir::new(&build_out) {
+        if entry.is_err() {
+            continue;
+        }
 
-    #[cfg(not(target_family = "windows"))]
-    println!("Unsupported platform");
+        let entry = entry.unwrap();
+        let path = entry.path();
+        println!("{:?}", path.file_name());
+        println!("{:?}", path.file_name().is_some_and(|x| x.to_string_lossy().contains("obs64")));
 
-
-    if !no_remove {
-        delete_all_except(&repo_dir, Some(&build_out))?;
+        if to_exclude.iter().any(|e| path.file_name().is_some_and(|x| x.to_string_lossy().contains(e) || x.to_string_lossy() == *e)) {
+            if path.is_dir() {
+                fs::remove_dir_all(path).unwrap();
+            } else {
+                fs::remove_file(path).unwrap();
+            }
+        }
     }
+
+    fs::remove_file(&obs_path)?;
 
     Ok(())
 }

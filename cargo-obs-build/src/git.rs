@@ -1,9 +1,7 @@
 use anyhow::{anyhow, bail};
 use http_req::{request::Request, response::StatusCode, uri::Uri};
 use serde_json::Value;
-use std::{
-    collections::HashMap, path::Path, process::Command
-};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct ReleaseInfo {
@@ -76,24 +74,4 @@ pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<Rele
         assets: assets.clone(),
         checksums
     });
-}
-
-pub fn clone_repo(repo_id: &str, tag: &str, repo_dir: &Path) -> anyhow::Result<()> {
-    let repo_url = format!("https://github.com/{}.git", repo_id);
-
-    let res = Command::new("git")
-        .arg("clone")
-        .arg("--depth=1")
-        .arg("--recursive")
-        .arg("--branch")
-        .arg(tag)
-        .arg(&repo_url)
-        .arg(&repo_dir)
-        .status()?;
-
-    if !res.success() {
-        bail!("Failed to clone OBS Studio");
-    }
-
-    Ok(())
 }
