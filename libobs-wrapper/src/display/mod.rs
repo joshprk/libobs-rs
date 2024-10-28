@@ -12,17 +12,13 @@ pub use enums::*;
 pub use window_manager::{DisplayWindowManager, WindowPositionTrait};
 
 use std::{
-    ffi::{c_void, CString},
+    ffi::c_void,
     sync::atomic::AtomicUsize,
 };
 
 use libobs::{
-    gs_draw, gs_draw_mode_GS_TRISTRIP, gs_effect_get_param_by_name, gs_effect_get_technique,
-    gs_effect_set_vec4, gs_load_vertexbuffer, gs_matrix_identity, gs_matrix_pop, gs_matrix_push,
-    gs_matrix_scale3f, gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_technique_begin, gs_technique_begin_pass, gs_technique_end,
-    gs_technique_end_pass, gs_viewport_pop, gs_viewport_push, obs_base_effect_OBS_EFFECT_SOLID,
-    obs_get_base_effect, obs_get_video_info, obs_render_main_texture,
-    obs_video_info, vec4_create, vec4_set,
+    gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_viewport_pop, gs_viewport_push, obs_get_video_info, obs_render_main_texture,
+    obs_video_info,
 };
 
 use crate::unsafe_send::WrappedObsDisplay;
@@ -38,37 +34,6 @@ pub struct ObsDisplay {
 
     // Keep for window
     manager: DisplayWindowManager,
-}
-
-unsafe fn draw_backdrop(buffers: &VertexBuffers, width: f32, height: f32) {
-    let solid = obs_get_base_effect(obs_base_effect_OBS_EFFECT_SOLID);
-    let c = CString::new("color").unwrap();
-
-    let color = gs_effect_get_param_by_name(solid, c.as_ptr());
-    let s = CString::new("Solid").unwrap();
-    let tech = gs_effect_get_technique(solid, s.as_ptr());
-
-    let mut color_val = vec4_create();
-    vec4_set(&mut color_val, 0.0, 0.0, 0.0, 1.0);
-    gs_effect_set_vec4(color, &color_val);
-
-    gs_technique_begin(tech);
-    gs_technique_begin_pass(tech, 0);
-    gs_matrix_push();
-    gs_matrix_identity();
-    gs_matrix_scale3f(width as f32, height as f32, 1.0);
-
-    let box_v = buffers.box_buffer.lock().unwrap();
-    gs_load_vertexbuffer(box_v.0);
-    drop(box_v);
-
-    gs_draw(gs_draw_mode_GS_TRISTRIP, 0, 0);
-
-    gs_matrix_pop();
-    gs_technique_end_pass(tech);
-    gs_technique_end(tech);
-
-    gs_load_vertexbuffer(std::ptr::null_mut());
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
