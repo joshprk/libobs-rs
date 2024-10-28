@@ -17,7 +17,6 @@ pub struct ObsDisplayCreationData {
     pub(super) adapter: u32,
     pub(super) backbuffers: u32,
     pub(super) background_color: u32,
-    pub(super) scale: f32,
 }
 
 impl ObsDisplayCreationData {
@@ -33,8 +32,7 @@ impl ObsDisplayCreationData {
             height,
             adapter: 0,
             backbuffers: 0,
-            background_color: 0,
-            scale: 1.0,
+            background_color: 0
         }
     }
 
@@ -60,11 +58,6 @@ impl ObsDisplayCreationData {
 
     pub fn set_background_color(mut self, background_color: u32) -> Self {
         self.background_color = background_color;
-        self
-    }
-
-    pub fn set_scale(mut self, scale: f32) -> Self {
-        self.scale = scale;
         self
     }
 

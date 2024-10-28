@@ -270,7 +270,6 @@ impl ObsContext {
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<&mut ObsDisplay, ObsError> {
         let display = ObsDisplay::new(
             &self.vertex_buffers,
-            &self.active_scene,
             data,
         ).map_err(|e| ObsError::DisplayCreationError(e))?;
 
