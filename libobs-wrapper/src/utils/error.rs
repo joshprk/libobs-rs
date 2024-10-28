@@ -24,6 +24,9 @@ pub enum ObsError {
     OutputAlreadyActive,
     OutputStartFailure(Option<String>),
     OutputStopFailure(Option<String>),
+
+    /// Native error from the Windows API when creating a display
+    DisplayCreationError(windows::core::Error)
 }
 
 impl Display for ObsError {
@@ -40,6 +43,7 @@ impl Display for ObsError {
             ObsError::OutputAlreadyActive => write!(f, "Output is already active."),
             ObsError::OutputStartFailure(s) => write!(f, "Output failed to start. Error is {:?}", s),
             ObsError::OutputStopFailure(s) => write!(f, "Output failed to stop. Error is {:?}", s),
+            ObsError::DisplayCreationError(e) => write!(f, "Native error from the Windows API when creating a display: {:?}", e),
         }
     }
 }

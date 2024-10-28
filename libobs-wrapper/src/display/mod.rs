@@ -1,7 +1,15 @@
+//! For this display method to work, another preview window has to be created in order to create a swapchain
+//! This is because the main window renderer is already handled by other processes
+
 mod buffers;
+mod creation_data;
 mod enums;
+mod window_manager;
+
 pub(crate) use buffers::*;
 pub use enums::*;
+pub use creation_data::*;
+use window_manager::DisplayWindowManager;
 
 use std::{
     ffi::{c_void, CString},
@@ -9,94 +17,18 @@ use std::{
 };
 
 use libobs::{
-    gs_draw, gs_draw_mode_GS_TRISTRIP, gs_effect_get_param_by_name, gs_effect_get_technique, gs_effect_set_vec4, gs_init_data, gs_load_vertexbuffer, gs_matrix_identity, gs_matrix_pop, gs_matrix_push, gs_matrix_scale3f, gs_ortho, gs_projection_pop, gs_projection_push, gs_reset_viewport, gs_set_viewport, gs_technique_begin, gs_technique_begin_pass, gs_technique_end, gs_technique_end_pass, gs_viewport_pop, gs_viewport_push, gs_window, obs_base_effect_OBS_EFFECT_SOLID, obs_display_size, obs_get_base_effect, obs_get_video_info, obs_scene_get_source, obs_source_video_render, obs_video_info, vec4_create, vec4_set
+    gs_draw, gs_draw_mode_GS_TRISTRIP, gs_effect_get_param_by_name, gs_effect_get_technique,
+    gs_effect_set_vec4, gs_load_vertexbuffer, gs_matrix_identity, gs_matrix_pop, gs_matrix_push,
+    gs_matrix_scale3f, gs_ortho, gs_projection_pop, gs_projection_push, gs_reset_viewport,
+    gs_set_viewport, gs_technique_begin, gs_technique_begin_pass, gs_technique_end,
+    gs_technique_end_pass, gs_viewport_pop, gs_viewport_push, obs_base_effect_OBS_EFFECT_SOLID,
+    obs_display_size, obs_get_base_effect, obs_get_video_info,
+    obs_render_main_texture_src_color_only, obs_video_info, vec4_create, vec4_set,
 };
-use num_traits::ToPrimitive;
 
 use crate::unsafe_send::{WrappedObsDisplay, WrappedObsScene};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
-pub struct ObsDisplayCreationData {
-    #[cfg(target_family = "windows")]
-    window: windows::Win32::Foundation::HWND,
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-    format: GsColorFormat,
-    zsformat: GsZstencilFormat,
-    adapter: u32,
-    backbuffers: u32,
-    background_color: u32,
-    scale: f32,
-}
-
-impl ObsDisplayCreationData {
-    #[cfg(target_family = "windows")]
-    pub fn new(window: windows::Win32::Foundation::HWND, x: u32, y: u32, width: u32, height: u32) -> Self {
-        Self {
-            window,
-            format: GsColorFormat::BGRA,
-            zsformat: GsZstencilFormat::ZSNone,
-            x,
-            y,
-            width,
-            height,
-            adapter: 0,
-            backbuffers: 0,
-            background_color: 0,
-            scale: 1.0,
-        }
-    }
-
-    pub fn set_format(mut self, format: GsColorFormat) -> Self {
-        self.format = format;
-        self
-    }
-
-    pub fn set_zsformat(mut self, zsformat: GsZstencilFormat) -> Self {
-        self.zsformat = zsformat;
-        self
-    }
-
-    pub fn set_adapter(mut self, adapter: u32) -> Self {
-        self.adapter = adapter;
-        self
-    }
-
-    pub fn set_backbuffers(mut self, backbuffers: u32) -> Self {
-        self.backbuffers = backbuffers;
-        self
-    }
-
-    pub fn set_background_color(mut self, background_color: u32) -> Self {
-        self.background_color = background_color;
-        self
-    }
-
-    pub fn set_scale(mut self, scale: f32) -> Self {
-        self.scale = scale;
-        self
-    }
-
-    fn build(self) -> (gs_init_data, u32, f32, (u32, u32)) {
-        let data = gs_init_data {
-            cx: self.width,
-            cy: self.height,
-            format: self.format.to_i32().unwrap(),
-            zsformat: self.zsformat.to_i32().unwrap(),
-            window: gs_window {
-                #[cfg(target_family = "windows")]
-                hwnd: std::ptr::addr_of!(self.window.0) as *mut _,
-            },
-            adapter: self.adapter,
-            num_backbuffers: self.backbuffers,
-        };
-
-        (data, self.background_color, self.scale, (self.x, self.y))
-    }
-}
-
 #[derive(Debug)]
 pub struct ObsDisplay {
     display: WrappedObsDisplay,
@@ -108,6 +40,7 @@ pub struct ObsDisplay {
     height: u32,
     buffers: VertexBuffers,
     active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
+    manager: DisplayWindowManager
 }
 
 unsafe fn draw_backdrop(buffers: &VertexBuffers, width: f32, height: f32) {
@@ -140,14 +73,18 @@ unsafe fn draw_backdrop(buffers: &VertexBuffers, width: f32, height: f32) {
 
     gs_load_vertexbuffer(std::ptr::null_mut());
 }
-
+unsafe extern "C" fn render_display_old(data: *mut c_void, _cx: u32, _cy: u32) {
+    obs_render_main_texture_src_color_only();
+}
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
+    log::trace!("Rendering display...");
     let s = &mut *(data as *mut ObsDisplay);
 
     let mut ovi: obs_video_info = std::mem::zeroed();
 
     obs_get_video_info(&mut ovi);
 
+    log::trace!("Setting width...");
     s.width = (s.scale * ovi.base_width as f32) as u32;
     s.height = (s.scale * ovi.base_height as f32) as u32;
 
@@ -167,7 +104,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     //window->ui->preview->DrawOverflow();
 
     /* --------------------------------------- */
-
+    log::trace!("Ortho...");
     gs_ortho(
         0.0,
         ovi.base_width as f32,
@@ -177,11 +114,11 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
         100.0,
     );
     gs_set_viewport(s.x as i32, s.y as i32, s.width as i32, s.height as i32);
-
+    log::trace!("Backdrop...");
     draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
-    let scene = s.active_scene.lock().unwrap();
-    if let Some(s) = scene.as_ref() {
+    //let scene = s.active_scene.lock().unwrap();
+    /*if let Some(s) = scene.as_ref() {
         let t = &s.0;
         if !(*t).is_null() {
             let source = obs_scene_get_source(*t);
@@ -189,11 +126,12 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
                 obs_source_video_render(source);
             }
         }
-    }
-    /* else {
-        obs_render_main_texture_src_color_only();
-    }*/
+    } else {*/
+    log::trace!("Render texture...");
+    obs_render_main_texture_src_color_only();
+    // }
 
+    log::trace!("Load buffer...");
     gs_load_vertexbuffer(std::ptr::null_mut());
 
     /* --------------------------------------- */
@@ -228,27 +166,52 @@ impl ObsDisplay {
     pub fn new(
         buffers: &VertexBuffers,
         active_scene: &Arc<Mutex<Option<WrappedObsScene>>>,
-        data: ObsDisplayCreationData,
-    ) -> Self {
+        data: creation_data::ObsDisplayCreationData,
+    ) -> windows::core::Result<Self> {
+        use creation_data::ObsDisplayCreationData;
+        use libobs::gs_window;
         use std::sync::atomic::Ordering;
+        use window_manager::DisplayWindowManager;
 
-        let (data, background_color, scale, pos) = data.build();
+        let ObsDisplayCreationData {
+            x,
+            y,
+            height,
+            width,
+            scale,
+            parent_window,
+            background_color,
+            ..
+        } = data.clone();
 
-        let display = unsafe { libobs::obs_display_create(&data, background_color) };
-        // Don't think we actually need to save the creation data
+        let manager = DisplayWindowManager::new(
+            parent_window.clone(),
+            x as i32,
+            y as i32,
+            width as i32,
+            height as i32,
+        )?;
+
+        let child_handle = manager.get_child_handle();
+        let init_data = data.build(gs_window { hwnd: child_handle.0 });
+
+        log::trace!("Creating obs display...");
+        let display = unsafe { libobs::obs_display_create(&init_data, background_color) };
 
         let s = Self {
             display: WrappedObsDisplay(display),
+            manager,
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-            width: data.cx,
-            height: data.cy,
+            width,
+            height,
             scale,
-            x: pos.0,
-            y: pos.1,
+            x,
+            y,
             buffers: buffers.clone(),
             active_scene: active_scene.clone(),
         };
 
+        log::trace!("Adding draw callback...");
         unsafe {
             libobs::obs_display_add_draw_callback(
                 display,
@@ -257,7 +220,8 @@ impl ObsDisplay {
             );
         }
 
-        s
+        log::trace!("Display created!");
+        Ok(s)
     }
 
     pub fn get_id(&self) -> usize {
@@ -268,6 +232,11 @@ impl ObsDisplay {
 impl Drop for ObsDisplay {
     fn drop(&mut self) {
         unsafe {
+            libobs::obs_display_remove_draw_callback(
+                self.display.0,
+                Some(render_display),
+                std::ptr::null_mut(),
+            );
             libobs::obs_display_destroy(self.display.0);
         }
     }

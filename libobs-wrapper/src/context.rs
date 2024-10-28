@@ -268,11 +268,13 @@ impl ObsContext {
     }
 
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<&mut ObsDisplay, ObsError> {
-        self.displays.push(ObsDisplay::new(
+        let display = ObsDisplay::new(
             &self.vertex_buffers,
             &self.active_scene,
             data,
-        ));
+        ).map_err(|e| ObsError::DisplayCreationError(e))?;
+
+        self.displays.push(display);
 
         Ok(self.displays.last_mut().unwrap())
     }
