@@ -1,0 +1,44 @@
+[tasks.prepare-obs]
+command = "cargo"
+args = [
+    "obs-build",
+    "--profile",
+    "${PROFILE_PATH}",
+]
+
+[tasks.prepare-obs-test]
+command = "cargo"
+args = [
+    "obs-build",
+    "--profile",
+    "${PROFILE_PATH}/deps",
+]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["prepare-obs"]
+
+[tasks.test]
+command = "cargo"
+args = ["test", "@@decode(CARGO_MAKE_PROFILE,release,--release,)", "${@}"]
+dependencies = ["prepare-obs-test"]
+
+[tasks.dev]
+condition = { profiles = [ "development" ] }
+command = "cargo"
+args = ["run", "${@}"]
+dependencies = ["prepare-obs"]
+
+[tasks.release]
+condition = { profiles = [ "release" ] }
+command = "cargo"
+args = ["build", "--release", "${@}"]
+dependencies = ["prepare-obs"]
+
+# profile based environment override
+[env.development]
+PROFILE_PATH = "debug"
+
+[env.production]
+PROFILE_PATH = "release"

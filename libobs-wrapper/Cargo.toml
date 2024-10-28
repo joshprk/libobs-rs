@@ -1,0 +1,43 @@
+[package]
+name = "libobs-wrapper"
+description = "A safe wrapper around libobs-new"
+version = "0.2.2"
+repository = "https://github.com/sshcrack/libobs-rs"
+readme = "README.md"
+authors = ["sshcrack"]
+categories = [
+    "multimedia::video",
+    "multimedia::audio",
+    "multimedia",
+    "multimedia::encoding",
+]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
+license = "GPL-3.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.91"
+libobs = { package = "libobs-new", version = "2.0.2", path = "../libobs" }
+display-info = "0.5.1"
+num-derive = "0.4.2"
+num-traits = "0.2.19"
+lazy_static = "1.5.0"
+crossbeam-channel = "0.5.13"
+log = "0.4.22"
+vsprintf = "2.0.0"
+chrono = "0.4.38"
+getters0 = "0.1.1"
+colored = { version = "2.1.0", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = {version="0.58.0", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_SystemInformation", "Win32_UI_WindowsAndMessaging"]}
+
+[features]
+default = ["color-logger"]
+unsafe-send = []
+color-logger = ["dep:colored"]
+debug-tracing=["libobs/debug-tracing"]
+
+[package.metadata]
+libobs-version = "30.2.2"
+libobs-cache-dir = "../obs-build"

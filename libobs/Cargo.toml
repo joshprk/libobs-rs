@@ -1,0 +1,26 @@
+[package]
+name = "libobs-new"
+version = "2.0.2"
+description = "Fork with revamped API. Wrapper for simple, safe video recording with libobs"
+repository = "https://github.com/sshcrack/libobs-rs"
+readme = "../README.md"
+authors = ["Joshua Park <joshprk@proton.me>", "sshcrack"]
+categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
+license = "GPL-3.0"
+edition = "2021"
+build = "build.rs"
+
+[build-dependencies]
+bindgen = "0.70.1"
+cc = "1.1.31"
+
+[package.metadata]
+libobs-version="30.2.2"
+libobs-cache-dir="../obs-build"
+
+[features]
+debug-tracing = ["dep:log"]
+
+[dependencies]
+log = { version = "0.4.22", optional = true }

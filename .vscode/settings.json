@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.scss": "scss",
+        "math.h": "c"
+    }
+}
