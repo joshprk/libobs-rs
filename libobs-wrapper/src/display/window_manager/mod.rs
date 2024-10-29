@@ -119,6 +119,8 @@ pub struct DisplayWindowManager {
     width: u32,
     height: u32,
 
+    scale: f32,
+
     render_at_bottom: bool,
 
     pub(super) obs_display: Option<WrappedObsDisplay>
@@ -217,6 +219,7 @@ impl DisplayWindowManager {
             y,
             width,
             height,
+            scale: 1.0,
             hwnd: WrappedHWND(window),
             should_exit,
             _message_thread: message_thread,

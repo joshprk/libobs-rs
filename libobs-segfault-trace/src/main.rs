@@ -14,7 +14,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use crash_handler::CrashHandler;
-use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::ObsContextEncoders, utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::ObsContextEncoders, utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo}};
 use std::{
     env::{args, current_dir, current_exe}, fs::File, io::Write, path::PathBuf, thread, time::{Duration, SystemTime, UNIX_EPOCH}
 };
@@ -277,12 +277,13 @@ pub fn run_basic_obs() -> Result<()> {
         .set_string("window", "")
         .set_bool("capture_cursor", true);
 
-    let video_source_info = SourceInfo::new(
+    /*let video_source_info = SourceInfo::new(
         "game_capture",
         "video_source",
         Some(video_source_data),
         None,
     );
+    */
 
     // Register the source and record
     //output.source(video_source_info, 0)?;

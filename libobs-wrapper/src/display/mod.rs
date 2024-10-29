@@ -38,10 +38,9 @@ pub struct ObsDisplay {
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     let s = &mut *(data as *mut ObsDisplay);
-    let m = &s.manager;
 
-    let (x, y) = m.get_pos();
-    let (width, height) = m.get_size();
+    let (x, y) = s.get_pos();
+    let (width, height) = s.get_size();
 
     let mut ovi: obs_video_info = std::mem::zeroed();
     obs_get_video_info(&mut ovi);
