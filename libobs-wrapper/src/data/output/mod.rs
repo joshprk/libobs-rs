@@ -18,6 +18,9 @@ use crate::{
 
 use super::ObsData;
 
+mod replay_buffer;
+pub use replay_buffer::*;
+
 #[derive(Debug, Getters)]
 #[skip_new]
 pub struct ObsOutput {

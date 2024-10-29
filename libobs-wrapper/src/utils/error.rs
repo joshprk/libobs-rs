@@ -26,7 +26,9 @@ pub enum ObsError {
     OutputStopFailure(Option<String>),
 
     /// Native error from the Windows API when creating a display
-    DisplayCreationError(windows::core::Error)
+    DisplayCreationError(windows::core::Error),
+
+    OutputSaveBufferFailure(String)
 }
 
 impl Display for ObsError {
@@ -44,6 +46,7 @@ impl Display for ObsError {
             ObsError::OutputStartFailure(s) => write!(f, "Output failed to start. Error is {:?}", s),
             ObsError::OutputStopFailure(s) => write!(f, "Output failed to stop. Error is {:?}", s),
             ObsError::DisplayCreationError(e) => write!(f, "Native error from the Windows API when creating a display: {:?}", e),
+            ObsError::OutputSaveBufferFailure(e) => write!(f, "Couldn't save output buffer: {:?}", e),
         }
     }
 }

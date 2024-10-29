@@ -10,18 +10,28 @@ use windows::{
     core::{w, HSTRING, PCWSTR},
     Win32::{
         Foundation::{COLORREF, HWND, LPARAM, LRESULT, WPARAM},
-        Graphics::{Dwm::DwmIsCompositionEnabled, Gdi::{ValidateRect, HBRUSH}},
+        Graphics::Dwm::DwmIsCompositionEnabled,
         System::{
             LibraryLoader::{GetModuleHandleA, GetModuleHandleW},
             SystemInformation::{GetVersionExW, OSVERSIONINFOW},
         },
         UI::WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetWindowLongPtrW, LoadCursorW, PostQuitMessage, RegisterClassExW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HICON, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG, WINDOW_EX_STYLE, WM_DESTROY, WM_NCHITTEST, WM_PAINT, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_OVERLAPPEDWINDOW, WS_POPUP, WS_VISIBLE
+            CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
+            GetWindowLongPtrW, LoadCursorW, RegisterClassExW, SetLayeredWindowAttributes,
+            SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC,
+            CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG,
+            WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
+            WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
         },
     },
 };
 
-use crate::unsafe_send::WrappedHWND;
+use crate::unsafe_send::{WrappedHWND, WrappedObsDisplay};
+
+mod position_trait;
+mod show_hide;
+pub use show_hide::ShowHideTrait;
+pub use position_trait::WindowPositionTrait;
 
 extern "system" fn wndproc(
     window: HWND,
@@ -59,7 +69,7 @@ lazy_static! {
     static ref REGISTERED_CLASS: AtomicBool = AtomicBool::new(false);
 }
 
-pub fn try_register_class() -> windows::core::Result<()> {
+fn try_register_class() -> windows::core::Result<()> {
     if REGISTERED_CLASS.load(Ordering::Relaxed) {
         return Ok(());
     }
@@ -100,11 +110,24 @@ pub fn try_register_class() -> windows::core::Result<()> {
 
 #[derive(Debug)]
 pub struct DisplayWindowManager {
-    hwnd: WrappedHWND,
-    width: i32,
-    height: i32,
+    // Shouldn't really be needed
+    _message_thread: std::thread::JoinHandle<()>,
     should_exit: Arc<AtomicBool>,
-    message_thread: std::thread::JoinHandle<()>,
+    hwnd: WrappedHWND,
+
+    x: i32,
+    y: i32,
+
+    width: u32,
+    height: u32,
+
+    scale: f32,
+
+    is_hidden: bool,
+
+    render_at_bottom: bool,
+
+    pub(super) obs_display: Option<WrappedObsDisplay>
 }
 
 impl DisplayWindowManager {
@@ -112,8 +135,8 @@ impl DisplayWindowManager {
         parent: HWND,
         x: i32,
         y: i32,
-        width: i32,
-        height: i32,
+        width: u32,
+        height: u32,
     ) -> windows::core::Result<Self> {
         log::trace!("Registering class...");
         try_register_class()?;
@@ -131,18 +154,24 @@ impl DisplayWindowManager {
         let window_name = HSTRING::from("LibObsChildWindowPreview");
         log::trace!("Creating window...");
 
-        log::debug!("Creating window with x: {}, y: {}, width: {}, height: {}", x, y, width, height);
+        log::debug!(
+            "Creating window with x: {}, y: {}, width: {}, height: {}",
+            x,
+            y,
+            width,
+            height
+        );
         let window = unsafe {
             // More at https://github.com/stream-labs/obs-studio-node/blob/4e19d8a61a4dd7744e75ce77624c664e371cbfcf/obs-studio-server/source/nodeobs_display.cpp#L170
             CreateWindowExW(
                 WS_EX_LAYERED,
                 &class_name,
                 &window_name,
-                WS_POPUP | WS_VISIBLE,//WS_POPUP,
+                WS_POPUP | WS_VISIBLE, //WS_POPUP,
                 x,
                 y,
-                width,
-                height,
+                width as i32,
+                height as i32,
                 parent,
                 None,
                 instance,
@@ -190,11 +219,17 @@ impl DisplayWindowManager {
         });
 
         Ok(Self {
+            x,
+            y,
             width,
             height,
+            scale: 1.0,
             hwnd: WrappedHWND(window),
             should_exit,
-            message_thread,
+            _message_thread: message_thread,
+            render_at_bottom: false,
+            is_hidden: false,
+            obs_display: None
         })
     }
 
