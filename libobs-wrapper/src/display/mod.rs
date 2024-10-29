@@ -9,7 +9,7 @@ mod window_manager;
 pub(crate) use buffers::*;
 pub use creation_data::*;
 pub use enums::*;
-pub use window_manager::{DisplayWindowManager, WindowPositionTrait};
+pub use window_manager::*;
 
 use std::{
     ffi::c_void,
@@ -117,7 +117,7 @@ impl ObsDisplay {
     }
 
     /// Adds draw callbacks to the display.
-    pub fn create(&mut self) -> () {
+    pub fn create(&mut self) {
         if self.is_initialized {
             return;
         }

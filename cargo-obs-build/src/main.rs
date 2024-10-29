@@ -145,6 +145,7 @@ fn build_obs(release: ReleaseInfo, build_out: &Path) -> anyhow::Result<()> {
         "obs-webrtc",
         "obs-websocket",
         "decklink",
+        "qt6"
     ];
 
     println!("{} unnecessary files...", "Cleaning up".red());
@@ -156,7 +157,11 @@ fn build_obs(release: ReleaseInfo, build_out: &Path) -> anyhow::Result<()> {
         let entry = entry.unwrap();
         let path = entry.path();
 
-        if to_exclude.iter().any(|e| path.file_name().is_some_and(|x| x.to_string_lossy().contains(e) || x.to_string_lossy() == *e)) {
+        if to_exclude.iter().any(|e| path.file_name().is_some_and(|x|{
+            let x_l = x.to_string_lossy().to_lowercase();
+
+            x_l.contains(e) || x_l == *e
+        })) {
             println!("Deleting: {}", path.display().to_string().red());
             if path.is_dir() {
                 fs::remove_dir_all(path).unwrap();

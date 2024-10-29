@@ -29,6 +29,8 @@ use windows::{
 use crate::unsafe_send::{WrappedHWND, WrappedObsDisplay};
 
 mod position_trait;
+mod show_hide;
+pub use show_hide::ShowHideTrait;
 pub use position_trait::WindowPositionTrait;
 
 extern "system" fn wndproc(
@@ -120,6 +122,8 @@ pub struct DisplayWindowManager {
     height: u32,
 
     scale: f32,
+
+    is_hidden: bool,
 
     render_at_bottom: bool,
 
@@ -224,6 +228,7 @@ impl DisplayWindowManager {
             should_exit,
             _message_thread: message_thread,
             render_at_bottom: false,
+            is_hidden: false,
             obs_display: None
         })
     }
