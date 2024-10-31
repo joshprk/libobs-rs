@@ -38,6 +38,11 @@ struct RunArgs {
     /// When this flag is active, the cache will be cleared and a new build will be started
     #[arg(short, long, default_value_t = false)]
     rebuild: bool,
+
+
+    /// If the browser should be included in the build
+    #[arg(short, long, default_value_t = false)]
+    browser: bool
 }
 
 fn main() -> anyhow::Result<()> {
@@ -53,6 +58,7 @@ fn main() -> anyhow::Result<()> {
         repo_id,
         profile: target_profile,
         rebuild,
+        browser
     } = args;
 
     let target_out_dir = PathBuf::new().join("target").join(&target_profile);
@@ -103,7 +109,7 @@ fn main() -> anyhow::Result<()> {
             .map(|e| Ok(e))
             .unwrap_or_else(|| fetch_release(&repo_id, &Some(tag.clone())))?;
 
-        build_obs(release, &build_out)?;
+        build_obs(release, &build_out, browser)?;
 
         File::create(&success_file)?;
         drop(lock);
@@ -121,7 +127,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_obs(release: ReleaseInfo, build_out: &Path) -> anyhow::Result<()> {
+fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool) -> anyhow::Result<()> {
     #[cfg(not(target_family = "windows"))]
     panic!("Unsupported platform");
 
@@ -137,16 +143,31 @@ fn build_obs(release: ReleaseInfo, build_out: &Path) -> anyhow::Result<()> {
     copy_to_dir(&bin_path, &build_out, None)?;
     fs::remove_dir_all(build_out.join("bin"))?;
 
-    let to_exclude = vec![
+    let mut to_exclude = vec![
         "obs64",
-        "frontend-tools",
-        "obs-browser",
-        "obs-browser-page",
+        "frontend",
         "obs-webrtc",
         "obs-websocket",
         "decklink",
-        "qt6"
+        "obs-scripting",
+        "qt6",
+        "qminimal",
+        "qwindows",
+        "imageformats",
+        "obs-studio"
     ];
+
+    if !include_browser {
+        to_exclude.append(&mut vec![
+            "obs-browser",
+            "obs-browser-page",
+            "chrome_",
+            "resources",
+            "cef",
+            "snapshot",
+            "locales"
+        ]);
+    }
 
     println!("{} unnecessary files...", "Cleaning up".red());
     for entry in WalkDir::new(&build_out) {

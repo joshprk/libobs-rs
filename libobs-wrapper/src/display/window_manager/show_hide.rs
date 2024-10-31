@@ -11,14 +11,14 @@ pub trait ShowHideTrait {
 impl ShowHideTrait for ObsDisplay {
     fn show(&mut self) {
         unsafe {
-            ShowWindow(self.manager.hwnd.0, SW_SHOWNA);
+            let _ = ShowWindow(self.manager.hwnd.0, SW_SHOWNA);
         }
         self.manager.is_hidden = false;
     }
 
     fn hide(&mut self) {
         unsafe {
-            ShowWindow(self.manager.hwnd.0, SW_HIDE);
+            let _ = ShowWindow(self.manager.hwnd.0, SW_HIDE);
         }
 
         self.manager.is_hidden = true;
