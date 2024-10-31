@@ -42,6 +42,9 @@ struct RunArgs {
     /// If the browser should be included in the build
     #[arg(short, long, default_value_t = false)]
     browser: bool,
+
+    #[arg(short, long, default_value = "latest")]
+    tag: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -58,15 +61,12 @@ fn main() -> anyhow::Result<()> {
         out_dir,
         rebuild,
         browser,
+        mut tag
     } = args;
 
     let target_out_dir = PathBuf::new().join(&out_dir);
 
-    let (meta_cache_dir, tag) = get_meta_info(&mut cache_dir)?;
-
-    if let Some(meta_cache_dir) = meta_cache_dir {
-        cache_dir = meta_cache_dir;
-    }
+    get_meta_info(&mut cache_dir, &mut tag)?;
 
     let tag = if tag.trim() == "latest" {
         fetch_latest_release_tag(&repo_id)?

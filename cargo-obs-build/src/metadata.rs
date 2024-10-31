@@ -33,9 +33,8 @@ pub fn read_val_from_meta(m: &Map<String, Value>, key: &str) -> anyhow::Result<S
     Ok(tag.to_string())
 }
 
-pub fn get_meta_info(cache_dir: &mut PathBuf) -> anyhow::Result<(Option<PathBuf>, String)> {
+pub fn get_meta_info(cache_dir: &mut PathBuf, tag: &mut String) -> anyhow::Result<()> {
     let meta = get_main_meta()?;
-    let mut tag = "latest".to_string();
 
     if let Some(meta) = meta {
         if let Ok(dir) = read_val_from_meta(&meta, "libobs-cache-dir").map(PathBuf::from) {
@@ -43,11 +42,11 @@ pub fn get_meta_info(cache_dir: &mut PathBuf) -> anyhow::Result<(Option<PathBuf>
         }
 
         if let Ok(version) = read_val_from_meta(&meta, "libobs-version") {
-            tag = version;
+            *tag = version;
         }
     }
 
-    Ok((Some(cache_dir.clone()), tag))
+    Ok(())
 }
 
 pub fn fetch_latest_release_tag(repo_id: &str) -> anyhow::Result<String> {
