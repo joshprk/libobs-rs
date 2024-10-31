@@ -11,7 +11,7 @@ use anyhow::{anyhow, bail};
 use colored::Colorize;
 use http_req::{
     chunked::ChunkReader,
-    request::{Request, RequestMessage},
+    request::RequestMessage,
     response::Response,
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,

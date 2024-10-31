@@ -1,7 +1,7 @@
 use download::download_binaries;
 use git::{fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
-use metadata::{get_main_meta, read_val_from_meta};
+use metadata::{fetch_latest_release_tag, get_meta_info};
 use std::{
     env::args,
     fs::{self, File},
@@ -23,9 +23,9 @@ mod util;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct RunArgs {
-    /// The target where the OBS Studio sources should be copied to. Example: "debug", "release"
+    /// The directory the OBS Studio binaries should be copied to
     #[arg(short, long)]
-    profile: String,
+    out_dir: String,
 
     /// The location where the OBS Studio sources should be cloned to
     #[arg(short = 'o', long, default_value = "obs-build")]
@@ -39,10 +39,9 @@ struct RunArgs {
     #[arg(short, long, default_value_t = false)]
     rebuild: bool,
 
-
     /// If the browser should be included in the build
     #[arg(short, long, default_value_t = false)]
-    browser: bool
+    browser: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -54,31 +53,23 @@ fn main() -> anyhow::Result<()> {
     let args = RunArgs::parse_from(args);
 
     let RunArgs {
-        cache_dir,
+        mut cache_dir,
         repo_id,
-        profile: target_profile,
+        out_dir,
         rebuild,
-        browser
+        browser,
     } = args;
 
-    let target_out_dir = PathBuf::new().join("target").join(&target_profile);
+    let target_out_dir = PathBuf::new().join(&out_dir);
 
-    let meta = get_main_meta()?;
+    let (meta_cache_dir, tag) = get_meta_info(&mut cache_dir)?;
 
-    let cache_dir = read_val_from_meta(&meta, "libobs-cache-dir")
-        .and_then(|e| Ok(PathBuf::from(&e)))
-        .unwrap_or_else(|_e| cache_dir);
+    if let Some(meta_cache_dir) = meta_cache_dir {
+        cache_dir = meta_cache_dir;
+    }
 
-    let tag = read_val_from_meta(&meta, "libobs-version")?;
-    let mut release = None;
-
-    // Fetching tag name, if it's latest, we fetch the latest release and get the tag name from there
     let tag = if tag.trim() == "latest" {
-        // Fetching latest release and setting it as tag
-        let tmp = fetch_release(&repo_id, &None)?;
-        release = Some(tmp.clone());
-
-        tmp.tag.clone()
+        fetch_latest_release_tag(&repo_id)?
     } else {
         tag
     };
@@ -86,7 +77,7 @@ fn main() -> anyhow::Result<()> {
     let repo_dir = cache_dir.join(&tag);
     let repo_exists = repo_dir.is_dir();
 
-    if !repo_dir.is_dir() {
+    if !repo_exists {
         fs::create_dir_all(&repo_dir)?;
     }
 
@@ -105,10 +96,7 @@ fn main() -> anyhow::Result<()> {
 
         println!("Fetching {} version of OBS Studio...", tag.on_blue());
 
-        let release = release
-            .map(|e| Ok(e))
-            .unwrap_or_else(|| fetch_release(&repo_id, &Some(tag.clone())))?;
-
+        let release = fetch_release(&repo_id, &Some(tag.clone()))?;
         build_obs(release, &build_out, browser)?;
 
         File::create(&success_file)?;
@@ -143,6 +131,14 @@ fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool) -> a
     copy_to_dir(&bin_path, &build_out, None)?;
     fs::remove_dir_all(build_out.join("bin"))?;
 
+    clean_up_files(build_out, include_browser)?;
+
+    fs::remove_file(&obs_path)?;
+
+    Ok(())
+}
+
+fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()> {
     let mut to_exclude = vec![
         "obs64",
         "frontend",
@@ -154,7 +150,7 @@ fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool) -> a
         "qminimal",
         "qwindows",
         "imageformats",
-        "obs-studio"
+        "obs-studio",
     ];
 
     if !include_browser {
@@ -165,34 +161,29 @@ fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool) -> a
             "resources",
             "cef",
             "snapshot",
-            "locales"
+            "locales",
         ]);
     }
 
     println!("{} unnecessary files...", "Cleaning up".red());
     for entry in WalkDir::new(&build_out) {
-        if entry.is_err() {
-            continue;
-        }
-
-        let entry = entry.unwrap();
-        let path = entry.path();
-
-        if to_exclude.iter().any(|e| path.file_name().is_some_and(|x|{
-            let x_l = x.to_string_lossy().to_lowercase();
-
-            x_l.contains(e) || x_l == *e
-        })) {
-            println!("Deleting: {}", path.display().to_string().red());
-            if path.is_dir() {
-                fs::remove_dir_all(path).unwrap();
-            } else {
-                fs::remove_file(path).unwrap();
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if to_exclude.iter().any(|e| {
+                path.file_name().map_or(false, |x| {
+                    let x_l = x.to_string_lossy().to_lowercase();
+                    x_l.contains(e) || x_l == *e
+                })
+            }) {
+                println!("Deleting: {}", path.display().to_string().red());
+                if path.is_dir() {
+                    fs::remove_dir_all(path)?;
+                } else {
+                    fs::remove_file(path)?;
+                }
             }
         }
     }
-
-    fs::remove_file(&obs_path)?;
 
     Ok(())
 }
