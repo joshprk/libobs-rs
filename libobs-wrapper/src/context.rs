@@ -1,5 +1,5 @@
 use std::{
-    ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
+    ffi::CStr, ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
 };
 
 use crate::{
@@ -111,7 +111,9 @@ impl ObsContext {
     }
 
     pub fn get_version() -> String {
-        format!("{}.{}.{}", libobs::LIBOBS_API_MAJOR_VER, libobs::LIBOBS_API_MINOR_VER, libobs::LIBOBS_API_PATCH_VER)
+        let version = unsafe { libobs::obs_get_version_string() };
+        let version_cstr = unsafe { CStr::from_ptr(version) };
+        version_cstr.to_string_lossy().into_owned()
     }
 
     pub fn log(&self, level: ObsLogLevel, msg: &str) {

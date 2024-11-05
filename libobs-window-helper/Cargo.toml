@@ -1,0 +1,26 @@
+[package]
+name = "libobs-window-helper"
+version = "0.1.2"
+description = "Provides a list of windows that can be captured by OBS"
+edition = "2021"
+readme = "README.md"
+repository = "https://github.com/sshcrack/obs-window-helper"
+license = "GPL-3.0"
+
+[dependencies]
+anyhow = { version = "1.0.86" }
+serde = { version = "1.0.204", features = ["derive"], optional = true }
+windows = { version = "0.58.0", features = ["Win32", "Win32_Globalization", "Win32_Graphics", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_UI", "Win32_UI_WindowsAndMessaging", "Win32_System_ProcessStatus", "Win32_System_Threading", "Win32_System_Diagnostics", "Win32_Storage_FileSystem", "Wdk_System_Threading", "Win32_System_Kernel", "Win32_System_Diagnostics_Debug", "Win32_System_Console"] }
+windows-result = "0.2.0"
+
+
+[features]
+backtrace = ["anyhow/backtrace"]
+serde = ["dep:serde"]
+
+[dev-dependencies]
+serde_json = "1.0.120"
+
+[package.metadata.docs.rs]
+# This also sets the default target to `x86_64-pc-windows-msvc`
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
