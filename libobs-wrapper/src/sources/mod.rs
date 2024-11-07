@@ -1,10 +1,14 @@
 mod builder;
 pub use builder::*;
 
-use libobs::{obs_source_create, obs_source_release};
+use libobs::{obs_source_create, obs_source_release, obs_source_update};
 
+use crate::{
+    data::ObsData,
+    unsafe_send::WrappedObsSource,
+    utils::{traits::ObsUpdatable, ObsError, ObsString},
+};
 use std::{borrow::Borrow, ptr};
-use crate::{data::ObsData, unsafe_send::WrappedObsSource, utils::{ObsError, ObsString}};
 
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -36,9 +40,8 @@ impl ObsSource {
             None => ptr::null_mut(),
         };
 
-        let source = unsafe {
-            obs_source_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr)
-        };
+        let source =
+            unsafe { obs_source_create(id.as_ptr(), name.as_ptr(), settings_ptr, hotkey_data_ptr) };
 
         if source == ptr::null_mut() {
             return Err(ObsError::NullPointer);
@@ -52,10 +55,37 @@ impl ObsSource {
             hotkey_data,
         })
     }
+
+    pub fn settings(&self) -> Option<&ObsData> {
+        self.settings.as_ref()
+    }
+
+    pub fn hotkey_data(&self) -> Option<&ObsData> {
+        self.hotkey_data.as_ref()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.to_string()
+    }
+
+    pub fn id(&self) -> String {
+        self.id.to_string()
+    }
 }
 
 impl Drop for ObsSource {
     fn drop(&mut self) {
         unsafe { obs_source_release(self.source.0) }
+    }
+}
+
+impl ObsUpdatable for ObsSource {
+    fn update_raw(&mut self, data: ObsData) {
+        unsafe { obs_source_update(self.source.0, data.as_ptr()) }
+        self.settings = Some(data);
+    }
+
+    fn reset_and_update(&mut self, data: ObsData) {
+        unsafe { obs_source_}
     }
 }

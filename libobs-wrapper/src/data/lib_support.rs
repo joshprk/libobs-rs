@@ -1,6 +1,9 @@
 //! Use the `libobs-source` crate to create sources like `window_capture` for obs
 
-use crate::{data::ObsData, utils::{ObjectInfo, ObsString}};
+use crate::{
+    data::ObsData,
+    utils::{traits::ObsUpdatable, ObjectInfo, ObsString},
+};
 
 pub trait StringEnum {
     fn to_str(&self) -> &str;
@@ -37,4 +40,14 @@ pub trait ObsObjectBuilder {
 
     /// Returns the ID of the source.
     fn get_id() -> ObsString;
+}
+
+pub trait ObsObjectUpdater<T: ObsUpdatable> {
+    fn create_update(updatable: &mut T) -> Self;
+
+    fn get_settings(&self) -> &ObsData;
+    fn get_settings_mut(&mut self) -> &mut ObsData;
+
+    #[must_use]
+    fn update(self);
 }

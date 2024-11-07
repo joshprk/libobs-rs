@@ -12,8 +12,8 @@ use crate::{
     },
 };
 
-
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone)]
 /// Represents information about a window.
 pub struct WindowInfo {
@@ -21,7 +21,7 @@ pub struct WindowInfo {
     pub full_exe: String,
     /// The unique identifier of the window in OBS.
     pub obs_id: String,
-    #[cfg(not(feature="serde"))]
+    #[cfg(not(feature = "serde"))]
     /// The handle to the window (only enabled when feature `serde` is disabled).
     pub handle: HWND,
     /// The process ID of the window.
@@ -38,12 +38,18 @@ pub struct WindowInfo {
     pub intersects: Option<bool>,
     /// The command line used to launch the process.
     pub cmd_line: Option<String>,
+    /// If this window can be recorded using a game capture source.
+    pub is_game: bool,
+}
+
+impl PartialEq for WindowInfo {
+    fn eq(&self, other: &WindowInfo) -> bool {
+        self.obs_id == other.obs_id
+    }
 }
 
 fn encode_string(s: &str) -> String {
-    s
-        .replace("#", "#22")
-        .replace(":", "#3A")
+    s.replace("#", "#22").replace(":", "#3A")
 }
 
 /// Retrieves the OBS window information associated with the given window handle.
@@ -60,7 +66,7 @@ fn encode_string(s: &str) -> String {
 /// # Errors
 ///
 /// Returns an error if there was a problem retrieving the OBS ID.
-pub fn get_window_info(wnd: HWND, is_game: bool) -> AnyResult<WindowInfo> {
+pub fn get_window_info(wnd: HWND) -> AnyResult<WindowInfo> {
     let (proc_id, full_exe) = get_exe(wnd)?;
     let exe = full_exe
         .file_name()
@@ -76,9 +82,7 @@ pub fn get_window_info(wnd: HWND, is_game: bool) -> AnyResult<WindowInfo> {
         return Err(anyhow!("Handle is obs64.exe"));
     }
 
-    if is_game && is_blacklisted_window(&exe) {
-        return Err(anyhow!("Handle is blacklisted (game mode)"));
-    }
+    let mut is_game = !is_blacklisted_window(&exe);
 
     let title = get_title(wnd).ok();
     let class = get_window_class(wnd).ok();
@@ -93,15 +97,15 @@ pub fn get_window_info(wnd: HWND, is_game: bool) -> AnyResult<WindowInfo> {
     let class_o = class.as_ref().map_or("", |v| v);
 
     let obs_id: Vec<String> = vec![title_o, class_o, &exe]
-    .into_iter()
-    .map(|e| encode_string(e))
-    .collect();
+        .into_iter()
+        .map(|e| encode_string(e))
+        .collect();
 
     let obs_id = obs_id.join(":");
     Ok(WindowInfo {
         full_exe: full_exe.to_string_lossy().to_string(),
         obs_id,
-        #[cfg(not(feature="serde"))]
+        #[cfg(not(feature = "serde"))]
         handle: wnd,
         pid: proc_id,
         title,
@@ -110,6 +114,7 @@ pub fn get_window_info(wnd: HWND, is_game: bool) -> AnyResult<WindowInfo> {
         monitor: monitor_id,
         intersects,
         cmd_line,
+        is_game,
     })
 }
 

@@ -17,7 +17,7 @@ impl_send_sync! { WrappedObsData, *mut obs_data}
 impl_send_sync! { WrappedObsOutput, *mut obs_output}
 impl_send_sync! { WrappedObsDisplay, *mut obs_display_t}
 impl_send_sync! { WrappedObsScene, *mut obs_scene_t}
-impl_send_sync! { WrappedObsEncoders, *mut obs_encoder}
+impl_send_sync! { WrappedObsEncoder, *mut obs_encoder}
 impl_send_sync! { WrappedGsVertexBuffer, *mut gs_vertex_buffer}
 impl_send_sync! { WrappedObsVideoInfo, obs_video_info}
 impl_send_sync! { WrappedObsSource, *mut obs_source}

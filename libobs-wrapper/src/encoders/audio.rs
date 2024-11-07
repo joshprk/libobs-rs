@@ -1,13 +1,13 @@
 use libobs::{obs_audio_encoder_create, obs_encoder_release};
 use std::{borrow::Borrow, ptr};
 
-use crate::{data::ObsData, unsafe_send::WrappedObsEncoders, utils::{ObsError, ObsString}};
+use crate::{data::ObsData, unsafe_send::WrappedObsEncoder, utils::{ObsError, ObsString}};
 
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct ObsAudioEncoder {
-    pub(crate) encoder: WrappedObsEncoders,
+    pub(crate) encoder: WrappedObsEncoder,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
     pub(crate) settings: Option<ObsData>,
@@ -50,7 +50,7 @@ impl ObsAudioEncoder {
         }
 
         Ok(Self {
-            encoder: WrappedObsEncoders(encoder),
+            encoder: WrappedObsEncoder(encoder),
             id,
             name,
             settings,

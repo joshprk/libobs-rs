@@ -34,7 +34,7 @@ use windows::Win32::{Foundation::HWND, System::Console::GetConsoleWindow};
 /// # Returns
 ///
 /// A `Result` containing a vector of `WindowInfo` structs representing the retrieved window information, or an `anyhow::Error` if an error occurs.
-pub fn get_all_windows(mode: WindowSearchMode, check_game: bool) -> anyhow::Result<Vec<WindowInfo>> {
+pub fn get_all_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
     let mut use_find_window_ex = false;
 
     let mut parent = None as Option<HWND>;
@@ -47,7 +47,7 @@ pub fn get_all_windows(mode: WindowSearchMode, check_game: bool) -> anyhow::Resu
     while window.is_some_and(|e| !e.is_invalid()) {
         let w = window.unwrap();
         if curr != w {
-            let res = get_window_info(w, check_game);
+            let res = get_window_info(w);
             if let Ok(info) = res {
                 out.push(info);
             } else {

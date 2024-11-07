@@ -22,6 +22,7 @@ pub async fn monitor_test() {
         .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
         .add_to_scene(scene)
         .unwrap();
+
     scene.add_and_set(0);
     let output = context.get_output(&output).unwrap();
     output.start().unwrap();
