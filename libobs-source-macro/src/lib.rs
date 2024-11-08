@@ -1,12 +1,96 @@
+use obs_properties::obs_properties_to_functions;
+use parse::UpdaterInput;
 use proc_macro::TokenStream;
-use proc_macro2::Span;
-use quote::quote;
-use syn::{
-    parse_macro_input, punctuated::Punctuated, Attribute, Data, DeriveInput, Expr, Fields, LitStr,
-    MetaNameValue, Token,
-};
+use quote::{format_ident, quote};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, LitStr};
 
-#[allow(unused_assignments)]
+mod docs;
+mod parse;
+mod fields;
+mod obs_properties;
+
+#[proc_macro_attribute]
+//TODO more documents here
+/// This macro is used to generate an updater pattern for an obs object (for example a source).
+/// For more examples look at libobs-sources
+pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let u_input = parse_macro_input!(attr as UpdaterInput);
+    let id_value = u_input.name.value();
+    let updatable_type = u_input.updatable_type;
+
+    let input = parse_macro_input!(item as DeriveInput);
+
+    let i_ident = input.ident;
+    let updater_name = format_ident!("{}", i_ident);
+
+    let visibility = input.vis;
+    let attributes = input.attrs;
+
+    let fields = match input.data {
+        Data::Struct(data) => match data.fields {
+            Fields::Named(fields) => fields.named,
+            _ => panic!("Only named fields are supported"),
+        },
+        _ => panic!("Only structs are supported"),
+    };
+
+    let (fields_tokens, field_initializers) = fields::generate_fields(&fields);
+    let functions = obs_properties_to_functions(
+        &fields,
+        quote! {
+            use libobs_wrapper::data::ObsObjectUpdater;
+            self.get_settings_mut()
+        },
+    );
+
+    let updatable_type2 = updatable_type.clone();
+    let expanded = quote! {
+        #(#attributes)*
+        #[allow(dead_code)]
+        #visibility struct #updater_name<'a> {
+            #(#fields_tokens,)*
+            settings: libobs_wrapper::data::ObsData,
+            updatable: &'a mut #updatable_type2
+        }
+
+        impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
+            type ToUpdate = #updatable_type;
+
+            fn create_update(updatable: &'a mut Self::ToUpdate) -> Self {
+                Self {
+                    settings: libobs_wrapper::data::ObsData::new(),
+                    updatable,
+                    #(#field_initializers,)*
+                }
+            }
+
+            fn get_settings(&self) -> &libobs_wrapper::data::ObsData {
+                &self.settings
+            }
+
+            fn get_settings_mut(&mut self) -> &mut libobs_wrapper::data::ObsData {
+                &mut self.settings
+            }
+
+            fn get_id() -> libobs_wrapper::utils::ObsString {
+                #id_value.into()
+            }
+
+            fn update(self) {
+                use libobs_wrapper::utils::traits::ObsUpdatable;
+                let settings = self.settings;
+                self.updatable.update_raw(settings);
+            }
+        }
+
+        impl <'a> #updater_name <'a> {
+            #(#functions)*
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
 #[proc_macro_attribute]
 /// This macro is used to generate a builder pattern for an obs source. <br>
 /// The attribute should be the id of the source.<br>
@@ -74,7 +158,9 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let input = parse_macro_input!(item as DeriveInput);
 
-    let name = input.ident;
+    let i_ident = input.ident;
+    let builder_name = format_ident!("{}", i_ident);
+
     let generics = input.generics;
     let visibility = input.vis;
     let attributes = input.attrs;
@@ -88,165 +174,33 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let id_value = id.value();
-    let fields_tokens = fields.iter().map(|f| {
-        let name = &f.ident;
+    let (fields_tokens, field_initializers) = fields::generate_fields(&fields);
+
+    let functions = obs_properties_to_functions(
+        &fields,
         quote! {
-            /// IGNORE THIS FIELD. This is just so intellisense doesn't get confused and isn't complaining
-            #name: u8
-        }
-    });
-
-    let field_initializers = fields.iter().map(|f| {
-        let name = &f.ident;
-        quote! {
-            #name: 0
-        }
-    });
-
-    let obs_properties = fields
-        .iter()
-        .filter_map(|f| {
-            let attr = f.attrs.iter().find(|e| e.path().is_ident("obs_property"));
-
-            attr.map(|a| (f, a))
-        })
-        .collect::<Vec<_>>();
-
-    let mut functions = Vec::new();
-    for (field, attr) in obs_properties {
-        let field_type = &field.ty;
-        let field_name = field.ident.as_ref().unwrap();
-
-        let name_values: Punctuated<MetaNameValue, Token![,]> = attr
-            .parse_args_with(Punctuated::parse_terminated)
-            .expect(&format!(
-                "Field {} has invalid obs_property, should be name value",
-                field_name
-            ));
-
-        let type_t = &name_values
-            .iter()
-            .find(|e| e.path.get_ident().unwrap().to_string() == "type_t")
-            .expect("type_t is required for obs_property")
-            .value;
-
-        let type_t = match type_t {
-            syn::Expr::Lit(e) => match &e.lit {
-                syn::Lit::Str(s) => s.value(),
-                _ => panic!("type_t must be a string"),
-            },
-            _ => panic!("type_t must be a string"),
-        };
-
-        #[allow(unused_variables)]
-        let mut obs_settings_name = field_name.to_string();
-        let pot_name = &name_values
-            .iter()
-            .find(|e| e.path.get_ident().unwrap().to_string() == "settings_key");
-
-        if let Some(n) = pot_name {
-            obs_settings_name = match &n.value {
-                syn::Expr::Lit(e) => match &e.lit {
-                    syn::Lit::Str(s) => s.value(),
-                    _ => panic!("setings_key must be a string"),
-                },
-                _ => panic!("settings_key must be a string"),
-            };
-        }
-
-        let (_docs_str, docs_attr) = collect_doc(&field.attrs);
-
-        let obs_settings_key = LitStr::new(&obs_settings_name, Span::call_site());
-        let set_field = quote::format_ident!("set_{}", field_name);
-        let type_t_str = type_t.as_str();
-        let to_add = match type_t_str {
-            "enum" => {
-                quote! {
-                    #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: #field_type) -> Self {
-                        use num_traits::ToPrimitive;
-                        use libobs_wrapper::data::ObsObjectBuilder;
-                        let val = #field_name.to_i32().unwrap();
-
-                        self.get_or_create_settings()
-                            .set_int(#obs_settings_key, val as i64);
-
-                        self
-                    }
-                }
-            }
-            "enum_string" => {
-                quote! {
-                    #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: #field_type) -> Self {
-                        use libobs_wrapper::data::{ObsObjectBuilder, StringEnum};
-
-                        self.get_or_create_settings()
-                            .set_string(#obs_settings_key, #field_name.to_str());
-
-                        self
-                    }
-                }
-            }
-            "string" => {
-                quote! {
-                    #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
-                        use libobs_wrapper::data::ObsObjectBuilder;
-                        self.get_or_create_settings()
-                            .set_string(#obs_settings_key, #field_name);
-                        self
-                    }
-                }
-            }
-            "bool" => {
-                quote! {
-                    #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: bool) -> Self {
-                        use libobs_wrapper::data::ObsObjectBuilder;
-                        self.get_or_create_settings()
-                            .set_bool(#obs_settings_key, #field_name);
-                        self
-                    }
-                }
-            }
-            "int" => {
-                quote! {
-                    #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: i64) -> Self {
-                        use libobs_wrapper::data::ObsObjectBuilder;
-                        self.get_or_create_settings()
-                            .set_int(#obs_settings_key, #field_name);
-                        self
-                    }
-                }
-            }
-            _ => panic!(
-                "Unsupported type_t {}. Should either be `enum`, `string`, `bool` or `int`",
-                type_t
-            ),
-        };
-
-        functions.push(to_add);
-    }
+            use libobs_wrapper::data::ObsObjectBuilder;
+            self.get_or_create_settings()
+        },
+    );
 
     let expanded = quote! {
         #(#attributes)*
         #[allow(dead_code)]
-        #visibility struct #name #generics {
+        #visibility struct #builder_name #generics {
             #(#fields_tokens,)*
             settings: Option<libobs_wrapper::data::ObsData>,
             hotkeys: Option<libobs_wrapper::data::ObsData>,
             name: libobs_wrapper::utils::ObsString
         }
 
-        impl libobs_wrapper::data::ObsObjectBuilder for #name {
+        impl libobs_wrapper::data::ObsObjectBuilder for #builder_name {
             fn new(name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
                 Self {
-                    #(#field_initializers,)*
-                    settings: None,
-                    hotkeys: None,
                     name: name.into(),
+                    hotkeys: None,
+                    settings: None,
+                    #(#field_initializers,)*
                 }
             }
 
@@ -275,39 +229,10 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl #name {
+        impl #builder_name {
             #(#functions)*
         }
     };
 
     TokenStream::from(expanded)
-}
-
-fn collect_doc(attrs: &Vec<Attribute>) -> (Vec<String>, Vec<&Attribute>) {
-    let mut docs_str = Vec::new();
-    let mut docs_attr = Vec::new();
-    for attr in attrs {
-        let name_val = match &attr.meta {
-            syn::Meta::NameValue(n) => n,
-            _ => continue,
-        };
-
-        let is_doc = name_val.path.is_ident("doc");
-        if !is_doc {
-            continue;
-        }
-
-        let lit = match &name_val.value {
-            Expr::Lit(l) => match &l.lit {
-                syn::Lit::Str(s) => s.value(),
-                _ => continue,
-            },
-            _ => continue,
-        };
-
-        docs_str.push(lit);
-        docs_attr.push(attr);
-    }
-
-    (docs_str, docs_attr)
 }

@@ -42,12 +42,16 @@ pub trait ObsObjectBuilder {
     fn get_id() -> ObsString;
 }
 
-pub trait ObsObjectUpdater<T: ObsUpdatable> {
-    fn create_update(updatable: &mut T) -> Self;
+pub trait ObsObjectUpdater<'a> {
+    type ToUpdate: ObsUpdatable;
+    fn create_update(updatable: &'a mut Self::ToUpdate) -> Self;
 
     fn get_settings(&self) -> &ObsData;
     fn get_settings_mut(&mut self) -> &mut ObsData;
 
     #[must_use]
     fn update(self);
+
+    /// Returns the ID of the object
+    fn get_id() -> ObsString;
 }

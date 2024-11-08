@@ -1,11 +1,18 @@
-use libobs::{obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double, obs_data_set_int, obs_data_set_string};
+use std::ffi::{CStr, CString};
+
+use anyhow::bail;
+use libobs::{
+    obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double,
+    obs_data_set_int, obs_data_set_string,
+};
 
 use crate::{unsafe_send::WrappedObsData, utils::ObsString};
 
-pub mod video;
 pub mod audio;
-pub mod output;
 mod lib_support;
+pub mod output;
+pub mod video;
+pub mod immutable;
 pub use lib_support::*;
 
 /// Contains `obs_data` and its related strings. Note that
@@ -29,7 +36,10 @@ impl ObsData {
     pub fn new() -> Self {
         let obs_data = unsafe { obs_data_create() };
         let strings = Vec::new();
-        ObsData { obs_data: WrappedObsData(obs_data), strings }
+        ObsData {
+            obs_data: WrappedObsData(obs_data),
+            strings,
+        }
     }
 
     /// Returns a pointer to the raw `obs_data`
@@ -91,10 +101,43 @@ impl ObsData {
 
         self
     }
+
+    pub fn from_json(json: &str) -> anyhow::Result<Self> {
+        let cstr = CString::new(json)?;
+        let strings = Vec::new();
+
+        let result = unsafe { libobs::obs_data_create_from_json(cstr.as_ptr()) };
+        if result.is_null() {
+            bail!("Failed to set JSON in obs_data");
+        }
+
+        Ok(ObsData {
+            obs_data: WrappedObsData(result),
+            strings,
+        })
+    }
+
+    pub fn get_json(&self) -> anyhow::Result<String> {
+        let ptr = unsafe { libobs::obs_data_get_json(self.obs_data.0) };
+        if ptr.is_null() {
+            bail!("Failed to get JSON from obs_data");
+        }
+
+        let ptr = unsafe { CStr::from_ptr(ptr) };
+        Ok(ptr.to_str()?.to_string())
+    }
 }
 
 impl Drop for ObsData {
     fn drop(&mut self) {
         unsafe { obs_data_release(self.obs_data.0) }
+    }
+}
+
+impl Clone for ObsData {
+    fn clone(&self) -> Self {
+        let json = self.get_json().expect("Couldn't get JSON from obs_data");
+
+        Self::from_json(json.as_str()).expect("Couldn't create obs_data from JSON")
     }
 }

@@ -1,26 +1,43 @@
 use display_info::DisplayInfo;
-use libobs_source_macro::obs_object_builder;
-use libobs_wrapper::sources::ObsSourceBuilder;
+use libobs_source_macro::{obs_object_builder, obs_object_updater};
+use libobs_wrapper::sources::{ObsSource, ObsSourceBuilder};
+use paste::paste;
 
-/// Provides a easy to use builder for the monitor capture source.
-#[derive(Debug)]
-#[obs_object_builder("monitor_capture")]
-pub struct MonitorCaptureSourceBuilder {
-    #[obs_property(type_t = "int", settings_key = "monitor")]
-    /// Sets the monitor to capture.
-    monitor_raw: i64,
+macro_rules! define_object_builder {
+    ($obs_id:literal, $struct_name:ident, $updatable_name: ident, $($field_name:ident: $field_type:ty, $obs_property:meta),*) => {
+        #[allow(dead_code)]
+        /// This struct is just so the compiler isn't confused
+        struct $struct_name {}
 
-    #[obs_property(type_t = "string", settings_key = "monitor_id")]
-    monitor_id_raw: String,
+        paste! {
+            #[derive(Debug)]
+            #[obs_object_builder($obs_id)]
+            pub struct [<$struct_name Builder>] {
+                $(
+                    #[$obs_property]
+                    $field_name: $field_type,
+                )*
+            }
 
-    #[obs_property(type_t = "bool")]
-    /// Sets whether the cursor should be captured.
-    capture_cursor: bool,
-
-    #[obs_property(type_t = "bool")]
-    /// Compatibility mode for the monitor capture source.
-    compatibility: bool,
+            #[obs_object_updater($obs_id, $updatable_name)]
+            pub struct [<$struct_name Updater>] {
+                $(
+                    #[$obs_property]
+                    $field_name: $field_type,
+                )*
+            }
+        }
+    };
 }
+
+// Usage example
+define_object_builder!(
+    "monitor_capture", MonitorCaptureSource, ObsSource,
+    monitor_raw: i64, obs_property(type_t = "int", settings_key = "monitor"),
+    monitor_id_raw: String, obs_property(type_t = "string", settings_key = "monitor_id"),
+    capture_cursor: bool, obs_property(type_t = "bool"),
+    compatibility: bool, obs_property(type_t = "bool")
+);
 
 impl MonitorCaptureSourceBuilder {
     /// Gets all available monitors
