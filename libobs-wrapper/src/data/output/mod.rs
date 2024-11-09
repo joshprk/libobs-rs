@@ -98,8 +98,8 @@ impl ObsOutput {
         })
     }
 
-    pub fn get_video_encoders(&mut self) -> &mut Vec<ObsVideoEncoder> {
-        &mut self.video_encoders
+    pub fn get_video_encoders(&self) -> &Vec<ObsVideoEncoder> {
+        &self.video_encoders
     }
 
     pub fn video_encoder(

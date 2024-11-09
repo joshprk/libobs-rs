@@ -1,5 +1,10 @@
 use std::{
-    ffi::CStr, ptr, sync::{Arc, Mutex}, thread::{self, ThreadId}
+    cell::RefCell,
+    ffi::CStr,
+    ptr,
+    rc::Rc,
+    sync::{Arc, Mutex},
+    thread::{self, ThreadId},
 };
 
 use crate::{
@@ -38,7 +43,7 @@ pub struct ObsContext {
     startup_info: StartupInfo,
 
     #[get_mut]
-    displays: Vec<ObsDisplay>,
+    displays: Vec<Rc<RefCell<ObsDisplay>>>,
 
     #[skip_getter]
     vertex_buffers: VertexBuffers,
@@ -47,10 +52,10 @@ pub struct ObsContext {
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: Vec<ObsOutput>,
+    pub(crate) outputs: Vec<Rc<RefCell<ObsOutput>>>,
 
     #[get_mut]
-    pub(crate) scenes: Vec<ObsScene>,
+    pub(crate) scenes: Vec<Rc<RefCell<ObsScene>>>,
 
     #[skip_getter]
     pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
@@ -121,7 +126,6 @@ impl ObsContext {
         log.log(level, msg.to_string());
     }
 
-
     /// Initializes the libobs context and prepares
     /// it for recording.
     ///
@@ -141,8 +145,7 @@ impl ObsContext {
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }
 
-        let mut log_callback = LOGGER.lock()
-        .map_err(|_e| ObsError::MutexFailure)?;
+        let mut log_callback = LOGGER.lock().map_err(|_e| ObsError::MutexFailure)?;
 
         *log_callback = info.logger.take().expect("Logger can never be null");
 
@@ -156,7 +159,10 @@ impl ObsContext {
             unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
 
         internal_log_global(ObsLogLevel::Info, format!("OBS {}", Self::get_version()));
-        internal_log_global(ObsLogLevel::Info, "---------------------------------".to_string());
+        internal_log_global(
+            ObsLogLevel::Info,
+            "---------------------------------".to_string(),
+        );
 
         if !startup_status {
             return Err(ObsError::Failure);
@@ -187,8 +193,10 @@ impl ObsContext {
         let m = ObsModules::load_modules();
         m.log_if_failed();
 
-        internal_log_global(ObsLogLevel::Info, "==== Startup complete ===============================================".to_string());
-
+        internal_log_global(
+            ObsLogLevel::Info,
+            "==== Startup complete ===============================================".to_string(),
+        );
 
         let vertex_buffers = unsafe { VertexBuffers::initialize() };
 
@@ -230,8 +238,9 @@ impl ObsContext {
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
-            for output in self.outputs.iter_mut() {
-                for video_encoder in output.get_video_encoders().iter_mut() {
+            for output in self.outputs.iter() {
+                let output_ref = output.borrow();
+                for video_encoder in output_ref.get_video_encoders().iter() {
                     unsafe {
                         libobs::obs_encoder_set_video(
                             video_encoder.as_ptr(),
@@ -256,28 +265,29 @@ impl ObsContext {
         };
     }
 
-    pub fn output(&mut self, info: OutputInfo) -> Result<&mut ObsOutput, ObsError> {
+    pub fn output(&mut self, info: OutputInfo) -> Result<Rc<RefCell<ObsOutput>>, ObsError> {
         let output = ObsOutput::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match output {
             Ok(x) => {
-                self.outputs.push(x);
-                Ok(self.outputs.last_mut().unwrap())
+                self.outputs.push(Rc::new(RefCell::new(x)));
+                Ok(self.outputs.last().unwrap().clone())
             }
 
             Err(x) => Err(x),
         };
     }
 
-    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<&mut ObsDisplay, ObsError> {
-        let display = ObsDisplay::new(
-            &self.vertex_buffers,
-            data,
-        ).map_err(|e| ObsError::DisplayCreationError(e))?;
+    pub fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<Rc<RefCell<ObsDisplay>>, ObsError> {
+        let display = ObsDisplay::new(&self.vertex_buffers, data)
+            .map_err(|e| ObsError::DisplayCreationError(e))?;
 
-        self.displays.push(display);
+        self.displays.push(Rc::new(RefCell::new(display)));
 
-        Ok(self.displays.last_mut().unwrap())
+        Ok(self.displays.last_mut().unwrap().clone())
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplay) {
@@ -285,13 +295,14 @@ impl ObsContext {
     }
 
     pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.retain(|x| x.get_id() != id);
+        self.displays.retain(|x| x.borrow().get_id() != id);
     }
 
-    pub fn get_output(&mut self, name: &str) -> Option<&mut ObsOutput> {
+    pub fn get_output(&mut self, name: &str) -> Option<Rc<RefCell<ObsOutput>>> {
         self.outputs
-            .iter_mut()
-            .find(|x| x.name().to_string().as_str() == name)
+            .iter()
+            .find(|x| x.borrow().name().to_string().as_str() == name)
+            .map(|e| e.clone())
     }
 
     pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
@@ -318,11 +329,11 @@ impl ObsContext {
         Ok(unsafe { libobs::obs_get_audio() })
     }
 
-    pub fn scene(&mut self, name: impl Into<ObsString>) -> &mut ObsScene {
+    pub fn scene(&mut self, name: impl Into<ObsString>) -> Rc<RefCell<ObsScene>> {
         let scene = ObsScene::new(name.into(), self.active_scene.clone());
-        self.scenes.push(scene);
+        self.scenes.push(Rc::new(RefCell::new(scene)));
 
-        self.scenes.last_mut().unwrap()
+        self.scenes.last().unwrap().clone()
     }
 }
 
@@ -339,7 +350,11 @@ impl Drop for _ObsContextShutdownZST {
                 logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
                 let allocs = unsafe { libobs::bnum_allocs() };
 
-                let level = if allocs != 0 { ObsLogLevel::Error } else { ObsLogLevel::Info };
+                let level = if allocs != 0 {
+                    ObsLogLevel::Error
+                } else {
+                    ObsLogLevel::Info
+                };
                 logger.log(level, format!("Number of memory leaks: {}", allocs))
             }
             Err(_) => {

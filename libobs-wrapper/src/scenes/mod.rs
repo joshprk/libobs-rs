@@ -1,4 +1,8 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use getters0::Getters;
 use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
@@ -16,7 +20,7 @@ pub struct ObsScene {
     scene: WrappedObsScene,
     name: ObsString,
     #[get_mut]
-    pub(crate) sources: Vec<ObsSource>,
+    pub(crate) sources: Vec<Rc<RefCell<ObsSource>>>,
     #[skip_getter]
     pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 }
@@ -46,7 +50,7 @@ impl ObsScene {
         unsafe { libobs::obs_scene_get_source(self.scene.0) }
     }
 
-    pub fn add_source(&mut self, info: SourceInfo) -> Result<&mut ObsSource, ObsError> {
+    pub fn add_source(&mut self, info: SourceInfo) -> Result<Rc<RefCell<ObsSource>>, ObsError> {
         let source = ObsSource::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match source {
@@ -54,19 +58,22 @@ impl ObsScene {
                 unsafe {
                     libobs::obs_scene_add(self.scene.0, x.source.0);
                 }
-                self.sources.push(x);
-                Ok(self.sources.last_mut().unwrap())
+                self.sources.push(Rc::new(RefCell::new(x)));
+                Ok(self.sources.last_mut().unwrap().clone())
             }
             Err(x) => Err(x),
         };
     }
 
-    pub fn get_source_by_index_mut(&mut self, index: usize) -> Option<&mut ObsSource> {
-        self.sources.get_mut(index)
+    pub fn get_source_by_index(&self, index: usize) -> Option<Rc<RefCell<ObsSource>>> {
+        self.sources.get(index).map(|x| x.clone())
     }
 
-    pub fn get_source_mut(&mut self, name: &str) -> Option<&mut ObsSource> {
-        self.sources.iter_mut().find(|x| x.name() == name)
+    pub fn get_source_mut(&self, name: &str) -> Option<Rc<RefCell<ObsSource>>> {
+        self.sources
+            .iter()
+            .find(|x| x.borrow().name() == name)
+            .map(|x| x.clone())
     }
 
     pub fn as_ptr(&self) -> *mut obs_scene_t {

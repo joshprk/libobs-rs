@@ -56,7 +56,7 @@ impl ObsVideoEncoder {
         })
     }
 
-    pub fn as_ptr(&mut self) -> *mut obs_encoder {
+    pub fn as_ptr(&self) -> *mut obs_encoder {
         self.encoder.0
     }
 }

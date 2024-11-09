@@ -25,7 +25,7 @@ pub fn record_test() {
         .set_logger(Box::new(TestLogger {}));
     let mut context = ObsContext::new(startup_info).unwrap();
 
-    let scene = context.scene("main");
+    let scene = context.scene("main").try_borrow_mut().unwrap();
 
     // Create the video source using game capture
     let mut video_source_data = ObsData::new();
