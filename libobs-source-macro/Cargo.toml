@@ -14,7 +14,7 @@ edition = "2021"
 num-traits = "0.2.19"
 proc-macro2 = "1.0.86"
 quote = "1.0.36"
-syn = {version="2.0.72", features=["parsing"]}
+syn = {version="2.0.72", features=["full"]}
 
 [lib]
 name = "libobs_source_macro"

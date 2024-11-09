@@ -4,7 +4,9 @@ use getters0::Getters;
 use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
 
 use crate::{
-    sources::ObsSource, unsafe_send::WrappedObsScene, utils::{ObsError, ObsString, SourceInfo}
+    sources::ObsSource,
+    unsafe_send::WrappedObsScene,
+    utils::{ObsError, ObsString, SourceInfo},
 };
 
 #[derive(Debug, Getters)]
@@ -36,11 +38,11 @@ impl ObsScene {
         *s = Some(WrappedObsScene(self.as_ptr()));
 
         unsafe {
-            obs_set_output_source(channel, self.get_source_ptr());
+            obs_set_output_source(channel, self.get_scene_source_ptr());
         }
     }
 
-    pub fn get_source_ptr(&self) -> *mut obs_source_t {
+    pub fn get_scene_source_ptr(&self) -> *mut obs_source_t {
         unsafe { libobs::obs_scene_get_source(self.scene.0) }
     }
 
@@ -57,6 +59,14 @@ impl ObsScene {
             }
             Err(x) => Err(x),
         };
+    }
+
+    pub fn get_source_by_index_mut(&mut self, index: usize) -> Option<&mut ObsSource> {
+        self.sources.get_mut(index)
+    }
+
+    pub fn get_source_mut(&mut self, name: &str) -> Option<&mut ObsSource> {
+        self.sources.iter_mut().find(|x| x.name() == name)
     }
 
     pub fn as_ptr(&self) -> *mut obs_scene_t {

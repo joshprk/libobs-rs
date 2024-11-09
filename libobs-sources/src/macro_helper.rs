@@ -1,29 +1,32 @@
 
-macro_rules! define_object_builder {
-    ($struct_name:ident($obs_id:literal) for $updatable_name: ident, $($field_name:ident: $field_type:ty, $obs_property:meta),*) => {
-        #[allow(dead_code)]
-        /// This struct is just so the compiler isn't confused
-        struct $struct_name {}
-
+macro_rules! define_object_manager {
+    ($(#[$parent_meta:meta])* struct $struct_name:ident($obs_id:literal) for $updatable_name:ident {
+        $(
+            $(#[$meta:meta])*
+            $field:ident: $ty:ty,
+        )*
+    }) => {
         paste::paste! {
-            #[derive(Debug)]
             #[libobs_source_macro::obs_object_builder($obs_id)]
+            $(#[$parent_meta])*
             pub struct [<$struct_name Builder>] {
                 $(
-                    #[$obs_property]
-                    $field_name: $field_type,
+                    $(#[$meta])*
+                    $field: $ty,
                 )*
             }
 
             #[libobs_source_macro::obs_object_updater($obs_id, $updatable_name)]
+            /// Used to update the source this updater was created from. For more details look
+            /// at docs for the corresponding builder.
             pub struct [<$struct_name Updater>] {
                 $(
-                    #[$obs_property]
-                    $field_name: $field_type,
+                    $(#[$meta])*
+                    $field: $ty,
                 )*
             }
         }
     };
 }
 
-pub(crate) use define_object_builder;
+pub(crate) use define_object_manager;

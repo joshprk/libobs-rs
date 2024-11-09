@@ -1,9 +1,9 @@
-use std::{path::PathBuf, process::Command, time::Duration};
+use std::{cmp, io::{stdout, Write}, path::PathBuf, process::Command, time::Duration};
 
-use libobs_sources::windows::WindowCaptureSourceBuilder;
+use libobs_sources::windows::{WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::{data::ObsObjectBuilder, sources::ObsSourceBuilder, utils::{traits::ObsUpdatable, ObsPath}};
-
+use libobs_wrapper::data::ObsObjectUpdater;
 use crate::common::{initialize_obs, test_video};
 
 fn find_notepad() -> Option<WindowInfo> {
@@ -35,25 +35,41 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-    let (mut context, output) = initialize_obs(rec_file);
+    let (mut context, output_name) = initialize_obs(rec_file);
     let scene = context.scene("main");
 
-    let source = WindowCaptureSourceBuilder::new("test_capture")
+    scene.add_and_set(0);
+
+    let source_name = "test_capture";
+    WindowCaptureSourceBuilder::new(source_name)
         .set_window(&window)
         .add_to_scene(scene)
         .unwrap();
 
-    source.update::<WindowCaptureSourceBuilder>();
-    
-
-    scene.add_and_set(0);
-
-    let output = context.get_output(&output).unwrap();
+    let output = context.get_output(&output_name).unwrap();
     output.start().unwrap();
     println!("Recording started");
-    std::thread::sleep(Duration::from_secs(5));
+
+    let windows =
+        WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap()
+        .into_iter()
+        .filter(|e| e.obs_id.to_lowercase().contains("code"))
+        .collect::<Vec<_>>();
+    for i in 0..cmp::min(5, windows.len()) {
+        let source = context.scenes_mut().get_mut(0).unwrap().get_source_by_index_mut(0).unwrap();
+        let w = windows.get(i).unwrap();
+        println!("Setting to {:?}", w.obs_id);
+        source.create_updater::<WindowCaptureSourceUpdater>()
+            .set_window(w)
+            .update();
+
+        println!("Recording for {} seconds", i);
+        stdout().flush().unwrap();
+        tokio::time::sleep(Duration::from_secs(5)).await;
+    }
     println!("Recording stop");
 
+    let output = context.get_output(&output_name).unwrap();
     output.stop().unwrap();
 
     test_video(&path_out).await.unwrap();

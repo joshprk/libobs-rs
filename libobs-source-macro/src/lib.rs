@@ -2,12 +2,12 @@ use obs_properties::obs_properties_to_functions;
 use parse::UpdaterInput;
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Data, DeriveInput, Fields, LitStr};
+use syn::{parse_macro_input, Data, DeriveInput, Fields, ItemImpl, LitStr, Type, TypePath};
 
 mod docs;
-mod parse;
 mod fields;
 mod obs_properties;
+mod parse;
 
 #[proc_macro_attribute]
 //TODO more documents here
@@ -231,6 +231,41 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         impl #builder_name {
             #(#functions)*
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+#[proc_macro_attribute]
+pub fn obs_object_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemImpl);
+
+    // Extract the function from the implementation
+    let impl_item = input
+        .items;
+    let impl_item2 = impl_item.clone();
+
+
+    // Create the builder and updater struct names
+    let base_name = if let Type::Path(TypePath { path, .. }) = &*input.self_ty {
+        path.segments.last().unwrap().ident.to_string()
+    } else {
+        panic!("Only path types are supported in self_ty")
+    };
+
+    let builder_name = format_ident!("{}Builder", base_name);
+    let updater_name = format_ident!("{}Updater", base_name);
+
+    let expanded = quote! {
+        // Builder implementation
+        impl #builder_name {
+            #(#impl_item)*
+        }
+
+        // Updater implementation with lifetime
+        impl<'a> #updater_name<'a> {
+            #(#impl_item2)*
         }
     };
 

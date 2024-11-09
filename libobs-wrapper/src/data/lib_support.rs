@@ -49,7 +49,6 @@ pub trait ObsObjectUpdater<'a> {
     fn get_settings(&self) -> &ObsData;
     fn get_settings_mut(&mut self) -> &mut ObsData;
 
-    #[must_use]
     fn update(self);
 
     /// Returns the ID of the object

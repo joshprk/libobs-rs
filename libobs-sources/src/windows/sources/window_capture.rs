@@ -1,15 +1,16 @@
-use libobs_source_macro::obs_object_builder;
-
+use libobs_source_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::sources::ObsSourceBuilder;
+use libobs_wrapper::sources::{ObsSource, ObsSourceBuilder};
+
+use crate::macro_helper::define_object_manager;
 
 use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 
-/// Provides a easy to use builder for the window capture source.
-#[derive(Debug)]
-#[obs_object_builder("window_capture")]
-pub struct WindowCaptureSourceBuilder {
+define_object_manager!(
+    /// Provides a easy to use builder for the window capture source.
+    #[derive(Debug)]
+    struct WindowCaptureSource("window_capture") for ObsSource {
     #[obs_property(type_t = "enum")]
     /// Sets the capture method for the window capture
     capture_method: ObsWindowCaptureMethod,
@@ -59,10 +60,11 @@ pub struct WindowCaptureSourceBuilder {
 
     #[obs_property(type_t = "bool")]
     compatibility: bool,
-}
+});
 
+#[obs_object_impl]
 #[cfg(feature = "window-list")]
-impl WindowCaptureSourceBuilder {
+impl WindowCaptureSource {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
         get_all_windows(mode, false)
