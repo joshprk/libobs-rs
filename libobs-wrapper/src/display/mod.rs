@@ -11,33 +11,31 @@ pub use creation_data::*;
 pub use enums::*;
 pub use window_manager::*;
 
-use std::{
-    ffi::c_void,
-    sync::atomic::AtomicUsize,
-};
+use std::{cell::RefCell, ffi::c_void, rc::Rc, sync::atomic::AtomicUsize};
 
 use libobs::{
-    gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_viewport_pop, gs_viewport_push, obs_get_video_info, obs_render_main_texture,
-    obs_video_info,
+    gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_viewport_pop,
+    gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
 use crate::unsafe_send::WrappedObsDisplay;
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
-#[derive(Debug)]
-pub struct ObsDisplay {
-    display: WrappedObsDisplay,
+#[derive(Debug, Clone)]
+pub struct ObsDisplayRef {
+    display: Rc<WrappedObsDisplay>,
     id: usize,
 
     _buffers: VertexBuffers,
     is_initialized: bool,
 
     // Keep for window
-    manager: DisplayWindowManager,
+    manager: Rc<RefCell<DisplayWindowManager>>,
+    _guard: Rc<_DisplayDropGuard>,
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
-    let s = &mut *(data as *mut ObsDisplay);
+    let s = &mut *(data as *mut ObsDisplayRef);
 
     let (x, y) = s.get_pos();
     let (width, height) = s.get_size();
@@ -51,10 +49,8 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     gs_ortho(
         0.0f32,
         ovi.base_width as f32,
-
         0.0f32,
         ovi.base_height as f32,
-
         -100.0f32,
         100.0f32,
     );
@@ -67,7 +63,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     gs_viewport_pop();
 }
 
-impl ObsDisplay {
+impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     pub fn new(
@@ -90,13 +86,8 @@ impl ObsDisplay {
             ..
         } = data.clone();
 
-        let mut manager = DisplayWindowManager::new(
-            parent_window.clone(),
-            x as i32,
-            y as i32,
-            width,
-            height,
-        )?;
+        let mut manager =
+            DisplayWindowManager::new(parent_window.clone(), x as i32, y as i32, width, height)?;
 
         let child_handle = manager.get_child_handle();
         let init_data = data.build(gs_window {
@@ -108,11 +99,14 @@ impl ObsDisplay {
 
         manager.obs_display = Some(WrappedObsDisplay(display));
         Ok(Self {
-            display: WrappedObsDisplay(display),
-            manager,
+            display: Rc::new(WrappedObsDisplay(display)),
+            manager: Rc::new(RefCell::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             _buffers: buffers.clone(),
             is_initialized: false,
+            _guard: Rc::new(_DisplayDropGuard {
+                display: WrappedObsDisplay(display),
+            }),
         })
     }
 
@@ -138,13 +132,14 @@ impl ObsDisplay {
     pub fn get_id(&self) -> usize {
         self.id
     }
-
-    pub fn manager_mut(&mut self) -> &mut DisplayWindowManager {
-        &mut self.manager
-    }
 }
 
-impl Drop for ObsDisplay {
+#[derive(Debug)]
+struct _DisplayDropGuard {
+    display: WrappedObsDisplay,
+}
+
+impl Drop for _DisplayDropGuard {
     fn drop(&mut self) {
         unsafe {
             libobs::obs_display_remove_draw_callback(

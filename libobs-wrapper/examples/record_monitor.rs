@@ -28,7 +28,7 @@ pub fn main() {
         None,
     );
 
-    let scene = context.scene("main");
+    let mut scene = context.scene("main");
     scene.add_source(video_source_info).unwrap();
 
     // Register the source and record
@@ -40,7 +40,7 @@ pub fn main() {
 
     let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
 
-    let output = context.output(output_info).unwrap();
+    let mut output = context.output(output_info).unwrap();
 
     // Register the video encoder
     let mut video_settings = ObsData::new();

@@ -8,19 +8,21 @@ use crate::{
     unsafe_send::WrappedObsSource,
     utils::{traits::ObsUpdatable, ObsError, ObsString},
 };
-use std::ptr;
+use std::{ptr, rc::Rc};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
-pub struct ObsSource {
-    pub(crate) source: WrappedObsSource,
+pub struct ObsSourceRef {
+    pub(crate) source: Rc<WrappedObsSource>,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
-    pub(crate) settings: ImmutableObsData,
-    pub(crate) hotkey_data: ImmutableObsData,
+    pub(crate) settings: Rc<ImmutableObsData>,
+    pub(crate) hotkey_data: Rc<ImmutableObsData>,
+
+    _guard: Rc<_ObsSourceGuard>,
 }
 
-impl ObsSource {
+impl ObsSourceRef {
     pub fn new(
         id: impl Into<ObsString>,
         name: impl Into<ObsString>,
@@ -54,11 +56,14 @@ impl ObsSource {
         }
 
         Ok(Self {
-            source: WrappedObsSource(source),
+            source: Rc::new(WrappedObsSource(source)),
             id,
             name,
-            settings,
-            hotkey_data,
+            settings: Rc::new(settings),
+            hotkey_data: Rc::new(hotkey_data),
+            _guard: Rc::new(_ObsSourceGuard {
+                source: WrappedObsSource(source),
+            }),
         })
     }
 
@@ -79,13 +84,7 @@ impl ObsSource {
     }
 }
 
-impl Drop for ObsSource {
-    fn drop(&mut self) {
-        unsafe { obs_source_release(self.source.0) }
-    }
-}
-
-impl ObsUpdatable for ObsSource {
+impl ObsUpdatable for ObsSourceRef {
     fn update_raw(&mut self, data: ObsData) {
         unsafe { obs_source_update(self.source.0, data.as_ptr()) }
     }
@@ -94,5 +93,16 @@ impl ObsUpdatable for ObsSource {
         unsafe {
             obs_source_reset_settings(self.source.0, data.as_ptr());
         }
+    }
+}
+
+#[derive(Debug)]
+struct _ObsSourceGuard {
+    source: WrappedObsSource,
+}
+
+impl Drop for _ObsSourceGuard {
+    fn drop(&mut self) {
+        unsafe { obs_source_release(self.source.0) }
     }
 }

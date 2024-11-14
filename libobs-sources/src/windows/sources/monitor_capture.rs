@@ -1,6 +1,6 @@
 use display_info::DisplayInfo;
 use libobs_source_macro::obs_object_impl;
-use libobs_wrapper::sources::{ObsSource, ObsSourceBuilder};
+use libobs_wrapper::sources::{ObsSourceRef, ObsSourceBuilder};
 
 use crate::macro_helper::define_object_manager;
 
@@ -8,7 +8,7 @@ use crate::macro_helper::define_object_manager;
 define_object_manager!(
     /// Provides a easy to use builder for the monitor capture source.
     #[derive(Debug)]
-    struct MonitorCaptureSource("monitor_capture") for ObsSource {
+    struct MonitorCaptureSource("monitor_capture") for ObsSourceRef {
         #[obs_property(type_t = "int", settings_key = "monitor")]
         /// Sets the monitor to capture.
         monitor_raw: i64,

@@ -41,7 +41,7 @@ pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (O
     let output_name = "output";
     let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
 
-    let output = context.output(output_info).unwrap();
+    let mut output = context.output(output_info).unwrap();
 
     // Register the video encoder
     let mut video_settings = ObsData::new();

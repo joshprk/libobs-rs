@@ -16,15 +16,15 @@ pub async fn monitor_test() {
     let path_out = PathBuf::from(rec_file.to_string());
 
     let (mut context, output) = initialize_obs_with_log(rec_file, true);
-    let scene = context.scene("main");
+    let mut scene = context.scene("main");
 
     MonitorCaptureSourceBuilder::new("monitor_test")
         .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
-        .add_to_scene(scene)
+        .add_to_scene(&mut scene)
         .unwrap();
 
     scene.add_and_set(0);
-    let output = context.get_output(&output).unwrap();
+    let mut output = context.get_output(&output).unwrap();
     output.start().unwrap();
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));

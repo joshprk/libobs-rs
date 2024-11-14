@@ -4,13 +4,13 @@ use libobs::{calldata_get_string, calldata_t, obs_output_get_proc_handler, proc_
 
 use crate::utils::{ObsError, ObsString};
 
-use super::ObsOutput;
+use super::ObsOutputRef;
 
 pub trait ReplayBufferOutput {
     fn save_buffer(&self) -> Result<Box<Path>, ObsError>;
 }
 
-impl ReplayBufferOutput for ObsOutput {
+impl ReplayBufferOutput for ObsOutputRef {
     fn save_buffer(&self) -> Result<Box<Path>, ObsError> {
         let ph = unsafe { obs_output_get_proc_handler(self.output.0) };
         if ph.is_null() {

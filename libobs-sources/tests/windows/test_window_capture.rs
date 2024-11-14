@@ -36,14 +36,13 @@ pub async fn test_window_capture() {
     println!("Recording {:?}", window);
 
     let (mut context, output_name) = initialize_obs(rec_file);
-    let scene = context.scene("main");
-
+    let mut scene = context.scene("main");
     scene.add_and_set(0);
 
     let source_name = "test_capture";
     WindowCaptureSourceBuilder::new(source_name)
         .set_window(&window)
-        .add_to_scene(scene)
+        .add_to_scene(&mut scene)
         .unwrap();
 
     let output = context.get_output(&output_name).unwrap();
@@ -56,7 +55,7 @@ pub async fn test_window_capture() {
         .filter(|e| e.obs_id.to_lowercase().contains("code"))
         .collect::<Vec<_>>();
     for i in 0..cmp::min(5, windows.len()) {
-        let source = context.scenes_mut().get_mut(0).unwrap().get_source_by_index_mut(0).unwrap();
+        let mut source = context.scenes_mut().get_mut(0).unwrap().get_source_by_index(0).unwrap();
         let w = windows.get(i).unwrap();
         println!("Setting to {:?}", w.obs_id);
         source.create_updater::<WindowCaptureSourceUpdater>()
@@ -69,7 +68,7 @@ pub async fn test_window_capture() {
     }
     println!("Recording stop");
 
-    let output = context.get_output(&output_name).unwrap();
+    let mut output = context.get_output(&output_name).unwrap();
     output.stop().unwrap();
 
     test_video(&path_out).await.unwrap();

@@ -21,11 +21,10 @@ impl ObsLogger for TestLogger {
 #[test]
 pub fn record_test() {
     // Start the OBS context
-    let startup_info = StartupInfo::default()
-        .set_logger(Box::new(TestLogger {}));
+    let startup_info = StartupInfo::default().set_logger(Box::new(TestLogger {}));
     let mut context = ObsContext::new(startup_info).unwrap();
 
-    let scene = context.scene("main").try_borrow_mut().unwrap();
+    let mut scene = context.scene("main");
 
     // Create the video source using game capture
     let mut video_source_data = ObsData::new();
@@ -53,7 +52,7 @@ pub fn record_test() {
 
     let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
 
-    let output = context.output(output_info).unwrap();
+    let mut output = context.output(output_info).unwrap();
 
     // Register the video encoder
     let mut video_settings = ObsData::new();

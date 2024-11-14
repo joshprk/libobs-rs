@@ -1,7 +1,7 @@
 use libobs_source_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::sources::{ObsSource, ObsSourceBuilder};
+use libobs_wrapper::sources::{ObsSourceRef, ObsSourceBuilder};
 
 use crate::macro_helper::define_object_manager;
 
@@ -10,7 +10,7 @@ use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 define_object_manager!(
     /// Provides a easy to use builder for the window capture source.
     #[derive(Debug)]
-    struct WindowCaptureSource("window_capture") for ObsSource {
+    struct WindowCaptureSource("window_capture") for ObsSourceRef {
     #[obs_property(type_t = "enum")]
     /// Sets the capture method for the window capture
     capture_method: ObsWindowCaptureMethod,

@@ -8,32 +8,51 @@ use getters0::Getters;
 use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
 
 use crate::{
-    sources::ObsSource,
+    sources::ObsSourceRef,
     unsafe_send::WrappedObsScene,
     utils::{ObsError, ObsString, SourceInfo},
 };
 
-#[derive(Debug, Getters)]
-#[skip_new]
-pub struct ObsScene {
-    #[skip_getter]
+#[derive(Debug)]
+struct _SceneDropGuard {
     scene: WrappedObsScene,
-    name: ObsString,
-    #[get_mut]
-    pub(crate) sources: Vec<Rc<RefCell<ObsSource>>>,
-    #[skip_getter]
-    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 }
 
-impl ObsScene {
+impl Drop for _SceneDropGuard {
+    fn drop(&mut self) {
+        unsafe {
+            libobs::obs_scene_release(self.scene.0);
+        }
+    }
+}
+
+#[derive(Debug, Clone, Getters)]
+#[skip_new]
+pub struct ObsSceneRef {
+    #[skip_getter]
+    scene: Rc<WrappedObsScene>,
+    name: ObsString,
+    #[get_mut]
+    pub(crate) sources: Rc<RefCell<Vec<ObsSourceRef>>>,
+    #[skip_getter]
+    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
+
+    #[skip_getter]
+    _guard: Rc<_SceneDropGuard>,
+}
+
+impl ObsSceneRef {
     pub fn new(name: ObsString, active_scene: Arc<Mutex<Option<WrappedObsScene>>>) -> Self {
         let scene = unsafe { obs_scene_create(name.as_ptr()) };
 
         Self {
             name,
-            scene: WrappedObsScene(scene),
-            sources: vec![],
+            scene: Rc::new(WrappedObsScene(scene)),
+            sources: Rc::new(RefCell::new(vec![])),
             active_scene: active_scene.clone(),
+            _guard: Rc::new(_SceneDropGuard {
+                scene: WrappedObsScene(scene),
+            }),
         }
     }
 
@@ -50,41 +69,35 @@ impl ObsScene {
         unsafe { libobs::obs_scene_get_source(self.scene.0) }
     }
 
-    pub fn add_source(&mut self, info: SourceInfo) -> Result<Rc<RefCell<ObsSource>>, ObsError> {
-        let source = ObsSource::new(info.id, info.name, info.settings, info.hotkey_data);
+    pub fn add_source(&mut self, info: SourceInfo) -> Result<ObsSourceRef, ObsError> {
+        let source = ObsSourceRef::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match source {
             Ok(x) => {
                 unsafe {
                     libobs::obs_scene_add(self.scene.0, x.source.0);
                 }
-                self.sources.push(Rc::new(RefCell::new(x)));
-                Ok(self.sources.last_mut().unwrap().clone())
+                let tmp = x.clone();
+                self.sources.borrow_mut().push(x);
+                Ok(tmp)
             }
             Err(x) => Err(x),
         };
     }
 
-    pub fn get_source_by_index(&self, index: usize) -> Option<Rc<RefCell<ObsSource>>> {
-        self.sources.get(index).map(|x| x.clone())
+    pub fn get_source_by_index(&self, index: usize) -> Option<ObsSourceRef> {
+        self.sources.borrow().get(index).map(|x| x.clone())
     }
 
-    pub fn get_source_mut(&self, name: &str) -> Option<Rc<RefCell<ObsSource>>> {
+    pub fn get_source_mut(&self, name: &str) -> Option<ObsSourceRef> {
         self.sources
+        .borrow()
             .iter()
-            .find(|x| x.borrow().name() == name)
+            .find(|x| x.name() == name)
             .map(|x| x.clone())
     }
 
     pub fn as_ptr(&self) -> *mut obs_scene_t {
         self.scene.0
-    }
-}
-
-impl Drop for ObsScene {
-    fn drop(&mut self) {
-        unsafe {
-            libobs::obs_scene_release(self.scene.0);
-        }
     }
 }

@@ -1,18 +1,16 @@
 use std::{
-    cell::RefCell,
     ffi::CStr,
     ptr,
-    rc::Rc,
     sync::{Arc, Mutex},
     thread::{self, ThreadId},
 };
 
 use crate::{
-    data::{output::ObsOutput, video::ObsVideoInfo},
-    display::{ObsDisplay, ObsDisplayCreationData, VertexBuffers},
+    data::{output::ObsOutputRef, video::ObsVideoInfo},
+    display::{ObsDisplayCreationData, ObsDisplayRef, VertexBuffers},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
-    scenes::ObsScene,
+    scenes::ObsSceneRef,
     unsafe_send::WrappedObsScene,
     utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
 };
@@ -43,7 +41,7 @@ pub struct ObsContext {
     startup_info: StartupInfo,
 
     #[get_mut]
-    displays: Vec<Rc<RefCell<ObsDisplay>>>,
+    displays: Vec<ObsDisplayRef>,
 
     #[skip_getter]
     vertex_buffers: VertexBuffers,
@@ -52,10 +50,10 @@ pub struct ObsContext {
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: Vec<Rc<RefCell<ObsOutput>>>,
+    pub(crate) outputs: Vec<ObsOutputRef>,
 
     #[get_mut]
-    pub(crate) scenes: Vec<Rc<RefCell<ObsScene>>>,
+    pub(crate) scenes: Vec<ObsSceneRef>,
 
     #[skip_getter]
     pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
@@ -239,8 +237,7 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
             for output in self.outputs.iter() {
-                let output_ref = output.borrow();
-                for video_encoder in output_ref.get_video_encoders().iter() {
+                for video_encoder in output.get_video_encoders().iter() {
                     unsafe {
                         libobs::obs_encoder_set_video(
                             video_encoder.as_ptr(),
@@ -253,56 +250,6 @@ impl ObsContext {
             self.startup_info.obs_video_info = ovi;
             return Ok(());
         }
-    }
-
-    fn reset_video_internal(ovi: &mut ObsVideoInfo) -> ObsResetVideoStatus {
-        let status =
-            num_traits::FromPrimitive::from_i32(unsafe { libobs::obs_reset_video(ovi.as_ptr()) });
-
-        return match status {
-            Some(x) => x,
-            None => ObsResetVideoStatus::Failure,
-        };
-    }
-
-    pub fn output(&mut self, info: OutputInfo) -> Result<Rc<RefCell<ObsOutput>>, ObsError> {
-        let output = ObsOutput::new(info.id, info.name, info.settings, info.hotkey_data);
-
-        return match output {
-            Ok(x) => {
-                self.outputs.push(Rc::new(RefCell::new(x)));
-                Ok(self.outputs.last().unwrap().clone())
-            }
-
-            Err(x) => Err(x),
-        };
-    }
-
-    pub fn display(
-        &mut self,
-        data: ObsDisplayCreationData,
-    ) -> Result<Rc<RefCell<ObsDisplay>>, ObsError> {
-        let display = ObsDisplay::new(&self.vertex_buffers, data)
-            .map_err(|e| ObsError::DisplayCreationError(e))?;
-
-        self.displays.push(Rc::new(RefCell::new(display)));
-
-        Ok(self.displays.last_mut().unwrap().clone())
-    }
-
-    pub fn remove_display(&mut self, display: &ObsDisplay) {
-        self.remove_display_by_id(display.get_id());
-    }
-
-    pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.retain(|x| x.borrow().get_id() != id);
-    }
-
-    pub fn get_output(&mut self, name: &str) -> Option<Rc<RefCell<ObsOutput>>> {
-        self.outputs
-            .iter()
-            .find(|x| x.borrow().name().to_string().as_str() == name)
-            .map(|e| e.clone())
     }
 
     pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
@@ -329,11 +276,60 @@ impl ObsContext {
         Ok(unsafe { libobs::obs_get_audio() })
     }
 
-    pub fn scene(&mut self, name: impl Into<ObsString>) -> Rc<RefCell<ObsScene>> {
-        let scene = ObsScene::new(name.into(), self.active_scene.clone());
-        self.scenes.push(Rc::new(RefCell::new(scene)));
+    fn reset_video_internal(ovi: &mut ObsVideoInfo) -> ObsResetVideoStatus {
+        let status =
+            num_traits::FromPrimitive::from_i32(unsafe { libobs::obs_reset_video(ovi.as_ptr()) });
 
-        self.scenes.last().unwrap().clone()
+        return match status {
+            Some(x) => x,
+            None => ObsResetVideoStatus::Failure,
+        };
+    }
+
+    pub fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
+        let output = ObsOutputRef::new(info.id, info.name, info.settings, info.hotkey_data);
+
+        return match output {
+            Ok(x) => {
+                let tmp = x.clone();
+                self.outputs.push(x);
+                Ok(tmp)
+            }
+
+            Err(x) => Err(x),
+        };
+    }
+
+    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
+        let display = ObsDisplayRef::new(&self.vertex_buffers, data)
+            .map_err(|e| ObsError::DisplayCreationError(e))?;
+
+        self.displays.push(display.clone());
+
+        Ok(display)
+    }
+
+    pub fn remove_display(&mut self, display: &ObsDisplayRef) {
+        self.remove_display_by_id(display.get_id());
+    }
+
+    pub fn remove_display_by_id(&mut self, id: usize) {
+        self.displays.retain(|x| x.get_id() != id);
+    }
+
+    pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
+        self.outputs
+            .iter()
+            .find(|x| x.name().to_string().as_str() == name)
+            .map(|e| e.clone())
+    }
+
+    pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
+        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone());
+        let tmp = scene.clone();
+
+        self.scenes.push(scene);
+        tmp
     }
 }
 

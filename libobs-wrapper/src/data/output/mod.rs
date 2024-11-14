@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::ffi::CString;
-use std::{borrow::Borrow, ffi::CStr, ptr};
+use std::rc::Rc;
+use std::{ffi::CStr, ptr};
 
 use getters0::Getters;
 use libobs::{
@@ -21,25 +23,51 @@ use super::ObsData;
 mod replay_buffer;
 pub use replay_buffer::*;
 
-#[derive(Debug, Getters)]
-#[skip_new]
-pub struct ObsOutput {
-    pub(crate) settings: Option<ObsData>,
-    pub(crate) hotkey_data: Option<ObsData>,
-
-    #[get_mut]
-    pub(crate) video_encoders: Vec<ObsVideoEncoder>,
-
-    #[get_mut]
-    pub(crate) audio_encoders: Vec<ObsAudioEncoder>,
-
-    #[skip_getter]
-    pub(crate) output: WrappedObsOutput,
-    pub(crate) id: ObsString,
-    pub(crate) name: ObsString,
+#[derive(Debug)]
+struct _ObsDropGuard {
+    output: WrappedObsOutput,
 }
 
-impl ObsOutput {
+impl Drop for _ObsDropGuard {
+    fn drop(&mut self) {
+        unsafe {
+            let handler = obs_output_get_signal_handler(self.output.0);
+            let signal = ObsString::new("stop");
+            signal_handler_disconnect(
+                handler,
+                signal.as_ptr(),
+                Some(signal_handler),
+                ptr::null_mut(),
+            );
+
+            obs_output_release(self.output.0);
+        }
+    }
+}
+
+#[derive(Debug, Getters, Clone)]
+#[skip_new]
+pub struct ObsOutputRef {
+    pub(crate) settings: Rc<RefCell<Option<ObsData>>>,
+    pub(crate) hotkey_data: Rc<RefCell<Option<ObsData>>>,
+
+    #[get_mut]
+    pub(crate) video_encoders: Rc<RefCell<Vec<Rc<ObsVideoEncoder>>>>,
+
+    #[get_mut]
+    pub(crate) audio_encoders: Rc<RefCell<Vec<Rc<ObsAudioEncoder>>>>,
+
+    #[skip_getter]
+    pub(crate) output: Rc<WrappedObsOutput>,
+    pub(crate) id: ObsString,
+    pub(crate) name: ObsString,
+
+    #[skip_getter]
+    _drop_guard: Rc<_ObsDropGuard>
+}
+
+
+impl ObsOutputRef {
     pub fn new(
         id: impl Into<ObsString>,
         name: impl Into<ObsString>,
@@ -59,12 +87,12 @@ impl ObsOutput {
         let id = id.into();
         let name = name.into();
 
-        let settings_ptr = match settings.borrow() {
+        let settings_ptr = match settings.as_ref() {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
         };
 
-        let hotkey_data_ptr = match hotkey_data.borrow() {
+        let hotkey_data_ptr = match hotkey_data.as_ref() {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
         };
@@ -88,34 +116,39 @@ impl ObsOutput {
         };
 
         Ok(Self {
-            output: WrappedObsOutput(output),
+            output: Rc::new(WrappedObsOutput(output)),
             id,
             name,
-            settings,
-            hotkey_data,
-            video_encoders: vec![],
-            audio_encoders: vec![]
+            settings: Rc::new(RefCell::new(settings)),
+            hotkey_data: Rc::new(RefCell::new(hotkey_data)),
+            video_encoders: Rc::new(RefCell::new(vec![])),
+            audio_encoders: Rc::new(RefCell::new(vec![])),
+            _drop_guard: Rc::new(_ObsDropGuard {
+                output: WrappedObsOutput(output),
+            }),
         })
     }
 
-    pub fn get_video_encoders(&self) -> &Vec<ObsVideoEncoder> {
-        &self.video_encoders
+    pub fn get_video_encoders(&self) -> Vec<Rc<ObsVideoEncoder>> {
+        self.video_encoders.borrow().clone()
     }
 
     pub fn video_encoder(
         &mut self,
         info: VideoEncoderInfo,
         handler: *mut video_output,
-    ) -> Result<&mut ObsVideoEncoder, ObsError> {
+    ) -> Result<Rc<ObsVideoEncoder>, ObsError> {
         let video_enc = ObsVideoEncoder::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match video_enc {
             Ok(x) => {
                 unsafe { obs_encoder_set_video(x.encoder.0, handler) }
                 unsafe { obs_output_set_video_encoder(self.output.0, x.encoder.0) }
-                self.video_encoders.push(x);
 
-                Ok(self.video_encoders.last_mut().unwrap())
+                let tmp = Rc::new(x);
+                self.video_encoders.borrow_mut().push(tmp.clone());
+
+                Ok(tmp)
             }
             Err(x) => Err(x),
         };
@@ -126,7 +159,7 @@ impl ObsOutput {
         info: AudioEncoderInfo,
         mixer_idx: usize,
         handler: *mut audio_output,
-    ) -> Result<&mut ObsAudioEncoder, ObsError> {
+    ) -> Result<Rc<ObsAudioEncoder>, ObsError> {
         let audio_enc = ObsAudioEncoder::new(
             info.id,
             info.name,
@@ -139,9 +172,11 @@ impl ObsOutput {
             Ok(x) => {
                 unsafe { obs_encoder_set_audio(x.encoder.0, handler) }
                 unsafe { obs_output_set_audio_encoder(self.output.0, x.encoder.0, mixer_idx) }
-                self.audio_encoders.push(x);
 
-                Ok(self.audio_encoders.last_mut().unwrap())
+                let x = Rc::new(x);
+
+                self.audio_encoders.borrow_mut().push(x.clone());
+                Ok(x)
             }
             Err(x) => Err(x),
         };
@@ -185,22 +220,6 @@ impl ObsOutput {
     }
 }
 
-impl Drop for ObsOutput {
-    fn drop(&mut self) {
-        unsafe {
-            let handler = obs_output_get_signal_handler(self.output.0);
-            let signal = ObsString::new("stop");
-            signal_handler_disconnect(
-                handler,
-                signal.as_ptr(),
-                Some(signal_handler),
-                ptr::null_mut(),
-            );
-
-            obs_output_release(self.output.0);
-        }
-    }
-}
 
 extern "C" fn signal_handler(_data: *mut std::ffi::c_void, cd: *mut calldata_t) {
     unsafe {

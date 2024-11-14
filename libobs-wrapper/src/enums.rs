@@ -3,7 +3,6 @@ use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
-
 #[cfg(target_os = "windows")]
 pub(crate) type OsEnumType = i32;
 #[cfg(not(target_os = "windows"))]
@@ -213,14 +212,13 @@ impl TryFrom<i32> for ObsOutputSignal {
     }
 }
 
-#[cfg_attr(target_os="windows", repr(i32))]
-#[cfg_attr(not(target_os="windows"), repr(u32))]
+#[cfg_attr(target_os = "windows", repr(i32))]
+#[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsEncoderType {
     Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO,
     Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO,
 }
-
 
 #[cfg_attr(target_os = "windows", repr(i32))]
 #[cfg_attr(not(target_os = "windows"), repr(u32))]
@@ -229,7 +227,7 @@ pub enum ObsLogLevel {
     Error = libobs::LOG_ERROR,
     Warning = libobs::LOG_WARNING,
     Info = libobs::LOG_INFO,
-    Debug = libobs::LOG_DEBUG
+    Debug = libobs::LOG_DEBUG,
 }
 
 impl Display for ObsLogLevel {
@@ -238,7 +236,7 @@ impl Display for ObsLogLevel {
     }
 }
 
-#[cfg(feature="color-logger")]
+#[cfg(feature = "color-logger")]
 impl ObsLogLevel {
     pub fn colorize(&self, s: &str) -> String {
         use colored::Colorize;

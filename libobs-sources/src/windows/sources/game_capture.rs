@@ -1,5 +1,5 @@
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::{data::StringEnum, sources::ObsSource};
+use libobs_wrapper::{data::StringEnum, sources::ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
@@ -45,7 +45,7 @@ impl StringEnum for ObsGameCaptureMode {
 
 define_object_manager!(
     #[derive(Debug)]
-    struct GameCaptureSource("game_capture") for ObsSource {
+    struct GameCaptureSource("game_capture") for ObsSourceRef {
         /// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
         #[obs_property(type_t = "enum_string")]
         capture_mode: ObsGameCaptureMode,

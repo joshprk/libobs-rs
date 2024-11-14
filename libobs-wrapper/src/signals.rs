@@ -5,7 +5,7 @@ use anyhow::{anyhow, Result};
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
 
-use crate::{data::output::ObsOutput, enums::ObsOutputSignal};
+use crate::{data::output::ObsOutputRef, enums::ObsOutputSignal};
 
 pub type OutputSignalType = (String, ObsOutputSignal);
 lazy_static! {
@@ -15,7 +15,7 @@ lazy_static! {
 
 static SIGNALS: Mutex<Vec<OutputSignalType>> = Mutex::new(vec![]);
 
-pub fn rec_output_signal(output: &ObsOutput) -> Result<ObsOutputSignal> {
+pub fn rec_output_signal(output: &ObsOutputRef) -> Result<ObsOutputSignal> {
     let receiver = &OUTPUT_SIGNALS.read().unwrap().1;
 
     let s = &mut SIGNALS
