@@ -233,17 +233,18 @@ dependencies = [
  "once_cell",
  "paste",
  "serde",
- "specta-macros",
+ "specta-macros 1.0.5",
  "thiserror",
 ]
 
 [[package]]
 name = "specta"
 version = "2.0.0-rc.20"
-source = "git+https://github.com/oscartbeaumont/specta#0d2a208d1d8ce9378733fb5878075c7d6236bd3f"
+source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
 dependencies = [
  "serde",
  "specta 1.0.5",
+ "specta-macros 2.0.0-rc.17",
  "thiserror",
 ]
 
@@ -258,6 +259,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "specta-macros"
+version = "2.0.0-rc.17"
+source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.87",
 ]
 
 [[package]]

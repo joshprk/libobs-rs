@@ -3,7 +3,6 @@
 //! so they can be captured with the `window_capture` or `game_capture` source in OBS.
 //! <br> The function you probably want to use is `get_all_windows` which returns a list of `WindowInfo` structs.
 
-
 #[cfg(not(windows))]
 compile_error!("This library only supports windows!");
 
@@ -11,8 +10,8 @@ compile_error!("This library only supports windows!");
 compile_error!("compilation is only allowed for 64-bit targets");
 
 mod game;
-mod util;
 mod monitor;
+mod util;
 mod window;
 
 pub use util::*;
@@ -62,4 +61,3 @@ pub fn get_all_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>
 
     Ok(out)
 }
-

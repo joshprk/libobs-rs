@@ -114,7 +114,7 @@ define_object_manager!(
 impl GameCaptureSourceBuilder {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
-        get_all_windows(mode, false)
+        get_all_windows(mode).map(|e| e.into_iter().filter(|x| x.is_game).collect::<Vec<_>>())
     }
 
     /// Sets the window to capture.

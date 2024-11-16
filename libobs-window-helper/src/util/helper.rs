@@ -42,12 +42,6 @@ pub struct WindowInfo {
     pub is_game: bool,
 }
 
-impl PartialEq for WindowInfo {
-    fn eq(&self, other: &WindowInfo) -> bool {
-        self.obs_id == other.obs_id
-    }
-}
-
 fn encode_string(s: &str) -> String {
     s.replace("#", "#22").replace(":", "#3A")
 }
@@ -82,7 +76,7 @@ pub fn get_window_info(wnd: HWND) -> AnyResult<WindowInfo> {
         return Err(anyhow!("Handle is obs64.exe"));
     }
 
-    let mut is_game = !is_blacklisted_window(&exe);
+    let is_game = !is_blacklisted_window(&exe);
 
     let title = get_title(wnd).ok();
     let class = get_window_class(wnd).ok();

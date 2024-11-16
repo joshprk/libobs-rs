@@ -67,7 +67,7 @@ define_object_manager!(
 impl WindowCaptureSource {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>> {
-        get_all_windows(mode, false)
+        get_all_windows(mode)
     }
 
     /// Sets the window to capture.

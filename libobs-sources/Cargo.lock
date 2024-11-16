@@ -830,8 +830,6 @@ dependencies = [
 [[package]]
 name = "libobs-window-helper"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f72a2570a92e35425b340aa10cee576ae9cc2509f5e8a06c2338a5c931666858"
 dependencies = [
  "anyhow",
  "windows 0.58.0",
