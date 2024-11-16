@@ -1,5 +1,6 @@
 use std::{
     ffi::CStr,
+    pin::Pin,
     ptr,
     sync::{Arc, Mutex},
     thread::{self, ThreadId},
@@ -41,7 +42,7 @@ pub struct ObsContext {
     startup_info: StartupInfo,
 
     #[get_mut]
-    displays: Vec<ObsDisplayRef>,
+    displays: Vec<Pin<Box<ObsDisplayRef>>>,
 
     #[skip_getter]
     vertex_buffers: VertexBuffers,
@@ -300,7 +301,10 @@ impl ObsContext {
         };
     }
 
-    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
+    pub fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
         let display = ObsDisplayRef::new(&self.vertex_buffers, data)
             .map_err(|e| ObsError::DisplayCreationError(e))?;
 
@@ -310,11 +314,11 @@ impl ObsContext {
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplayRef) {
-        self.remove_display_by_id(display.get_id());
+        self.remove_display_by_id(display.id());
     }
 
     pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.retain(|x| x.get_id() != id);
+        self.displays.retain(|x| x.id() != id);
     }
 
     pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {

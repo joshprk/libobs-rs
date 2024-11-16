@@ -123,7 +123,7 @@ pub struct DisplayWindowManager {
 
     scale: f32,
 
-    is_hidden: bool,
+    is_hidden: AtomicBool,
 
     render_at_bottom: bool,
 
@@ -228,7 +228,7 @@ impl DisplayWindowManager {
             should_exit,
             _message_thread: message_thread,
             render_at_bottom: false,
-            is_hidden: false,
+            is_hidden: AtomicBool::new(false),
             obs_display: None
         })
     }

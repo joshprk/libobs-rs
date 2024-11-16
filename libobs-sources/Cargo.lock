@@ -851,6 +851,7 @@ dependencies = [
  "log",
  "num-derive",
  "num-traits",
+ "parking_lot",
  "vsprintf",
  "windows 0.58.0",
 ]

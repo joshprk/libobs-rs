@@ -9,9 +9,12 @@ mod window_manager;
 pub(crate) use buffers::*;
 pub use creation_data::*;
 pub use enums::*;
+use parking_lot::RwLock;
 pub use window_manager::*;
 
-use std::{cell::RefCell, ffi::c_void, rc::Rc, sync::atomic::AtomicUsize};
+use std::{
+    ffi::c_void, io::Write, marker::PhantomPinned, rc::Rc, sync::{atomic::AtomicUsize, Arc}
+};
 
 use libobs::{
     gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_viewport_pop,
@@ -22,20 +25,21 @@ use crate::unsafe_send::WrappedObsDisplay;
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
+//TODO: This has to be checked again, I'm unsure with pinning and draw callbacks from OBS
 pub struct ObsDisplayRef {
     display: Rc<WrappedObsDisplay>,
     id: usize,
 
     _buffers: VertexBuffers,
-    is_initialized: bool,
 
-    // Keep for window
-    manager: Rc<RefCell<DisplayWindowManager>>,
+    // Keep for window, manager is accessed by render thread as well so Arc and RwLock
+    manager: Arc<RwLock<DisplayWindowManager>>,
     _guard: Rc<_DisplayDropGuard>,
+    _phantom_pin: PhantomPinned,
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
-    let s = &mut *(data as *mut ObsDisplayRef);
+    /*let s = &mut *(data as *mut ObsDisplayRef);
 
     let (x, y) = s.get_pos();
     let (width, height) = s.get_size();
@@ -60,20 +64,22 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     obs_render_main_texture();
 
     gs_projection_pop();
-    gs_viewport_pop();
+    gs_viewport_pop();*/
 }
 
 impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
+    /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
     pub fn new(
         buffers: &VertexBuffers,
         data: creation_data::ObsDisplayCreationData,
-    ) -> windows::core::Result<Self> {
-        use std::sync::atomic::Ordering;
+    ) -> windows::core::Result<std::pin::Pin<Box<Self>>> {
+        use std::{borrow::BorrowMut, sync::atomic::Ordering};
 
         use creation_data::ObsDisplayCreationData;
         use libobs::gs_window;
+        use parking_lot::lock_api::RwLock;
         use window_manager::DisplayWindowManager;
 
         let ObsDisplayCreationData {
@@ -98,38 +104,31 @@ impl ObsDisplayRef {
         let display = unsafe { libobs::obs_display_create(&init_data, background_color) };
 
         manager.obs_display = Some(WrappedObsDisplay(display));
-        Ok(Self {
+
+        let mut instance = Box::pin(Self {
             display: Rc::new(WrappedObsDisplay(display)),
-            manager: Rc::new(RefCell::new(manager)),
+            manager: Arc::new(RwLock::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             _buffers: buffers.clone(),
-            is_initialized: false,
             _guard: Rc::new(_DisplayDropGuard {
                 display: WrappedObsDisplay(display),
             }),
-        })
-    }
+            _phantom_pin: PhantomPinned,
+        });
 
-    /// Adds draw callbacks to the display.
-    pub fn create(&mut self) {
-        if self.is_initialized {
-            return;
-        }
-
-        log::trace!("Adding draw callback with display {:?}...", self.display.0);
+        log::trace!("Adding draw callback with display {:?} (pos is {:?})...", instance.display, instance.get_pos());
         unsafe {
             libobs::obs_display_add_draw_callback(
-                self.display.0,
+                instance.display.0,
                 Some(render_display),
-                self as *mut _ as *mut c_void,
+                instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void,
             );
         }
 
-        log::trace!("Display created!");
-        self.is_initialized = true;
+        Ok(instance)
     }
 
-    pub fn get_id(&self) -> usize {
+    pub fn id(&self) -> usize {
         self.id
     }
 }
@@ -145,7 +144,7 @@ impl Drop for _DisplayDropGuard {
             libobs::obs_display_remove_draw_callback(
                 self.display.0,
                 Some(render_display),
-                std::ptr::null_mut(),
+                self as *mut _ as *mut c_void,
             );
             libobs::obs_display_destroy(self.display.0);
         }

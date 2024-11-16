@@ -11,11 +11,11 @@ use windows::Win32::{
 use crate::display::ObsDisplayRef;
 
 pub trait WindowPositionTrait {
-    fn set_render_at_bottom(&mut self, render_at_bottom: bool);
+    fn set_render_at_bottom(&self, render_at_bottom: bool);
     fn get_render_at_bottom(&self) -> bool;
-    fn set_pos(&mut self, x: i32, y: i32) -> windows::core::Result<()>;
-    fn set_size(&mut self, width: u32, height: u32) -> windows::core::Result<()>;
-    fn set_scale(&mut self, scale: f32);
+    fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()>;
+    fn set_size(&self, width: u32, height: u32) -> windows::core::Result<()>;
+    fn set_scale(&self, scale: f32);
 
     fn get_pos(&self) -> (i32, i32);
     fn get_size(&self) -> (u32, u32);
@@ -23,27 +23,30 @@ pub trait WindowPositionTrait {
 }
 
 impl WindowPositionTrait for ObsDisplayRef {
-    fn set_render_at_bottom(&mut self, render_at_bottom: bool) {
-        self.manager.borrow_mut().render_at_bottom = render_at_bottom;
+    fn set_render_at_bottom(&self, render_at_bottom: bool) {
+        log::trace!("Set render bottom");
+        self.manager.write().render_at_bottom = render_at_bottom;
     }
 
     fn get_render_at_bottom(&self) -> bool {
-        self.manager.borrow_mut().render_at_bottom
+        self.manager.read().render_at_bottom
     }
 
-    fn set_pos(&mut self, x: i32, y: i32) -> windows::core::Result<()> {
+    fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()> {
+        log::trace!("Set pos {x} {y}");
+        let mut m = self.manager.write();
+
         assert!(
-            self.manager.borrow().obs_display.is_some(),
+            m.obs_display.is_some(),
             "Invalid state. The display should have been created and set, but it wasn't."
         );
 
-        let insert_after = if self.manager.borrow().render_at_bottom {
+        let insert_after = if m.render_at_bottom {
             HWND_BOTTOM
         } else {
             HWND::default()
         };
 
-        let mut m = self.manager.borrow_mut();
         m.x = x;
         m.y = y;
 
@@ -57,25 +60,26 @@ impl WindowPositionTrait for ObsDisplayRef {
     }
 
     fn get_pos(&self) -> (i32, i32) {
-        let m = self.manager.borrow();
+        let m = self.manager.read();
         (m.x, m.y)
     }
 
     fn get_size(&self) -> (u32, u32) {
-        let m = self.manager.borrow();
+        let m = self.manager.read();
         (m.width, m.height)
     }
 
-    fn set_size(&mut self, width: u32, height: u32) -> windows::core::Result<()> {
+    fn set_size(&self, width: u32, height: u32) -> windows::core::Result<()> {
+        log::trace!("Set size {width} {height}");
+        let mut m = self.manager.write();
         assert!(
-            self.manager.borrow().obs_display.is_some(),
+            m.obs_display.is_some(),
             "Invalid state. The display should have been created and set, but it wasn't."
         );
 
-        self.manager.borrow_mut().width = width;
-        self.manager.borrow_mut().height = height;
+        m.width = width;
+        m.height = height;
 
-        let m = self.manager.borrow();
         let pointer = m.obs_display.as_ref().unwrap().0;
         unsafe {
             SetWindowPos(
@@ -96,11 +100,12 @@ impl WindowPositionTrait for ObsDisplayRef {
         Ok(())
     }
 
-    fn set_scale(&mut self, scale: f32) {
-        self.manager.borrow_mut().scale = scale;
+    fn set_scale(&self, scale: f32) {
+        log::trace!("Set scale {scale}");
+        self.manager.write().scale = scale;
     }
 
     fn get_scale(&self) -> f32 {
-        self.manager.borrow().scale
+        self.manager.read().scale
     }
 }
