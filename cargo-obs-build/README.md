@@ -3,7 +3,7 @@ This tool is used to build libOBS and its dependencies. It automatically prepare
 ```toml
 # Other stuff
 
-[package.metadata]
+[package.metadata] # Can also be [workspace.metadata]
 libobs-version="30.2.2"
 libobs-cache-dir="../obs-build" # Optional, defaults to "obs-build", relative to the Cargo.toml file
 ```

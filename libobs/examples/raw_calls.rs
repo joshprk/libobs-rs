@@ -1,8 +1,7 @@
 use std::{
     env::current_exe,
     ffi::{c_void, CStr, CString},
-    ptr, thread,
-    time::Duration,
+    ptr,
 };
 
 use libobs_new as libobs;
@@ -144,7 +143,7 @@ fn main() {
         libobs::obs_data_set_string(
             video_source_settings,
             CString::new("monitor_id").unwrap().as_ptr(),
-            CString::new("montiro_id").unwrap().as_ptr(),
+            CString::new("\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").unwrap().as_ptr(),
         );
 
         // SETUP NEW VIDEO SOURCE
