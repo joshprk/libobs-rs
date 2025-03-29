@@ -16,6 +16,7 @@ pub fn get_main_meta() -> Result<Option<Map<String, Value>>> {
 
     let parsed: Table = toml::from_str(&meta)?;
     let val = parsed.get("package")
+    .or_else(||parsed.get("workspace"))
     .and_then(|package| package.as_table())
     .and_then(|package| package.get("metadata"))
     .and_then(|metadata| metadata.as_table())
@@ -28,7 +29,7 @@ pub fn get_main_meta() -> Result<Option<Map<String, Value>>> {
 pub fn read_val_from_meta(m: &Map<String, Value>, key: &str) -> anyhow::Result<String> {
     let tag = m.get(key)
     .and_then(|tag| tag.as_str())
-    .ok_or_else(|| anyhow!("Failed to read `{}` from Cargo.toml under `package.metadata`", key))?;
+    .ok_or_else(|| anyhow!("Failed to read `{}` from Cargo.toml under `package.metadata` or `workspace.metadata`", key))?;
 
     Ok(tag.to_string())
 }

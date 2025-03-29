@@ -2,5 +2,6 @@
     "files.associations": {
         "*.scss": "scss",
         "math.h": "c"
-    }
+    },
+    "rust-analyzer.cargo.targetDir": true
 }

@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{cell::RefCell, rc::Rc};
 
 use libobs::{
     gs_render_save, gs_render_start, gs_vertex2f, gs_vertexbuffer_destroy,
@@ -9,7 +9,7 @@ use crate::unsafe_send::WrappedGsVertexBuffer;
 
 #[derive(Debug, Clone)]
 pub struct VertexBuffers {
-    pub box_buffer: Arc<Mutex<WrappedGsVertexBuffer>>,
+    pub box_buffer: Rc<RefCell<WrappedGsVertexBuffer>>,
 }
 
 impl VertexBuffers {
@@ -26,7 +26,7 @@ impl VertexBuffers {
         obs_leave_graphics();
 
         Self {
-            box_buffer: Arc::new(Mutex::new(WrappedGsVertexBuffer(b))),
+            box_buffer: Rc::new(RefCell::new(WrappedGsVertexBuffer(b))),
         }
     }
 }
@@ -35,7 +35,7 @@ impl Drop for VertexBuffers {
     fn drop(&mut self) {
         unsafe {
             obs_enter_graphics();
-            gs_vertexbuffer_destroy(self.box_buffer.lock().unwrap().0);
+            gs_vertexbuffer_destroy(self.box_buffer.borrow().0);
             obs_leave_graphics();
         }
     }

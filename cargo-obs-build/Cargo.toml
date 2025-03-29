@@ -1,7 +1,7 @@
 [package]
 name = "cargo-obs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
-version = "1.0.1"
+version = "1.1.1"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/joshprk/libobs-rs"
@@ -24,8 +24,4 @@ toml = "0.8.17"
 walkdir = "2.5.0"
 zip = "2.1.6"
 
-#TOOD separate windows deps from others
-
-[package.metadata]
-libobs-version="30.2.2"
-libobs-cache-dir="../obs-build"
+#TODO separate windows deps from others

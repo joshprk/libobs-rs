@@ -13,7 +13,10 @@ use parking_lot::RwLock;
 pub use window_manager::*;
 
 use std::{
-    ffi::c_void, io::Write, marker::PhantomPinned, rc::Rc, sync::{atomic::AtomicUsize, Arc}
+    ffi::c_void,
+    marker::PhantomPinned,
+    rc::Rc,
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use libobs::{
@@ -39,7 +42,7 @@ pub struct ObsDisplayRef {
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
-    /*let s = &mut *(data as *mut ObsDisplayRef);
+    let s = &mut *(data as *mut ObsDisplayRef);
 
     let (x, y) = s.get_pos();
     let (width, height) = s.get_size();
@@ -64,7 +67,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     obs_render_main_texture();
 
     gs_projection_pop();
-    gs_viewport_pop();*/
+    gs_viewport_pop();
 }
 
 impl ObsDisplayRef {
@@ -74,9 +77,10 @@ impl ObsDisplayRef {
     pub fn new(
         buffers: &VertexBuffers,
         data: creation_data::ObsDisplayCreationData,
-    ) -> windows::core::Result<std::pin::Pin<Box<Self>>> {
-        use std::{borrow::BorrowMut, sync::atomic::Ordering};
+    ) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
+        use std::sync::atomic::Ordering;
 
+        use anyhow::bail;
         use creation_data::ObsDisplayCreationData;
         use libobs::gs_window;
         use parking_lot::lock_api::RwLock;
@@ -102,7 +106,11 @@ impl ObsDisplayRef {
 
         log::trace!("Creating obs display...");
         let display = unsafe { libobs::obs_display_create(&init_data, background_color) };
+        if display.is_null() {
+            bail!("Failed to create display");
+        }
 
+        let display = std::ptr::null_mut();
         manager.obs_display = Some(WrappedObsDisplay(display));
 
         let mut instance = Box::pin(Self {
@@ -116,7 +124,11 @@ impl ObsDisplayRef {
             _phantom_pin: PhantomPinned,
         });
 
-        log::trace!("Adding draw callback with display {:?} (pos is {:?})...", instance.display, instance.get_pos());
+        log::trace!(
+            "Adding draw callback with display {:?} (pos is {:?})...",
+            instance.display,
+            instance.get_pos()
+        );
         unsafe {
             libobs::obs_display_add_draw_callback(
                 instance.display.0,

@@ -15,10 +15,6 @@ build = "build.rs"
 bindgen = "0.70.1"
 cc = "1.1.31"
 
-[package.metadata]
-libobs-version="30.2.2"
-libobs-cache-dir="../obs-build"
-
 [features]
 debug-tracing = ["dep:log"]
 

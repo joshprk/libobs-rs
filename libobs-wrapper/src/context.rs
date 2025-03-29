@@ -306,7 +306,7 @@ impl ObsContext {
         data: ObsDisplayCreationData,
     ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
         let display = ObsDisplayRef::new(&self.vertex_buffers, data)
-            .map_err(|e| ObsError::DisplayCreationError(e))?;
+            .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
         self.displays.push(display.clone());
 

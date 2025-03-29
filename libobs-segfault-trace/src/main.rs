@@ -28,6 +28,7 @@ use std::{
 /// <https://github.com/EmbarkStudios/crash-handling/blob/main/minidumper/examples/diskwrite.rs>
 /// Linux has a special `set_ptracer` call that is handy
 /// MacOS needs a special `ping` call to flush messages inside the crash handler
+#[allow(dead_code)]
 pub(crate) fn attach_handler() -> Result<CrashHandler> {
     // Attempt to connect to the server
     let (client, _server) = start_server_and_connect()?;
@@ -237,7 +238,7 @@ pub fn run_basic_obs() -> Result<()> {
 
     let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
 
-    let output = context.output(output_info).unwrap();
+    let mut output = context.output(output_info).unwrap();
 
     // Register the video encoder
     let mut video_settings = ObsData::new();

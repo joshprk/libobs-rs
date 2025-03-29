@@ -26,7 +26,7 @@ pub enum ObsError {
     OutputStopFailure(Option<String>),
 
     /// Native error from the Windows API when creating a display
-    DisplayCreationError(windows::core::Error),
+    DisplayCreationError(String),
 
     OutputSaveBufferFailure(String)
 }

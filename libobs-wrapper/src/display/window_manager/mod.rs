@@ -2,7 +2,7 @@
 
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    Arc,
+    Arc, Mutex,
 };
 
 use lazy_static::lazy_static;
@@ -30,8 +30,8 @@ use crate::unsafe_send::{WrappedHWND, WrappedObsDisplay};
 
 mod position_trait;
 mod show_hide;
-pub use show_hide::ShowHideTrait;
 pub use position_trait::WindowPositionTrait;
+pub use show_hide::ShowHideTrait;
 
 extern "system" fn wndproc(
     window: HWND,
@@ -127,8 +127,14 @@ pub struct DisplayWindowManager {
 
     render_at_bottom: bool,
 
-    pub(super) obs_display: Option<WrappedObsDisplay>
+    pub(super) obs_display: Option<WrappedObsDisplay>,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct SendableHWND(pub HWND);
+
+unsafe impl Sync for SendableHWND {}
+unsafe impl Send for SendableHWND {}
 
 impl DisplayWindowManager {
     pub fn new(
@@ -137,99 +143,116 @@ impl DisplayWindowManager {
         y: i32,
         width: u32,
         height: u32,
-    ) -> windows::core::Result<Self> {
-        log::trace!("Registering class...");
-        try_register_class()?;
-        let win8 = is_windows8_or_greater()?;
-        let enabled = unsafe { DwmIsCompositionEnabled()?.as_bool() };
-
-        let mut window_style = WS_EX_TRANSPARENT;
-        if win8 && enabled {
-            window_style |= WS_EX_COMPOSITED;
-        }
-
-        let instance = unsafe { GetModuleHandleW(PCWSTR::null())? };
-
-        let class_name = HSTRING::from("Win32DisplayClass");
-        let window_name = HSTRING::from("LibObsChildWindowPreview");
-        log::trace!("Creating window...");
-
-        log::debug!(
-            "Creating window with x: {}, y: {}, width: {}, height: {}",
-            x,
-            y,
-            width,
-            height
-        );
-        let window = unsafe {
-            // More at https://github.com/stream-labs/obs-studio-node/blob/4e19d8a61a4dd7744e75ce77624c664e371cbfcf/obs-studio-server/source/nodeobs_display.cpp#L170
-            CreateWindowExW(
-                WS_EX_LAYERED,
-                &class_name,
-                &window_name,
-                WS_POPUP | WS_VISIBLE, //WS_POPUP,
-                x,
-                y,
-                width as i32,
-                height as i32,
-                parent,
-                None,
-                instance,
-                None,
-            )?
-        };
-
-        log::trace!("HWND is {:?}", window);
-        if win8 || !enabled {
-            log::trace!("Setting attributes alpha...");
-            unsafe {
-                SetLayeredWindowAttributes(window, COLORREF(0), 255, LWA_ALPHA)?;
-            }
-        }
-
-        unsafe {
-            log::trace!("Setting parent...");
-            SetParent(window, parent)?;
-            log::trace!("Setting styles...");
-            let mut style = GetWindowLongPtrW(window, GWL_STYLE);
-            //TODO Check casts here
-            style &= !(WS_POPUP.0 as isize);
-            style |= WS_CHILD.0 as isize;
-
-            SetWindowLongPtrW(window, GWL_STYLE, style);
-
-            let mut ex_style = GetWindowLongPtrW(window, GWL_EXSTYLE);
-            ex_style |= window_style.0 as isize;
-
-            SetWindowLongPtrW(window, GWL_EXSTYLE, ex_style);
-        }
+    ) -> anyhow::Result<Self> {
+        let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));
-
         let tmp = should_exit.clone();
-        let message_thread = std::thread::spawn(move || unsafe {
+
+        let parent = Mutex::new(SendableHWND(parent));
+        let message_thread = std::thread::spawn(move || {
+            let parent = parent.lock().unwrap().0;
+            // We have to have the whole window creation stuff here as well so the message loop functions
+            let create = move || {
+                log::trace!("Registering class...");
+                try_register_class()?;
+                let win8 = is_windows8_or_greater()?;
+                let enabled = unsafe { DwmIsCompositionEnabled()?.as_bool() };
+
+                let mut window_style = WS_EX_TRANSPARENT;
+                if win8 && enabled {
+                    window_style |= WS_EX_COMPOSITED;
+                }
+
+                let instance = unsafe { GetModuleHandleW(PCWSTR::null())? };
+
+                let class_name = HSTRING::from("Win32DisplayClass");
+                let window_name = HSTRING::from("LibObsChildWindowPreview");
+                log::trace!("Creating window...");
+
+                log::debug!(
+                    "Creating window with x: {}, y: {}, width: {}, height: {}",
+                    x,
+                    y,
+                    width,
+                    height
+                );
+                let window = unsafe {
+                    // More at https://github.com/stream-labs/obs-studio-node/blob/4e19d8a61a4dd7744e75ce77624c664e371cbfcf/obs-studio-server/source/nodeobs_display.cpp#L170
+                    CreateWindowExW(
+                        WS_EX_LAYERED,
+                        &class_name,
+                        &window_name,
+                        WS_POPUP | WS_VISIBLE, //WS_POPUP,
+                        x,
+                        y,
+                        width as i32,
+                        height as i32,
+                        parent,
+                        None,
+                        instance,
+                        None,
+                    )?
+                };
+
+                log::trace!("HWND is {:?}", window);
+                if win8 || !enabled {
+                    log::trace!("Setting attributes alpha...");
+                    unsafe {
+                        SetLayeredWindowAttributes(window, COLORREF(0), 255, LWA_ALPHA)?;
+                    }
+                }
+
+                unsafe {
+                    log::trace!("Setting parent...");
+                    SetParent(window, parent)?;
+                    log::trace!("Setting styles...");
+                    let mut style = GetWindowLongPtrW(window, GWL_STYLE);
+                    //TODO Check casts here
+                    style &= !(WS_POPUP.0 as isize);
+                    style |= WS_CHILD.0 as isize;
+
+                    SetWindowLongPtrW(window, GWL_STYLE, style);
+
+                    let mut ex_style = GetWindowLongPtrW(window, GWL_EXSTYLE);
+                    ex_style |= window_style.0 as isize;
+
+                    SetWindowLongPtrW(window, GWL_EXSTYLE, ex_style);
+                }
+
+                Result::<SendableHWND, anyhow::Error>::Ok(SendableHWND(window))
+            };
+
+            let r = create();
+            tx.send(r).unwrap();
+
             log::trace!("Starting up message thread...");
             let mut msg = MSG::default();
-            while !tmp.load(Ordering::Relaxed) && GetMessageW(&mut msg, None, 0, 0).as_bool() {
-                //TODO check if this can really be ignored
-                let _ = TranslateMessage(&msg);
-                DispatchMessageW(&msg);
+            unsafe {
+                while !tmp.load(Ordering::Relaxed) && GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                    //TODO check if this can really be ignored
+                    let _ = TranslateMessage(&msg);
+                    DispatchMessageW(&msg);
+                }
             }
+
             log::trace!("Exiting message thread...");
         });
 
+        let window = rx.recv();
+        let window = window??;
         Ok(Self {
             x,
             y,
             width,
             height,
             scale: 1.0,
-            hwnd: WrappedHWND(window),
+            hwnd: WrappedHWND(window.0),
             should_exit,
             _message_thread: message_thread,
             render_at_bottom: false,
             is_hidden: AtomicBool::new(false),
-            obs_display: None
+            obs_display: None,
         })
     }
 
