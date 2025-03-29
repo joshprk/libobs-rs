@@ -31,7 +31,7 @@ pub unsafe fn get_uwp_actual_window(parent: HWND) -> Result<Option<HWND>> {
         ..
     } = get_thread_proc_id(parent)?;
 
-    let mut child = FindWindowExW(parent, HWND::default(), PWSTR::null(), PWSTR::null())?;
+    let mut child = FindWindowExW(Some(parent), None, PWSTR::null(), PWSTR::null())?;
 
     while !child.is_invalid() {
         let ProcessInfo {
@@ -43,7 +43,7 @@ pub unsafe fn get_uwp_actual_window(parent: HWND) -> Result<Option<HWND>> {
             return Ok(Some(child));
         }
 
-        child = FindWindowExW(parent, child, PWSTR::null(), PWSTR::null())
+        child = FindWindowExW(Some(parent), Some(child), PWSTR::null(), PWSTR::null())
         .unwrap_or(HWND::default());
     }
 
@@ -66,7 +66,7 @@ pub unsafe fn next_window(
 
     loop {
         window = if use_find_window_ex {
-            FindWindowExW(GetDesktopWindow(), window, PWSTR::null(), PWSTR::null())
+            FindWindowExW(Some(GetDesktopWindow()), Some(window), PWSTR::null(), PWSTR::null())
         } else {
             GetWindow(window, GW_HWNDNEXT)
         }.unwrap_or(HWND::default());
@@ -104,8 +104,8 @@ pub unsafe fn first_window(
     use_find_window_ex: &mut bool,
 ) -> anyhow::Result<HWND> {
     let mut window = FindWindowExW(
-        GetDesktopWindow(),
-        HWND::default(),
+        Some(GetDesktopWindow()),
+        None,
         PWSTR::null(),
         PWSTR::null(),
     )

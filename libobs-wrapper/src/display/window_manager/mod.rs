@@ -188,9 +188,9 @@ impl DisplayWindowManager {
                         y,
                         width as i32,
                         height as i32,
-                        parent,
+                        Some(parent),
                         None,
-                        instance,
+                        Some(instance.into()),
                         None,
                     )?
                 };
@@ -205,7 +205,7 @@ impl DisplayWindowManager {
 
                 unsafe {
                     log::trace!("Setting parent...");
-                    SetParent(window, parent)?;
+                    SetParent(window, Some(parent))?;
                     log::trace!("Setting styles...");
                     let mut style = GetWindowLongPtrW(window, GWL_STYLE);
                     //TODO Check casts here

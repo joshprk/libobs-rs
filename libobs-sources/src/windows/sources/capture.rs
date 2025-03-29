@@ -26,6 +26,21 @@ pub enum ObsWindowCaptureMethod {
     MethodWgc = libobs::window_capture_method_METHOD_WGC,
 }
 
+
+#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+/// Describes the capture method of the monitor capture source.
+/// Used in `MonitorCaptureSourceBuilder`
+pub enum ObsDisplayCaptureMethod {
+    /// Automatically selects the best method based on the monitor.
+    MethodAuto = libobs::display_capture_method_DISPLAY_METHOD_AUTO,
+    /// Uses DXGI to capture the monitor.
+    MethodDXGI = libobs::display_capture_method_DISPLAY_METHOD_DXGI,
+    /// Uses Windows Graphics Capture to capture the monitor.
+    MethodWgc = libobs::display_capture_method_DISPLAY_METHOD_WGC,
+}
+
+
 #[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the capture method of the window capture source.

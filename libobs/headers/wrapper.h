@@ -8,4 +8,5 @@
 #include "obs/util/windows/window-helpers.h"
 #include "window_capture.h"
 #include "game_capture.h"
+#include "display_capture.h"
 #endif

@@ -1,6 +1,6 @@
 use std::{path::PathBuf, time::Duration};
 
-use libobs_sources::windows::MonitorCaptureSourceBuilder;
+use libobs_sources::windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod};
 use libobs_wrapper::{data::ObsObjectBuilder, utils::ObsPath, sources::ObsSourceBuilder};
 
 use crate::common::{initialize_obs_with_log, test_video};
@@ -18,8 +18,11 @@ pub async fn monitor_test() {
     let (mut context, output) = initialize_obs_with_log(rec_file, true);
     let mut scene = context.scene("main");
 
+    let monitor = MonitorCaptureSourceBuilder::get_monitors().unwrap()[1].clone();
+    println!("Using monitor {:?}", monitor);
     MonitorCaptureSourceBuilder::new("monitor_test")
-        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
+        .set_monitor(&monitor)
+        .set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .unwrap();
 

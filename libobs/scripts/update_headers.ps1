@@ -1,10 +1,11 @@
 param(
-    [string]$Branch = ""  # Allow specifying branch as a parameter
+    [string]$Branch = "",  # Allow specifying branch as a parameter
+    [string]$Repository="obsproject/obs-studio"
 )
 
 # Function to get the latest release tag from GitHub
 function Get-LatestReleaseTag {
-    $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/obsproject/obs-studio/releases/latest"
+    $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository/releases/latest"
     return $releases.tag_name
 }
 
@@ -29,7 +30,7 @@ if (Test-Path -Path $tempDir) {
 
 # Clone the repository with depth 1
 Write-Host "Cloning obs-studio repository (branch/tag: $Branch)..."
-git clone --depth 1 --branch $Branch https://github.com/obsproject/obs-studio.git $tempDir
+git clone --depth 1 --branch $Branch https://github.com/$Repository.git $tempDir
 
 if (-not $?) {
     Write-Error "Failed to clone the repository. Make sure git is installed and the branch/tag name is correct."

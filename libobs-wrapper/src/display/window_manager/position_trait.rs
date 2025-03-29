@@ -53,7 +53,7 @@ impl WindowPositionTrait for ObsDisplayRef {
         unsafe {
             let flags = SWP_NOCOPYBITS | SWP_NOSIZE | SWP_NOACTIVATE;
             // Just use dummy values as size is not changed
-            SetWindowPos(m.hwnd.0, insert_after, x, y, 1 as i32, 1 as i32, flags)?;
+            SetWindowPos(m.hwnd.0, Some(insert_after), x, y, 1 as i32, 1 as i32, flags)?;
         }
 
         Ok(())
@@ -92,7 +92,7 @@ impl WindowPositionTrait for ObsDisplayRef {
                 SWP_NOCOPYBITS | SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW,
             )?;
 
-            let _ = RedrawWindow(m.hwnd.0, None, None, RDW_ERASE | RDW_INVALIDATE);
+            let _ = RedrawWindow(Some(m.hwnd.0), None, None, RDW_ERASE | RDW_INVALIDATE);
 
             obs_display_resize(pointer, width, height);
         }

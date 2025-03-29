@@ -12,7 +12,7 @@ edition = "2021"
 [dependencies]
 anyhow = { version = "1.0.86", features = ["backtrace"] }
 clap = { version = "4.5.11", features = ["derive"] }
-colored = "2.1.0"
+colored = "3.0.0"
 hex = "0.4.3"
 http_req = "0.13.0"
 indicatif = "0.17.8"

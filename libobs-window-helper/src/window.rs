@@ -11,7 +11,7 @@ use windows::{
     core::HSTRING,
     Wdk::System::Threading::{NtQueryInformationProcess, ProcessBasicInformation},
     Win32::{
-        Foundation::{CloseHandle, HANDLE, HMODULE, HWND, MAX_PATH, UNICODE_STRING},
+        Foundation::{CloseHandle, HANDLE, HWND, MAX_PATH, UNICODE_STRING},
         Globalization::GetSystemDefaultLangID,
         Graphics::Gdi::{
             MonitorFromWindow, HMONITOR, MONITOR_DEFAULTTONEAREST, MONITOR_DEFAULTTONULL,
@@ -64,7 +64,7 @@ pub fn get_exe(handle: HWND) -> AnyResult<(u32, PathBuf)> {
     let exe = unsafe {
         let mut path = [0 as u16; MAX_PATH as usize];
         // HMODULE should be null, not default
-        let res = GetModuleFileNameExW(h_proc, HMODULE::default(), &mut path);
+        let res = GetModuleFileNameExW(Some(h_proc), None, &mut path);
         if res > 0 {
             Ok::<String, anyhow::Error>(path.as_ref().to_utf8())
         } else {
@@ -122,7 +122,7 @@ pub fn get_product_name(full_exe: &Path) -> AnyResult<String> {
         GetFileVersionInfoExW(
             FILE_VER_GET_NEUTRAL,
             &exe_wide,
-            0,
+            None,
             required_buffer_size,
             buffer.as_mut_ptr() as *mut _,
         )?;
@@ -135,7 +135,7 @@ pub fn get_product_name(full_exe: &Path) -> AnyResult<String> {
     ))
     .encode_wide()
     .collect();
-    let query_key = HSTRING::from_wide(&query_key)?;
+    let query_key = HSTRING::from_wide(&query_key);
 
     let mut pages_ptr: *mut u16 = std::ptr::null_mut();
     let mut pages_length = 0;

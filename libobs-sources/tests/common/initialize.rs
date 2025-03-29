@@ -58,6 +58,7 @@ pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (O
 
     println!("Available encoders: {:?}", encoders);
     let encoder =  encoders.iter().find(|e| **e == ObsVideoEncoderType::H264_TEXTURE_AMF || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF).unwrap();
+
     println!("Using encoder {:?}", encoder);
     let video_info = VideoEncoderInfo::new(
         encoder.clone(),
