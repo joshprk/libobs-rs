@@ -35,6 +35,11 @@ struct RunArgs {
     #[arg(long, default_value = "obsproject/obs-studio")]
     repo_id: String,
 
+    #[arg(long)]
+    /// If this is specified, the specified zip file will be used instead of downloading the latest release
+    /// This is useful for testing purposes, but it is not recommended to use this in production
+    override_zip: Option<PathBuf>,
+
     /// When this flag is active, the cache will be cleared and a new build will be started
     #[arg(short, long, default_value_t = false)]
     rebuild: bool,
@@ -61,7 +66,8 @@ fn main() -> anyhow::Result<()> {
         out_dir,
         rebuild,
         browser,
-        mut tag
+        mut tag,
+        override_zip
     } = args;
 
     let target_out_dir = PathBuf::new().join(&out_dir);
@@ -97,7 +103,7 @@ fn main() -> anyhow::Result<()> {
         println!("Fetching {} version of OBS Studio...", tag.on_blue());
 
         let release = fetch_release(&repo_id, &Some(tag.clone()))?;
-        build_obs(release, &build_out, browser)?;
+        build_obs(release, &build_out, browser, override_zip)?;
 
         File::create(&success_file)?;
         drop(lock);
@@ -115,13 +121,16 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool) -> anyhow::Result<()> {
+fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool, override_zip: Option<PathBuf>) -> anyhow::Result<()> {
     #[cfg(not(target_family = "windows"))]
     panic!("Unsupported platform");
 
     fs::create_dir_all(&build_out)?;
 
-    let obs_path = download_binaries(build_out, &release)?;
+    let obs_path = if let Some(e) = override_zip { e } else {
+        download_binaries(build_out, &release)?
+    };
+
     let obs_archive = File::open(&obs_path)?;
     let mut archive = ZipArchive::new(&obs_archive)?;
 

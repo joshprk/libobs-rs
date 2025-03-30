@@ -253,35 +253,6 @@ fn main() {
         libobs::obs_output_set_video_encoder(record_output, video_encoder);
         libobs::obs_output_set_audio_encoder(record_output, audio_encoder, 0);
 
-        // SETUP NEW BUFFER OUTPUT (OPTIONAL, just demonstrating it here in example that multiple outputs can be run)
-        let buffer_output_settings = libobs::obs_data_create();
-        libobs::obs_data_set_string(
-            buffer_output_settings,
-            CString::new("directory").unwrap().as_ptr(),
-            CString::new("./").unwrap().as_ptr(),
-        );
-        libobs::obs_data_set_string(
-            buffer_output_settings,
-            CString::new("format").unwrap().as_ptr(),
-            CString::new("%CCYY-%MM-%DD %hh-%mm-%ss").unwrap().as_ptr(),
-        );
-        libobs::obs_data_set_string(
-            buffer_output_settings,
-            CString::new("extension").unwrap().as_ptr(),
-            CString::new("mp4").unwrap().as_ptr(),
-        );
-        libobs::obs_data_set_int(
-            buffer_output_settings,
-            CString::new("max_time_sec").unwrap().as_ptr(),
-            15,
-        );
-        libobs::obs_data_set_int(
-            buffer_output_settings,
-            CString::new("max_size_mb").unwrap().as_ptr(),
-            500,
-        );
-        libobs::obs_data_release(buffer_output_settings);
-
         // START RECORD OUTPUT
         let record_output_start_success = libobs::obs_output_start(record_output);
         println!(
@@ -321,7 +292,7 @@ fn main() {
 
         libobs::obs_shutdown();
 
-        println!("OBS shutdown completed");
+        println!("OBS shutdown completed with {} memleaks", libobs::bnum_allocs());
     }
 }
 
