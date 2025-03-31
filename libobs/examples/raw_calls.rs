@@ -124,7 +124,7 @@ fn main() {
         };
 
         println!("Resetting video system");
-        let reset_video_code = libobs::obs_reset_video(&mut ovi);
+       let reset_video_code = libobs::obs_reset_video(&mut ovi);
         if reset_video_code != 0 {
             panic!("error on libobs reset video: {}", reset_video_code);
         }

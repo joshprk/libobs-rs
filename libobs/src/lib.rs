@@ -21,12 +21,3 @@ pub use bindings::*;
 
 #[cfg(feature="debug-tracing")]
 include!(concat!(env!("OUT_DIR"), "/bindings_wrapper.rs"));
-
-extern "C" {
-    fn vec4_set1(v: *mut crate::vec4, x: f32, y: f32, z: f32, w: f32) -> crate::vec4;
-    pub fn vec4_create() -> crate::vec4;
-}
-
-pub unsafe fn vec4_set(v: *mut crate::vec4, x: f32, y: f32, z: f32, w: f32) -> crate::vec4 {
-    unsafe { vec4_set1(v, x, y, z, w) }
-}

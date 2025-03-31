@@ -279,7 +279,10 @@ fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     // This should be the whole directory, but cargo would have to check the whole directory with a lot of files which takes long
     println!("cargo:rerun-if-changed=headers/wrapper.h");
+    println!("cargo:rerun-if-changed=headers/display_capture.h");
+    println!("cargo:rerun-if-changed=headers/game_capture.h");
     println!("cargo:rerun-if-changed=headers/vec4.c");
+    println!("cargo:rerun-if-changed=headers/window_capture.h");
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
@@ -307,7 +310,6 @@ fn main() {
         .derive_eq(true)
         .derive_partialord(true)
         .derive_ord(true)
-        .layout_tests(false)
         .merge_extern_blocks(true)
         .generate()
         .expect("Error generating bindings");
@@ -331,5 +333,5 @@ fn main() {
             .expect("Couldn't write to bindings wrapper file");
     }
 
-    cc::Build::new().file("headers/vec4.c").compile("libvec4.a");
+    //cc::Build::new().file("headers/vec4.c").compile("libvec4.a");
 }

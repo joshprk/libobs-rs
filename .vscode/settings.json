@@ -1,7 +1,8 @@
 {
     "files.associations": {
         "*.scss": "scss",
-        "math.h": "c"
+        "math.h": "c",
+        "vec4.h": "c"
     },
     "rust-analyzer.cargo.targetDir": true
 }
