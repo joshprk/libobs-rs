@@ -22,7 +22,7 @@ define_object_manager!(
         /// Compatibility mode for the monitor capture source.
         compatibility: bool,
 
-        #[obs_property(type_t="enum")]
+        #[obs_property(type_t="enum", settings_key = "method")]
         /// Sets the capture method for the monitor capture source.
         capture_method: ObsDisplayCaptureMethod,
     }

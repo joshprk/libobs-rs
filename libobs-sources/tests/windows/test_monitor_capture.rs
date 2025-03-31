@@ -22,6 +22,7 @@ pub async fn monitor_test() {
     println!("Using monitor {:?}", monitor);
     MonitorCaptureSourceBuilder::new("monitor_test")
         .set_monitor(&monitor)
+        // Set the method as WGC (based on hit and trial)
         .set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .unwrap();
