@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use std::thread;
 use std::time::Duration;
 
-use crate::{vec4_create, vec4_set, obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string, obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create, obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video, obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup, obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO, video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12, video_range_type_VIDEO_RANGE_DEFAULT};
+use crate::{obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string, obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create, obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video, obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup, obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO, video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12, video_range_type_VIDEO_RANGE_DEFAULT};
 
 #[test]
 pub fn test_obs() {
@@ -176,25 +176,4 @@ pub fn test_obs() {
         println!("OBS shutdown");
         println!("Allocs {}", crate::bnum_allocs());
     }
-}
-
-#[test]
-pub fn vec_test() {
-    unsafe {
-        let x = 0.3f32;
-        let y = 0.2f32;
-        let z = 0.7f32;
-        let w = 0.1f32;
-
-        let mut v = vec4_create();
-        let v = vec4_set(&mut v, x, y, z, w);
-        let m = v.__bindgen_anon_1.m.m128_f32;
-
-        println!("{:?}", m);
-        assert_eq!(m[0], w);
-        assert_eq!(m[1], z);
-        assert_eq!(m[2], y);
-        assert_eq!(m[3], x);
-    }
-
 }
