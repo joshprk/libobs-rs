@@ -364,6 +364,12 @@ impl Drop for _ObsContextShutdownZST {
             }
         }
 
+        unsafe {
+            // Clean up log and crash handler
+            libobs::base_set_crash_handler(None, std::ptr::null_mut());
+            libobs::base_set_log_handler(None, std::ptr::null_mut());
+        }
+
         if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {
             *mutex_value = None;
         } else if !thread::panicking() {
