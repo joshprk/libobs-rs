@@ -79,13 +79,11 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
             "method",
             ObsDisplayCaptureMethod::MethodWgc.to_i32().unwrap() as i64,
         );
-        println!("Setting method to WGC");
 
         let method_to_set = self.capture_method.clone();
         let mut res = scene.add_source(self.build())?;
 
         if let Some(method) = method_to_set {
-            println!("Updating method to {:?}", method);
             MonitorCaptureSourceUpdater::create_update(&mut res)
                 .set_capture_method(method)
                 .update();
