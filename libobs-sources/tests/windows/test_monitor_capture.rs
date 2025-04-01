@@ -29,7 +29,7 @@ pub async fn monitor_test() {
     let mut output = context.get_output(&output).unwrap();
     output.start().unwrap();
     MonitorCaptureSourceUpdater::create_update(&mut capture_source)
-        .set_capture_method(ObsDisplayCaptureMethod::MethodAuto)
+        .set_capture_method(ObsDisplayCaptureMethod::MethodDXGI)
         .update();
 
     println!("Recording started");

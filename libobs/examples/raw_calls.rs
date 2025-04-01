@@ -98,7 +98,7 @@ fn main() {
         let main_height = 1080;
 
         #[cfg(target_os = "windows")]
-        let graphics_module = CString::new("libobs-d3d11").unwrap();
+        let graphics_module = CString::new("libobs-d3d11.dll").unwrap();
         #[cfg(not(target_os = "windows"))]
         let graphics_module = CString::new("libobs-opengl").unwrap();
 
@@ -149,7 +149,7 @@ fn main() {
         libobs::obs_data_set_int(
             video_source_settings,
             CString::new("method").unwrap().as_ptr(),
-            libobs::window_capture_method_METHOD_WGC.into(),
+            libobs::display_capture_method_DISPLAY_METHOD_DXGI.into(),
         );
 
         // SETUP NEW VIDEO SOURCE

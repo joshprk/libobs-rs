@@ -2,6 +2,7 @@ mod obs_string;
 mod error;
 mod info;
 mod path;
+pub(crate) mod initialization;
 pub mod traits;
 
 use std::ffi::CStr;
