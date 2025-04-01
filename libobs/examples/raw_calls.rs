@@ -146,6 +146,12 @@ fn main() {
             CString::new("\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").unwrap().as_ptr(),
         );
 
+        libobs::obs_data_set_int(
+            video_source_settings,
+            CString::new("method").unwrap().as_ptr(),
+            libobs::window_capture_method_METHOD_WGC.into(),
+        );
+
         // SETUP NEW VIDEO SOURCE
         let video_source = libobs::obs_source_create(
             #[cfg(target_os = "windows")]
