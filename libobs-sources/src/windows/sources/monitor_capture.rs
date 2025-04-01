@@ -1,6 +1,16 @@
+///! Monitor capture source for Windows using libobs-rs
+/// ! This source captures the entire monitor and is used for screen recording.
+/// Note: This does not update the capture method directly, instead the capture method gets
+/// stored in the struct. The capture method is being set to WGC at first, then the source is created and then the capture method is updated to the desired method.
+
 use display_info::DisplayInfo;
 use libobs_source_macro::obs_object_impl;
-use libobs_wrapper::sources::{ObsSourceRef, ObsSourceBuilder};
+use libobs_wrapper::{
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    sources::{ObsSourceBuilder, ObsSourceRef},
+    utils::ObsError,
+};
+use num_traits::ToPrimitive;
 
 use crate::macro_helper::define_object_manager;
 
@@ -22,9 +32,7 @@ define_object_manager!(
         /// Compatibility mode for the monitor capture source.
         compatibility: bool,
 
-        #[obs_property(type_t="enum", settings_key = "method")]
-        /// Sets the capture method for the monitor capture source.
-        capture_method: ObsDisplayCaptureMethod,
+        capture_method: Option<ObsDisplayCaptureMethod>,
     }
 );
 
@@ -40,4 +48,48 @@ impl MonitorCaptureSource {
     }
 }
 
-impl ObsSourceBuilder for MonitorCaptureSourceBuilder {}
+impl <'a> MonitorCaptureSourceUpdater<'a> {
+    pub fn set_capture_method(mut self, method: ObsDisplayCaptureMethod) -> Self {
+        self.get_settings_mut()
+            .set_int("method", method.to_i32().unwrap() as i64);
+        self
+    }
+}
+
+impl MonitorCaptureSourceBuilder {
+    /// Sets the capture method for the monitor capture source.
+    /// Only MethodWgc works for now as the other DXGI method does not work and only records a black screen (Failed to DuplicateOutput1)
+    /// Workaround for black screen bug: [issue](https://github.com/joshprk/libobs-rs/issues/5)
+    pub fn set_capture_method(mut self, method: ObsDisplayCaptureMethod) -> Self {
+        self.capture_method = Some(method);
+        self
+    }
+}
+
+impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
+    fn add_to_scene<'a>(
+        mut self,
+        scene: &'a mut libobs_wrapper::scenes::ObsSceneRef,
+    ) -> Result<ObsSourceRef, ObsError>
+    where
+        Self: Sized,
+    {
+        // Because of a black screen bug, we need to set the method to WGC first and then update
+        self.get_or_create_settings().set_int(
+            "method",
+            ObsDisplayCaptureMethod::MethodWgc.to_i32().unwrap() as i64,
+        );
+        println!("Setting method to WGC");
+
+        let method_to_set = self.capture_method.clone();
+        let mut res = scene.add_source(self.build())?;
+
+        if let Some(method) = method_to_set {
+            println!("Updating method to {:?}", method);
+            MonitorCaptureSourceUpdater::create_update(&mut res)
+                .set_capture_method(method)
+                .update();
+        }
+        Ok(res)
+    }
+}

@@ -34,7 +34,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         _ => panic!("Only structs are supported"),
     };
 
-    let (fields_tokens, field_initializers) = fields::generate_fields(&fields);
+    let (struct_fields, struct_initializers) = fields::generate_struct_fields(&fields);
     let functions = obs_properties_to_functions(
         &fields,
         quote! {
@@ -48,7 +48,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         #(#attributes)*
         #[allow(dead_code)]
         #visibility struct #updater_name<'a> {
-            #(#fields_tokens,)*
+            #(#struct_fields,)*
             settings: libobs_wrapper::data::ObsData,
             updatable: &'a mut #updatable_type2
         }
@@ -58,9 +58,9 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             fn create_update(updatable: &'a mut Self::ToUpdate) -> Self {
                 Self {
+                    #(#struct_initializers,)*
                     settings: libobs_wrapper::data::ObsData::new(),
                     updatable,
-                    #(#field_initializers,)*
                 }
             }
 
@@ -136,7 +136,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// #[derive(Debug)]
 /// #[obs_object_builder("window_capture")]
 /// pub struct WindowCaptureSourceBuilder {
-///     #[obs_property(type_t="enum")]
+/// #[obs_property(type_t="enum")]
 ///     /// Sets the capture method for the window capture
 ///     capture_method: ObsWindowCaptureMethod,
 ///
@@ -174,7 +174,7 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let id_value = id.value();
-    let (fields_tokens, field_initializers) = fields::generate_fields(&fields);
+    let (struct_fields, struct_initializers) = fields::generate_struct_fields(&fields);
 
     let functions = obs_properties_to_functions(
         &fields,
@@ -188,7 +188,7 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         #(#attributes)*
         #[allow(dead_code)]
         #visibility struct #builder_name #generics {
-            #(#fields_tokens,)*
+            #(#struct_fields,)*
             settings: Option<libobs_wrapper::data::ObsData>,
             hotkeys: Option<libobs_wrapper::data::ObsData>,
             name: libobs_wrapper::utils::ObsString
@@ -197,10 +197,10 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl libobs_wrapper::data::ObsObjectBuilder for #builder_name {
             fn new(name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
                 Self {
+                    #(#struct_initializers,)*
                     name: name.into(),
                     hotkeys: None,
-                    settings: None,
-                    #(#field_initializers,)*
+                    settings: None
                 }
             }
 
@@ -242,10 +242,8 @@ pub fn obs_object_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemImpl);
 
     // Extract the function from the implementation
-    let impl_item = input
-        .items;
+    let impl_item = input.items;
     let impl_item2 = impl_item.clone();
-
 
     // Create the builder and updater struct names
     let base_name = if let Type::Path(TypePath { path, .. }) = &*input.self_ty {

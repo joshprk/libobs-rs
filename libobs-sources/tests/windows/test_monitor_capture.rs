@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
-use libobs_sources::windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod};
-use libobs_wrapper::{data::ObsObjectBuilder, utils::ObsPath, sources::ObsSourceBuilder};
+use libobs_sources::windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater, ObsDisplayCaptureMethod};
+use libobs_wrapper::{data::{ObsObjectBuilder, ObsObjectUpdater}, sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs_with_log, test_video};
 
@@ -20,16 +20,18 @@ pub async fn monitor_test() {
 
     let monitor = MonitorCaptureSourceBuilder::get_monitors().unwrap()[1].clone();
     println!("Using monitor {:?}", monitor);
-    MonitorCaptureSourceBuilder::new("monitor_test")
+    let mut capture_source = MonitorCaptureSourceBuilder::new("monitor_test")
         .set_monitor(&monitor)
-        // Set the method as WGC (based on hit and trial)
-        .set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .unwrap();
 
     scene.add_and_set(0);
     let mut output = context.get_output(&output).unwrap();
     output.start().unwrap();
+    MonitorCaptureSourceUpdater::create_update(&mut capture_source)
+        .set_capture_method(ObsDisplayCaptureMethod::MethodAuto)
+        .update();
+
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));
     println!("Recording stop");
