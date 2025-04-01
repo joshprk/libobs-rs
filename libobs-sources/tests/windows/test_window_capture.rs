@@ -71,5 +71,5 @@ pub async fn test_window_capture() {
     let mut output = context.get_output(&output_name).unwrap();
     output.stop().unwrap();
 
-    test_video(&path_out).await.unwrap();
+    test_video(&path_out, 1.0).await.unwrap();
 }

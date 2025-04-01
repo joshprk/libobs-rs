@@ -1,7 +1,13 @@
 use std::{path::PathBuf, time::Duration};
 
-use libobs_sources::windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater, ObsDisplayCaptureMethod};
-use libobs_wrapper::{data::{ObsObjectBuilder, ObsObjectUpdater}, sources::ObsSourceBuilder, utils::ObsPath};
+use libobs_sources::windows::{
+    MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater, ObsDisplayCaptureMethod,
+};
+use libobs_wrapper::{
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    sources::ObsSourceBuilder,
+    utils::ObsPath,
+};
 
 use crate::common::{initialize_obs_with_log, test_video};
 
@@ -28,15 +34,18 @@ pub async fn monitor_test() {
     scene.add_and_set(0);
     let mut output = context.get_output(&output).unwrap();
     output.start().unwrap();
-    MonitorCaptureSourceUpdater::create_update(&mut capture_source)
-        .set_capture_method(ObsDisplayCaptureMethod::MethodAuto)
-        .update();
 
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));
+    println!("Testing DXGI capture method");
+    MonitorCaptureSourceUpdater::create_update(&mut capture_source)
+        .set_capture_method(ObsDisplayCaptureMethod::MethodDXGI)
+        .update();
+    std::thread::sleep(Duration::from_secs(5));
+
     println!("Recording stop");
 
     output.stop().unwrap();
 
-    test_video(&path_out).await.unwrap();
+    test_video(&path_out, 2.0).await.unwrap();
 }
