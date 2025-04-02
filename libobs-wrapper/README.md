@@ -13,7 +13,7 @@ Add the following to your `Cargo.toml`
 ```toml
 [package.metadata]
 # The libobs version to use (can either be a specific version or "latest")
-libobs-version="30.2.2"
+libobs-version="31.0.3"
 # The directory in which to store the OBS build (optional)
 libobs-cache-dir="../obs-build"
 
