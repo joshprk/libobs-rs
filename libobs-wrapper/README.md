@@ -15,18 +15,18 @@ Add the following to your `Cargo.toml`
 # The libobs version to use (can either be a specific version or "latest")
 libobs-version="31.0.3"
 # The directory in which to store the OBS build (optional)
-libobs-cache-dir="../obs-build"
+# libobs-cache-dir="../obs-build"
 
 ```
 
-Build OBS
+Install OBS in your target directory
 ```bash
 # for debugging
-cargo obs-build --profile debug
+cargo obs-build target/debug
 # for release
-cargo obs-build --profile release
+cargo obs-build target/release
 # for testing
-cargo obs-build --profile (debug|release)/deps
+cargo obs-build target/(debug|release)/deps
 ```
 
 ## Usage

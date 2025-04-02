@@ -11,7 +11,33 @@ To build on Linux, you must install the libobs-dev package, as well as the bindg
 sudo apt-get libobs-dev llvm-dev libclang-dev clang
 ```
 
-Compiled Windows DLLs for libobs can be found at https://github.com/joshprk/libobs-rs/releases/tag/deps
+## Prerequisites
+Make sure that the OBS binaries are in your target directory. There's even a tool to help you build OBS from source! <br>
+Install the tool
+```bash
+cargo install cargo-obs-build
+```
+
+Add the following to your `Cargo.toml`
+```toml
+[package.metadata]
+# The libobs version to use (can either be a specific version or "latest")
+libobs-version="31.0.3"
+# The directory in which to store the OBS build (optional)
+# libobs-cache-dir="../obs-build"
+
+```
+
+Install OBS in your target directory. This uses the original signed OBS binaries.
+```bash
+# for debugging
+cargo obs-build target/debug
+# for release
+cargo obs-build target/release
+# for testing
+cargo obs-build target/(debug|release)/deps
+```
+
 
 ## Quick Start
 
