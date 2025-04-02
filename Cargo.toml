@@ -3,11 +3,11 @@ resolver="2"
 members = [
     "cargo-obs-build",
     "libobs",
-    "libobs-display-tester",
     "libobs-source-macro",
     "libobs-sources",
     "libobs-window-helper",
-    "libobs-wrapper"
+    "libobs-wrapper",
+    "examples/*"
 ]
 
 [workspace.metadata]

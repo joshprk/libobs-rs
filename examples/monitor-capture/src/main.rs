@@ -1,11 +1,14 @@
 use std::thread;
 use std::time::Duration;
 
+use libobs_sources::windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater};
 use libobs_wrapper::context::ObsContext;
-use libobs_wrapper::data::ObsData;
+use libobs_wrapper::data::{ObsData, ObsObjectBuilder, ObsObjectUpdater};
 use libobs_wrapper::encoders::ObsContextEncoders;
+use libobs_wrapper::sources::ObsSourceBuilder;
+use libobs_wrapper::utils::traits::ObsUpdatable;
 use libobs_wrapper::utils::{
-    AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
+    AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo,
 };
 
 pub fn main() {
@@ -13,25 +16,14 @@ pub fn main() {
     let startup_info = StartupInfo::default();
     let mut context = ObsContext::new(startup_info).unwrap();
 
-
-    // Create the video source using game capture
-    let mut video_source_data = ObsData::new();
-    video_source_data
-        .set_string("capture_mode", "window")
-        .set_string("window", "")
-        .set_bool("capture_cursor", true);
-
-    let video_source_info = SourceInfo::new(
-        "game_capture",
-        "video_source",
-        Some(video_source_data),
-        None,
-    );
-
     let mut scene = context.scene("main");
-    scene.add_source(video_source_info).unwrap();
+    let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
+    let mut monitor_capture = MonitorCaptureSourceBuilder::new("Monitor Capture")
+        .set_monitor(&monitors[0])
+        .add_to_scene(&mut scene)
+        .unwrap();
 
-    // Register the source and record
+    // Register the source
     scene.add_and_set(0);
 
     // Set up output to ./recording.mp4
@@ -75,10 +67,18 @@ pub fn main() {
 
     output.start().unwrap();
 
-    println!("recording for 10 seconds...");
-    thread::sleep(Duration::new(10, 0));
+    println!("recording for 5 seconds and switching monitor...");
+    thread::sleep(Duration::from_secs(5));
 
-    // Open any fullscreen application and
+    // Switching monitor
+    monitor_capture
+        .create_updater::<MonitorCaptureSourceUpdater>()
+        .set_monitor(&monitors[1])
+        .update();
+
+    println!("recording for another 5 seconds...");
+    thread::sleep(Duration::from_secs(5));
+
     // Success!
     output.stop().unwrap();
 }

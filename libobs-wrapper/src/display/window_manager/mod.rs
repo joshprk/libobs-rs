@@ -16,12 +16,7 @@ use windows::{
             SystemInformation::{GetVersionExW, OSVERSIONINFOW},
         },
         UI::WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW,
-            GetWindowLongPtrW, LoadCursorW, RegisterClassExW, SetLayeredWindowAttributes,
-            SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC,
-            CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG,
-            WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
-            WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
+            CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetWindowLongPtrW, LoadCursorW, RegisterClassExW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG, WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE
         },
     },
 };
@@ -137,13 +132,7 @@ unsafe impl Sync for SendableHWND {}
 unsafe impl Send for SendableHWND {}
 
 impl DisplayWindowManager {
-    pub fn new(
-        parent: HWND,
-        x: i32,
-        y: i32,
-        width: u32,
-        height: u32,
-    ) -> anyhow::Result<Self> {
+    pub fn new(parent: HWND, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
         let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));
@@ -183,12 +172,12 @@ impl DisplayWindowManager {
                         WS_EX_LAYERED,
                         &class_name,
                         &window_name,
-                        WS_POPUP | WS_VISIBLE, //WS_POPUP,
+                        WS_POPUP | WS_VISIBLE,
                         x,
                         y,
                         width as i32,
                         height as i32,
-                        Some(parent),
+                        None,
                         None,
                         Some(instance.into()),
                         None,
@@ -224,12 +213,17 @@ impl DisplayWindowManager {
             };
 
             let r = create();
+            let window = r.as_ref().ok().map(|r| r.0.clone());
             tx.send(r).unwrap();
+            if window.is_none() {
+                return;
+            }
+            let window = window.unwrap();
 
             log::trace!("Starting up message thread...");
             let mut msg = MSG::default();
             unsafe {
-                while !tmp.load(Ordering::Relaxed) && GetMessageW(&mut msg, None, 0, 0).as_bool() {
+                while !tmp.load(Ordering::Relaxed) && GetMessageW(&mut msg, Some(window), 0, 0).as_bool() {
                     //TODO check if this can really be ignored
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);

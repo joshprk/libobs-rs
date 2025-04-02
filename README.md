@@ -43,4 +43,5 @@ cargo obs-build target/(debug|release)/deps
 
 Below is an example that will record video-only footage of an exclusive fullscreen application. Note that the API is extremely limited right now, but you can already record both video and audio with full control over the output already. If you need more, libobs is exposed.
 
-For examples look at [libobs-sources](./libobs-sources/README.md) or the [wrapper](./libobs-wrapper/README.md).
+Examples are located in the [examples](./examples) directory.
+Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).

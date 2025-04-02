@@ -1,0 +1,9 @@
+[package]
+name = "monitor-capture"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+libobs-wrapper = { path = "../../libobs-wrapper" }
+libobs-sources = { path = "../../libobs-sources" }

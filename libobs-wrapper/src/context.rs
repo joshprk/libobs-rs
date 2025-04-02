@@ -1,7 +1,9 @@
 use std::{
+    collections::HashMap,
     ffi::CStr,
     pin::Pin,
     ptr,
+    rc::Rc,
     sync::{Arc, Mutex},
     thread::{self, ThreadId},
 };
@@ -42,7 +44,8 @@ pub struct ObsContext {
     startup_info: StartupInfo,
 
     #[get_mut]
-    displays: Vec<Pin<Box<ObsDisplayRef>>>,
+    // Key is display id, value is the display fixed in heap
+    displays: HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>,
 
     #[skip_getter]
     vertex_buffers: VertexBuffers,
@@ -206,7 +209,7 @@ impl ObsContext {
             startup_info: info,
             outputs: vec![],
             vertex_buffers,
-            displays: vec![],
+            displays: HashMap::new(),
             active_scene: Arc::new(Mutex::new(None)),
             scenes: vec![],
             _obs_modules: obs_modules,
@@ -304,16 +307,14 @@ impl ObsContext {
         };
     }
 
-    pub fn display(
-        &mut self,
-        data: ObsDisplayCreationData,
-    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+    /// Creates a new display and returns its ID.
+    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
         let display = ObsDisplayRef::new(&self.vertex_buffers, data)
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
-        self.displays.push(display.clone());
-
-        Ok(display)
+        let id = display.id();
+        self.displays.insert(id, Rc::new(display));
+        Ok(id)
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplayRef) {
@@ -321,7 +322,11 @@ impl ObsContext {
     }
 
     pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.retain(|x| x.id() != id);
+        self.displays.remove(&id);
+    }
+
+    pub fn get_display_by_id(&self, id: usize) -> Option<Rc<Pin<Box<ObsDisplayRef>>>> {
+        self.displays.get(&id).cloned()
     }
 
     pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
