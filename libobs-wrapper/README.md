@@ -31,7 +31,7 @@ cargo obs-build --profile (debug|release)/deps
 
 ## Usage
 
-Note: This is the usage without using the `libobs-sources` crate (which makes it significantly easier to create sources)
+Note: This is the usage without using the [libobs-sources](https://crates.io/crates/libobs-sources) crate (which makes it significantly easier to create sources)
 ```rust
 use std::thread;
 use std::time::Duration;

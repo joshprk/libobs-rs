@@ -1,8 +1,8 @@
 [package]
 name = "libobs-wrapper"
-description = "A safe wrapper around libobs-new"
-version = "0.2.2"
-repository = "https://github.com/sshcrack/libobs-rs"
+description = "A safe wrapper around libobs"
+version = "2.0.3"
+repository = "https://github.com/joshprk/libobs-rs"
 readme = "README.md"
 authors = ["sshcrack"]
 categories = [
@@ -16,20 +16,20 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.91"
-libobs = { package = "libobs-new", version = "2.0.2", path = "../libobs" }
-display-info = "0.5.1"
+anyhow = "1.0.97"
+libobs = { package = "libobs", version = "2.0.3", path = "../libobs" }
+display-info = "0.5.4"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 lazy_static = "1.5.0"
-crossbeam-channel = "0.5.13"
-log = "0.4.22"
+crossbeam-channel = "0.5.14"
+log = "0.4.27"
 vsprintf = "2.0.0"
-chrono = "0.4.38"
+chrono = "0.4.40"
 getters0 = "0.1.1"
 colored = { version = "3.0.0", optional = true }
 parking_lot = "0.12.3"
-oneshot = { version = "0.1.8", default-features = false, features = ["std"] }
+oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_System_SystemInformation", "Win32_UI_WindowsAndMessaging"] }

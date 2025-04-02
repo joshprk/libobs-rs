@@ -1,0 +1,9 @@
+[package]
+name = "libobs-display-tester"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.86"
+env_logger = "0.11.5"
+libobs-wrapper = { path = "../libobs-wrapper" }

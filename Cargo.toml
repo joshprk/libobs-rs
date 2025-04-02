@@ -3,7 +3,7 @@ resolver="2"
 members = [
     "cargo-obs-build",
     "libobs",
-    "libobs-segfault-trace",
+    "libobs-display-tester",
     "libobs-source-macro",
     "libobs-sources",
     "libobs-window-helper",

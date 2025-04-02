@@ -4,8 +4,6 @@ use std::{
     ptr,
 };
 
-use libobs_new as libobs;
-
 fn main() {
     // STARTUP
     unsafe {
@@ -160,7 +158,7 @@ fn main() {
         libobs::obs_data_set_int(
             video_source_settings,
             CString::new("method").unwrap().as_ptr(),
-            libobs::window_capture_method_METHOD_WGC.into(),
+            libobs::display_capture_method_DISPLAY_METHOD_DXGI.into(),
         );
 
         // SETUP NEW VIDEO SOURCE
