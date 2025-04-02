@@ -38,6 +38,7 @@ pub struct ObsDisplayRef {
     // Keep for window, manager is accessed by render thread as well so Arc and RwLock
     manager: Arc<RwLock<DisplayWindowManager>>,
     _guard: Rc<_DisplayDropGuard>,
+    /// This must not be moved in memory as the draw callback is a raw pointer to this struct
     _phantom_pin: PhantomPinned,
 }
 
