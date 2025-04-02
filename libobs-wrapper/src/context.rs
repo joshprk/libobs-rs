@@ -59,6 +59,9 @@ pub struct ObsContext {
     #[skip_getter]
     pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 
+    #[skip_getter]
+    pub(crate) _obs_modules: ObsModules,
+
     /// This allows us to call obs_shutdown() after
     /// everything else has been freed. Doing other-
     /// wise completely crashes the program.
@@ -167,7 +170,7 @@ impl ObsContext {
             return Err(ObsError::Failure);
         }
 
-        ObsModules::add_paths(&info.startup_paths);
+        let mut obs_modules = ObsModules::add_paths(&info.startup_paths);
 
         // Note that audio is meant to only be reset
         // once. See the link below for information.
@@ -189,8 +192,7 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
-        let m = ObsModules::load_modules();
-        m.log_if_failed();
+        obs_modules.load_modules();
 
         internal_log_global(
             ObsLogLevel::Info,
@@ -207,6 +209,7 @@ impl ObsContext {
             displays: vec![],
             active_scene: Arc::new(Mutex::new(None)),
             scenes: vec![],
+            _obs_modules: obs_modules,
             _context_shutdown_zst: _ObsContextShutdownZST {},
         })
     }
@@ -342,6 +345,11 @@ struct _ObsContextShutdownZST {}
 
 impl Drop for _ObsContextShutdownZST {
     fn drop(&mut self) {
+        // Clean up sources
+        for i in 0..libobs::MAX_CHANNELS {
+            unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
+        }
+
         unsafe { libobs::obs_shutdown() }
 
         let r = LOGGER.lock();
@@ -350,11 +358,14 @@ impl Drop for _ObsContextShutdownZST {
                 logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
                 let allocs = unsafe { libobs::bnum_allocs() };
 
-                let level = if allocs != 0 {
+                // Increasing this to 1 because of whats described below
+                let level = if allocs > 1 {
                     ObsLogLevel::Error
                 } else {
                     ObsLogLevel::Info
                 };
+                // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
+                // even when obs_remove_data_path is called. This is a bug in OBS.
                 logger.log(level, format!("Number of memory leaks: {}", allocs))
             }
             Err(_) => {

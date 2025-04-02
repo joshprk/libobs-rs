@@ -16,6 +16,9 @@ pub fn monitor_list_check() {
     MonitorCaptureSourceBuilder::get_monitors().unwrap();
 }
 
+/// DXGI is not supported for now
+const ENABLE_DXGI_TEST: bool = false;
+
 #[tokio::test]
 pub async fn monitor_test() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
@@ -37,15 +40,18 @@ pub async fn monitor_test() {
 
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));
-    println!("Testing DXGI capture method");
-    MonitorCaptureSourceUpdater::create_update(&mut capture_source)
-        .set_capture_method(ObsDisplayCaptureMethod::MethodDXGI)
-        .update();
-    std::thread::sleep(Duration::from_secs(5));
-
+    if ENABLE_DXGI_TEST {
+        println!("Testing DXGI capture method");
+        MonitorCaptureSourceUpdater::create_update(&mut capture_source)
+            .set_capture_method(ObsDisplayCaptureMethod::MethodDXGI)
+            .update();
+        std::thread::sleep(Duration::from_secs(5));
+    }
     println!("Recording stop");
 
     output.stop().unwrap();
 
-    test_video(&path_out, 2.0).await.unwrap();
+    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 })
+        .await
+        .unwrap();
 }
