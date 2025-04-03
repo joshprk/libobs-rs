@@ -16,7 +16,12 @@ use windows::{
             SystemInformation::{GetVersionExW, OSVERSIONINFOW},
         },
         UI::WindowsAndMessaging::{
-            CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, GetWindowLongPtrW, LoadCursorW, RegisterClassExW, SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG, WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE
+            CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, GetWindowLongPtrW,
+            LoadCursorW, PostMessageW, PostQuitMessage, RegisterClassExW,
+            SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW,
+            CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW,
+            LWA_ALPHA, MSG, WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
+            WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
         },
     },
 };
@@ -28,6 +33,7 @@ mod show_hide;
 pub use position_trait::WindowPositionTrait;
 pub use show_hide::ShowHideTrait;
 
+const WM_DESTROY_WINDOW: u32 = 0x8001; // Custom message
 extern "system" fn wndproc(
     window: HWND,
     message: u32,
@@ -38,6 +44,10 @@ extern "system" fn wndproc(
         match message {
             WM_NCHITTEST => {
                 return LRESULT(HTTRANSPARENT as _);
+            }
+            WM_DESTROY_WINDOW => {
+                PostQuitMessage(0);
+                return LRESULT(0);
             }
             _ => {
                 return DefWindowProcW(window, message, w_param, l_param);
@@ -106,7 +116,7 @@ fn try_register_class() -> windows::core::Result<()> {
 #[derive(Debug)]
 pub struct DisplayWindowManager {
     // Shouldn't really be needed
-    _message_thread: std::thread::JoinHandle<()>,
+    message_thread: Option<std::thread::JoinHandle<()>>,
     should_exit: Arc<AtomicBool>,
     hwnd: WrappedHWND,
 
@@ -223,7 +233,9 @@ impl DisplayWindowManager {
             log::trace!("Starting up message thread...");
             let mut msg = MSG::default();
             unsafe {
-                while !tmp.load(Ordering::Relaxed) && GetMessageW(&mut msg, Some(window), 0, 0).as_bool() {
+                while !tmp.load(Ordering::Relaxed)
+                    && GetMessageW(&mut msg, Some(window), 0, 0).as_bool()
+                {
                     //TODO check if this can really be ignored
                     let _ = TranslateMessage(&msg);
                     DispatchMessageW(&msg);
@@ -243,7 +255,7 @@ impl DisplayWindowManager {
             scale: 1.0,
             hwnd: WrappedHWND(window.0),
             should_exit,
-            _message_thread: message_thread,
+            message_thread: Some(message_thread),
             render_at_bottom: false,
             is_hidden: AtomicBool::new(false),
             obs_display: None,
@@ -261,9 +273,15 @@ impl Drop for DisplayWindowManager {
             self.should_exit.store(true, Ordering::Relaxed);
 
             log::trace!("Destroying window...");
-            let res = DestroyWindow(self.hwnd.0);
+            let res = PostMessageW(Some(self.hwnd.0), WM_DESTROY_WINDOW, WPARAM(0), LPARAM(0));
             if let Err(err) = res {
-                log::error!("Failed to destroy window: {:?}", err);
+                log::error!("Failed to post destroy window message: {:?}", err);
+            }
+
+            let thread = self.message_thread.take();
+            if let Some(thread) = thread {
+                log::trace!("Waiting for message thread to exit...");
+                thread.join().unwrap();
             }
         }
     }

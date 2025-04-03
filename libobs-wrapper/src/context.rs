@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     data::{output::ObsOutputRef, video::ObsVideoInfo},
-    display::{ObsDisplayCreationData, ObsDisplayRef, VertexBuffers},
+    display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
     scenes::ObsSceneRef,
@@ -46,9 +46,6 @@ pub struct ObsContext {
     #[get_mut]
     // Key is display id, value is the display fixed in heap
     displays: HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>,
-
-    #[skip_getter]
-    vertex_buffers: VertexBuffers,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
@@ -202,13 +199,10 @@ impl ObsContext {
             "==== Startup complete ===============================================".to_string(),
         );
 
-        let vertex_buffers = unsafe { VertexBuffers::initialize() };
-
         Ok(Self {
             locale: locale_str,
             startup_info: info,
             outputs: vec![],
-            vertex_buffers,
             displays: HashMap::new(),
             active_scene: Arc::new(Mutex::new(None)),
             scenes: vec![],
@@ -309,7 +303,7 @@ impl ObsContext {
 
     /// Creates a new display and returns its ID.
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
-        let display = ObsDisplayRef::new(&self.vertex_buffers, data)
+        let display = ObsDisplayRef::new(data)
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
         let id = display.id();

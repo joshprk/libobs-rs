@@ -1,5 +1,5 @@
 [package]
-name = "libobs-display-tester"
+name = "obs-preview"
 version = "0.1.0"
 edition = "2021"
 publish = false
