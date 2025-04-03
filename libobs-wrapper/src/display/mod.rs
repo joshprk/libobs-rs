@@ -23,7 +23,7 @@ use libobs::{
     gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
-use crate::unsafe_send::{WrappedObsDisplay, WrappedVoidPtr};
+use crate::{context::ObsContextShutdownZST, unsafe_send::{WrappedObsDisplay, WrappedVoidPtr}};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -42,6 +42,9 @@ pub struct ObsDisplayRef {
     manager: Arc<RwLock<DisplayWindowManager>>,
     /// This must not be moved in memory as the draw callback is a raw pointer to this struct
     _fixed_in_heap: PhantomPinned,
+
+    /// Stored so the obs context is not dropped while this is alive
+    _shutdown: Rc<ObsContextShutdownZST>,
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
@@ -77,7 +80,7 @@ impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
-    pub(crate) fn new(data: creation_data::ObsDisplayCreationData) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
+    pub(crate) fn new(data: creation_data::ObsDisplayCreationData, shutdown: Rc<ObsContextShutdownZST>) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
         use std::{cell::RefCell, sync::atomic::Ordering};
 
         use anyhow::bail;
@@ -121,6 +124,7 @@ impl ObsDisplayRef {
                 self_ptr: None,
             })),
             _fixed_in_heap: PhantomPinned,
+            _shutdown: shutdown,
         });
 
         let instance_ptr = unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void };

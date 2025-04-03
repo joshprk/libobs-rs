@@ -55,7 +55,7 @@ pub async fn test_window_capture() {
         .filter(|e| e.obs_id.to_lowercase().contains("code"))
         .collect::<Vec<_>>();
     for i in 0..cmp::min(5, windows.len()) {
-        let mut source = context.scenes_mut().get_mut(0).unwrap().get_source_by_index(0).unwrap();
+        let mut source = context.scenes_mut().borrow_mut().get_mut(0).unwrap().get_source_by_index(0).unwrap();
         let w = windows.get(i).unwrap();
         println!("Setting to {:?}", w.obs_id);
         source.create_updater::<WindowCaptureSourceUpdater>()

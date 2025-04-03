@@ -1,10 +1,11 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     ffi::CStr,
     pin::Pin,
     ptr,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::Mutex,
     thread::{self, ThreadId},
 };
 
@@ -22,6 +23,12 @@ use getters0::Getters;
 use libobs::{audio_output, video_output};
 static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 
+// Note to developers of this library:
+// I've updated everything in the ObsContext to use Rc and RefCell.
+// Then the obs context shutdown hook is given to each children of for example scenes and displays.
+// That way, obs is not shut down as long as there are still displays or scenes alive.
+// This is a bit of a hack, but it works would be glad to hear your thoughts on this.
+
 /// Interface to the OBS context. Only one context
 /// can exist across all threads and any attempt to
 /// create a new context while there is an existing
@@ -31,42 +38,38 @@ static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 /// important! OBS is super specific about how it
 /// does everything. Things are freed early to
 /// latest from top to bottom.
-#[derive(Debug, Getters)]
+#[derive(Debug, Getters, Clone)]
 #[skip_new]
 pub struct ObsContext {
-    /// This string must be stored to keep the
-    /// pointer passed to libobs valid.
-    #[allow(dead_code)]
-    locale: ObsString,
     /// Stores startup info for safe-keeping. This
     /// prevents any use-after-free as these do not
     /// get copied in libobs.
-    startup_info: StartupInfo,
+    startup_info: Rc<RefCell<StartupInfo>>,
 
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    displays: HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>,
+    displays: Rc<RefCell<HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>>>,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: Vec<ObsOutputRef>,
+    pub(crate) outputs: Rc<RefCell<Vec<ObsOutputRef>>>,
 
     #[get_mut]
-    pub(crate) scenes: Vec<ObsSceneRef>,
+    pub(crate) scenes: Rc<RefCell<Vec<ObsSceneRef>>>,
 
     #[skip_getter]
-    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
+    pub(crate) active_scene: Rc<RefCell<Option<WrappedObsScene>>>,
 
     #[skip_getter]
-    pub(crate) _obs_modules: ObsModules,
+    pub(crate) _obs_modules: Rc<ObsModules>,
 
     /// This allows us to call obs_shutdown() after
     /// everything else has been freed. Doing other-
     /// wise completely crashes the program.
     #[skip_getter]
-    _context_shutdown_zst: _ObsContextShutdownZST,
+    context_shutdown_zst: Rc<ObsContextShutdownZST>,
 }
 
 impl ObsContext {
@@ -150,7 +153,6 @@ impl ObsContext {
         let mut log_callback = LOGGER.lock().map_err(|_e| ObsError::MutexFailure)?;
 
         *log_callback = info.logger.take().expect("Logger can never be null");
-
         drop(log_callback);
 
         // Locale will only be used internally by
@@ -200,14 +202,13 @@ impl ObsContext {
         );
 
         Ok(Self {
-            locale: locale_str,
-            startup_info: info,
-            outputs: vec![],
-            displays: HashMap::new(),
-            active_scene: Arc::new(Mutex::new(None)),
-            scenes: vec![],
-            _obs_modules: obs_modules,
-            _context_shutdown_zst: _ObsContextShutdownZST {},
+            startup_info: Rc::new(RefCell::new(info)),
+            outputs: Rc::new(RefCell::new(vec![])),
+            displays: Rc::new(RefCell::new(HashMap::new())),
+            active_scene: Rc::new(RefCell::new(None)),
+            scenes: Rc::new(RefCell::new(vec![])),
+            _obs_modules: Rc::new(obs_modules),
+            context_shutdown_zst: Rc::new(ObsContextShutdownZST {}),
         })
     }
 
@@ -228,7 +229,7 @@ impl ObsContext {
     pub fn reset_video(&mut self, mut ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
-        if self.startup_info.obs_video_info.graphics_module() != ovi.graphics_module() {
+        if self.startup_info.borrow().obs_video_info.graphics_module() != ovi.graphics_module() {
             return Err(ObsError::ResetVideoFailureGraphicsModule);
         }
 
@@ -237,7 +238,7 @@ impl ObsContext {
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
-            for output in self.outputs.iter() {
+            for output in self.outputs.borrow().iter() {
                 for video_encoder in output.get_video_encoders().iter() {
                     unsafe {
                         libobs::obs_encoder_set_video(
@@ -248,7 +249,7 @@ impl ObsContext {
                 }
             }
 
-            self.startup_info.obs_video_info = ovi;
+            self.startup_info.borrow_mut().obs_video_info = ovi;
             return Ok(());
         }
     }
@@ -288,12 +289,12 @@ impl ObsContext {
     }
 
     pub fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
-        let output = ObsOutputRef::new(info.id, info.name, info.settings, info.hotkey_data);
+        let output = ObsOutputRef::new(info, self.context_shutdown_zst.clone());
 
         return match output {
             Ok(x) => {
                 let tmp = x.clone();
-                self.outputs.push(x);
+                self.outputs.borrow_mut().push(x);
                 Ok(tmp)
             }
 
@@ -303,11 +304,11 @@ impl ObsContext {
 
     /// Creates a new display and returns its ID.
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
-        let display = ObsDisplayRef::new(data)
+        let display = ObsDisplayRef::new(data,  self.context_shutdown_zst.clone())
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
         let id = display.id();
-        self.displays.insert(id, Rc::new(display));
+        self.displays.borrow_mut().insert(id, Rc::new(display));
         Ok(id)
     }
 
@@ -316,33 +317,35 @@ impl ObsContext {
     }
 
     pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.remove(&id);
+        self.displays.borrow_mut().remove(&id);
     }
 
     pub fn get_display_by_id(&self, id: usize) -> Option<Rc<Pin<Box<ObsDisplayRef>>>> {
-        self.displays.get(&id).cloned()
+        self.displays.borrow().get(&id).cloned()
     }
 
     pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
         self.outputs
+            .borrow()
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
     }
 
     pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
-        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone());
-        let tmp = scene.clone();
+        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone(),  self.context_shutdown_zst.clone());
 
-        self.scenes.push(scene);
+        let tmp = scene.clone();
+        self.scenes.borrow_mut().push(scene);
+
         tmp
     }
 }
 
 #[derive(Debug)]
-struct _ObsContextShutdownZST {}
+pub(crate) struct ObsContextShutdownZST {}
 
-impl Drop for _ObsContextShutdownZST {
+impl Drop for ObsContextShutdownZST {
     fn drop(&mut self) {
         // Clean up sources
         for i in 0..libobs::MAX_CHANNELS {

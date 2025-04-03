@@ -103,74 +103,70 @@ fn main() -> anyhow::Result<()> {
 
     let context = Rc::new(RefCell::new(ObsContext::new(info)?));
 
-    // This is needed to make sure the context is not dropped before the main loop ends
-    // and scenes are properly cleaned up
-    {
-        // Set up output to ./recording.mp4
-        let mut output_settings = ObsData::new();
-        output_settings.set_string("path", "recording.mp4");
+    // Set up output to ./recording.mp4
+    let mut output_settings = ObsData::new();
+    output_settings.set_string("path", "recording.mp4");
 
-        let output_name = "output";
-        let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
+    let output_name = "output";
+    let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
 
-        let mut output = context.borrow_mut().output(output_info)?;
+    let mut output = context.borrow_mut().output(output_info)?;
 
-        // Register the video encoder
-        let mut video_settings = ObsData::new();
-        video_settings
-            .set_int("bf", 0)
-            .set_bool("psycho_aq", true)
-            .set_bool("lookahead", true)
-            .set_string("profile", "high")
-            .set_string("preset", "fast")
-            .set_string("rate_control", "cbr")
-            .set_int("bitrate", 10000);
+    // Register the video encoder
+    let mut video_settings = ObsData::new();
+    video_settings
+        .set_int("bf", 0)
+        .set_bool("psycho_aq", true)
+        .set_bool("lookahead", true)
+        .set_string("profile", "high")
+        .set_string("preset", "fast")
+        .set_string("rate_control", "cbr")
+        .set_int("bitrate", 10000);
 
-        let encoders = ObsContext::get_available_video_encoders();
+    let encoders = ObsContext::get_available_video_encoders();
 
-        println!("Available encoders: {:?}", encoders);
-        let encoder = encoders
-            .iter()
-            .find(|e| {
-                **e == ObsVideoEncoderType::H264_TEXTURE_AMF
-                    || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF
-            })
-            .unwrap();
+    println!("Available encoders: {:?}", encoders);
+    let encoder = encoders
+        .iter()
+        .find(|e| {
+            **e == ObsVideoEncoderType::H264_TEXTURE_AMF
+                || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF
+        })
+        .unwrap();
 
-        println!("Using encoder {:?}", encoder);
-        let video_info =
-            VideoEncoderInfo::new(encoder.clone(), "video_encoder", Some(video_settings), None);
+    println!("Using encoder {:?}", encoder);
+    let video_info =
+        VideoEncoderInfo::new(encoder.clone(), "video_encoder", Some(video_settings), None);
 
-        let video_handler = ObsContext::get_video_ptr()?;
-        output.video_encoder(video_info, video_handler)?;
+    let video_handler = ObsContext::get_video_ptr()?;
+    output.video_encoder(video_info, video_handler)?;
 
-        // Register the audio encoder
-        let mut audio_settings = ObsData::new();
-        audio_settings.set_int("bitrate", 160);
+    // Register the audio encoder
+    let mut audio_settings = ObsData::new();
+    audio_settings.set_int("bitrate", 160);
 
-        let audio_info =
-            AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
+    let audio_info =
+        AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-        let audio_handler = ObsContext::get_audio_ptr()?;
-        output.audio_encoder(audio_info, 0, audio_handler)?;
+    let audio_handler = ObsContext::get_audio_ptr()?;
+    output.audio_encoder(audio_info, 0, audio_handler)?;
 
-        let mut scene = context.borrow_mut().scene("Main Scene");
+    let mut scene = context.borrow_mut().scene("Main Scene");
 
-        MonitorCaptureSourceBuilder::new("Monitor Capture")
-            .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[1])
-            .add_to_scene(&mut scene)?;
+    MonitorCaptureSourceBuilder::new("Monitor Capture")
+        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[1])
+        .add_to_scene(&mut scene)?;
 
-        scene.add_and_set(0);
+    scene.add_and_set(0);
 
-        let event_loop = EventLoop::new()?;
-        let mut app = App {
-            window: None,
-            display_id: None,
-            context: context.clone(),
-        };
+    let event_loop = EventLoop::new()?;
+    let mut app = App {
+        window: None,
+        display_id: None,
+        context: context.clone(),
+    };
 
-        event_loop.run_app(&mut app)?;
-    }
+    event_loop.run_app(&mut app)?;
 
     println!("Done with mainloop.");
     Ok(())
