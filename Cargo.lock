@@ -1506,6 +1506,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "libobs-encoders"
+version = "0.1.0"
+
+[[package]]
+name = "libobs-encoders-generator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libobs",
+ "libobs-wrapper",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
 name = "libobs-source-macro"
 version = "1.0.0"
 dependencies = [
