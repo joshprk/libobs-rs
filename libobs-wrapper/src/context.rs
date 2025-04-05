@@ -12,7 +12,7 @@ use std::{
 use crate::{
     crash_handler::main_crash_handler,
     data::{output::ObsOutputRef, video::ObsVideoInfo},
-    display::{ObsDisplayCreationData, ObsDisplayRef, VertexBuffers},
+    display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
     scenes::ObsSceneRef,
