@@ -45,6 +45,8 @@ reqwest = { version = "0.12.15", features = [
 ], optional = true }
 serde = { version = "1.0.219", optional = true, features = ["derive"] }
 hex = { version = "0.4.3", optional = true }
+arboard = { version = "3.4.1", optional = true }
+dialog = { version = "0.3.0", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = [
@@ -54,24 +56,12 @@ windows = { version = "0.61.1", features = [
     "Win32_System_LibraryLoader",
     "Win32_System_SystemInformation",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_Security"
 ] }
 
 [features]
-default = ["color-logger", "downloader"]
+default = ["color-logger", "dialog_crash_handler", "downloader"]
 unsafe-send = []
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
-downloader = [
-    "dep:async-stream",
-    "dep:futures-core",
-    "dep:futures-util",
-    "dep:semver",
-    "dep:tokio",
-    "dep:sevenz-rust",
-    "dep:async-trait",
-    "dep:sha2",
-    "dep:uuid",
-    "dep:reqwest",
-    "dep:serde",
-    "dep:hex"
-]
+dialog_crash_handler = ["dep:arboard", "dep:dialog"]

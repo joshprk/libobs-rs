@@ -10,13 +10,14 @@ use std::{
 };
 
 use crate::{
+    crash_handler::main_crash_handler,
     data::{output::ObsOutputRef, video::ObsVideoInfo},
-    display::{ObsDisplayCreationData, ObsDisplayRef},
+    display::{ObsDisplayCreationData, ObsDisplayRef, VertexBuffers},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
     scenes::ObsSceneRef,
     unsafe_send::WrappedObsScene,
-    utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
+    utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo, initialization::load_debug_privilege},
 };
 use anyhow::Result;
 use getters0::Getters;
@@ -145,8 +146,16 @@ impl ObsContext {
     /// (~10 KB per restart), but the point is
     /// safety. Thank you @tt2468 for the help!
     fn init(mut info: StartupInfo) -> Result<ObsContext, ObsError> {
-        // Sets the logger to the one passed in
+        // Install DLL blocklist hook here
+
         unsafe {
+            libobs::obs_init_win32_crash_handler();
+        }
+
+        // Set logger, load debug privileges and crash handler
+        unsafe {
+            libobs::base_set_crash_handler(Some(main_crash_handler), std::ptr::null_mut());
+            load_debug_privilege();
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }
 
@@ -373,6 +382,12 @@ impl Drop for ObsContextShutdownZST {
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");
             }
+        }
+
+        unsafe {
+            // Clean up log and crash handler
+            libobs::base_set_crash_handler(None, std::ptr::null_mut());
+            libobs::base_set_log_handler(None, std::ptr::null_mut());
         }
 
         if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {

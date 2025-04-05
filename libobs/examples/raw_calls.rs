@@ -103,7 +103,7 @@ fn main() {
         let main_height = 1080;
 
         #[cfg(target_os = "windows")]
-        let graphics_module = CString::new("libobs-d3d11").unwrap();
+        let graphics_module = CString::new("libobs-d3d11.dll").unwrap();
         #[cfg(not(target_os = "windows"))]
         let graphics_module = CString::new("libobs-opengl").unwrap();
 
