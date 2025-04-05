@@ -60,12 +60,12 @@ windows = { version = "0.61.1", features = [
 ] }
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "downloader"]
+default = ["color-logger", "dialog_crash_handler", "bootstrapper"]
 unsafe-send = []
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
-downloader = [
+bootstrapper = [
     "dep:async-stream",
     "dep:futures-core",
     "dep:futures-util",
