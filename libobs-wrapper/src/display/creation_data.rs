@@ -21,12 +21,9 @@ pub struct ObsDisplayCreationData {
 
 impl ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub fn new(parent_window: isize, x: u32, y: u32, width: u32, height: u32) -> Self {
-        use std::os::raw::c_void;
-        use windows::Win32::Foundation::HWND;
-
+    pub fn new(parent_window: windows::Win32::Foundation::HWND, x: u32, y: u32, width: u32, height: u32) -> Self {
         Self {
-            parent_window: HWND(parent_window as *mut c_void),
+            parent_window,
             format: GsColorFormat::BGRA,
             zsformat: GsZstencilFormat::ZSNone,
             x,

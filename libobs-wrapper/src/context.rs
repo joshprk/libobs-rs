@@ -1,34 +1,18 @@
 use std::{
-    cell::RefCell,
-    collections::HashMap,
     ffi::CStr,
     pin::Pin,
     ptr,
-    rc::Rc,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     thread::{self, ThreadId},
 };
 
 use crate::{
-    crash_handler::main_crash_handler,
-    data::{output::ObsOutputRef, video::ObsVideoInfo},
-    display::{ObsDisplayCreationData, ObsDisplayRef},
-    enums::{ObsLogLevel, ObsResetVideoStatus},
-    logger::{extern_log_callback, internal_log_global, LOGGER},
-    scenes::ObsSceneRef,
-    unsafe_send::WrappedObsScene,
-    utils::{initialization::load_debug_privilege, ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
+    crash_handler::main_crash_handler, data::{output::ObsOutputRef, video::ObsVideoInfo}, display::{ObsDisplayCreationData, ObsDisplayRef, VertexBuffers}, enums::{ObsLogLevel, ObsResetVideoStatus}, logger::{extern_log_callback, internal_log_global, LOGGER}, scenes::ObsSceneRef, unsafe_send::WrappedObsScene, utils::{initialization::load_debug_privilege, ObsError, ObsModules, ObsString, OutputInfo, StartupInfo}
 };
 use anyhow::Result;
 use getters0::Getters;
 use libobs::{audio_output, video_output};
 static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
-
-// Note to developers of this library:
-// I've updated everything in the ObsContext to use Rc and RefCell.
-// Then the obs context shutdown hook is given to each children of for example scenes and displays.
-// That way, obs is not shut down as long as there are still displays or scenes alive.
-// This is a bit of a hack, but it works would be glad to hear your thoughts on this.
 
 /// Interface to the OBS context. Only one context
 /// can exist across all threads and any attempt to
@@ -39,38 +23,41 @@ static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 /// important! OBS is super specific about how it
 /// does everything. Things are freed early to
 /// latest from top to bottom.
-#[derive(Debug, Getters, Clone)]
+#[derive(Debug, Getters)]
 #[skip_new]
 pub struct ObsContext {
+    /// This string must be stored to keep the
+    /// pointer passed to libobs valid.
+    #[allow(dead_code)]
+    locale: ObsString,
     /// Stores startup info for safe-keeping. This
     /// prevents any use-after-free as these do not
     /// get copied in libobs.
-    startup_info: Rc<RefCell<StartupInfo>>,
+    startup_info: StartupInfo,
 
     #[get_mut]
-    // Key is display id, value is the display fixed in heap
-    displays: Rc<RefCell<HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>>>,
+    displays: Vec<Pin<Box<ObsDisplayRef>>>,
+
+    #[skip_getter]
+    vertex_buffers: VertexBuffers,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: Rc<RefCell<Vec<ObsOutputRef>>>,
+    pub(crate) outputs: Vec<ObsOutputRef>,
 
     #[get_mut]
-    pub(crate) scenes: Rc<RefCell<Vec<ObsSceneRef>>>,
+    pub(crate) scenes: Vec<ObsSceneRef>,
 
     #[skip_getter]
-    pub(crate) active_scene: Rc<RefCell<Option<WrappedObsScene>>>,
-
-    #[skip_getter]
-    pub(crate) _obs_modules: Rc<ObsModules>,
+    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 
     /// This allows us to call obs_shutdown() after
     /// everything else has been freed. Doing other-
     /// wise completely crashes the program.
     #[skip_getter]
-    context_shutdown_zst: Rc<ObsContextShutdownZST>,
+    _context_shutdown_zst: _ObsContextShutdownZST,
 }
 
 impl ObsContext {
@@ -162,6 +149,7 @@ impl ObsContext {
         let mut log_callback = LOGGER.lock().map_err(|_e| ObsError::MutexFailure)?;
 
         *log_callback = info.logger.take().expect("Logger can never be null");
+
         drop(log_callback);
 
         // Locale will only be used internally by
@@ -181,7 +169,7 @@ impl ObsContext {
             return Err(ObsError::Failure);
         }
 
-        let mut obs_modules = ObsModules::add_paths(&info.startup_paths);
+        ObsModules::add_paths(&info.startup_paths);
 
         // Note that audio is meant to only be reset
         // once. See the link below for information.
@@ -203,21 +191,25 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
-        obs_modules.load_modules();
+        let m = ObsModules::load_modules();
+        m.log_if_failed();
 
         internal_log_global(
             ObsLogLevel::Info,
             "==== Startup complete ===============================================".to_string(),
         );
 
+        let vertex_buffers = unsafe { VertexBuffers::initialize() };
+
         Ok(Self {
-            startup_info: Rc::new(RefCell::new(info)),
-            outputs: Rc::new(RefCell::new(vec![])),
-            displays: Rc::new(RefCell::new(HashMap::new())),
-            active_scene: Rc::new(RefCell::new(None)),
-            scenes: Rc::new(RefCell::new(vec![])),
-            _obs_modules: Rc::new(obs_modules),
-            context_shutdown_zst: Rc::new(ObsContextShutdownZST {}),
+            locale: locale_str,
+            startup_info: info,
+            outputs: vec![],
+            vertex_buffers,
+            displays: vec![],
+            active_scene: Arc::new(Mutex::new(None)),
+            scenes: vec![],
+            _context_shutdown_zst: _ObsContextShutdownZST {},
         })
     }
 
@@ -238,7 +230,7 @@ impl ObsContext {
     pub fn reset_video(&mut self, mut ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
-        if self.startup_info.borrow().obs_video_info.graphics_module() != ovi.graphics_module() {
+        if self.startup_info.obs_video_info.graphics_module() != ovi.graphics_module() {
             return Err(ObsError::ResetVideoFailureGraphicsModule);
         }
 
@@ -247,7 +239,7 @@ impl ObsContext {
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
-            for output in self.outputs.borrow().iter() {
+            for output in self.outputs.iter() {
                 for video_encoder in output.get_video_encoders().iter() {
                     unsafe {
                         libobs::obs_encoder_set_video(
@@ -258,7 +250,7 @@ impl ObsContext {
                 }
             }
 
-            self.startup_info.borrow_mut().obs_video_info = ovi;
+            self.startup_info.obs_video_info = ovi;
             return Ok(());
         }
     }
@@ -298,12 +290,12 @@ impl ObsContext {
     }
 
     pub fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
-        let output = ObsOutputRef::new(info, self.context_shutdown_zst.clone());
+        let output = ObsOutputRef::new(info.id, info.name, info.settings, info.hotkey_data);
 
         return match output {
             Ok(x) => {
                 let tmp = x.clone();
-                self.outputs.borrow_mut().push(x);
+                self.outputs.push(x);
                 Ok(tmp)
             }
 
@@ -311,14 +303,16 @@ impl ObsContext {
         };
     }
 
-    /// Creates a new display and returns its ID.
-    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
-        let display = ObsDisplayRef::new(data,  self.context_shutdown_zst.clone())
+    pub fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+        let display = ObsDisplayRef::new(&self.vertex_buffers, data)
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
-        let id = display.id();
-        self.displays.borrow_mut().insert(id, Rc::new(display));
-        Ok(id)
+        self.displays.push(display.clone());
+
+        Ok(display)
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplayRef) {
@@ -326,41 +320,30 @@ impl ObsContext {
     }
 
     pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.borrow_mut().remove(&id);
-    }
-
-    pub fn get_display_by_id(&self, id: usize) -> Option<Rc<Pin<Box<ObsDisplayRef>>>> {
-        self.displays.borrow().get(&id).cloned()
+        self.displays.retain(|x| x.id() != id);
     }
 
     pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
         self.outputs
-            .borrow()
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
     }
 
     pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
-        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone(),  self.context_shutdown_zst.clone());
-
+        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone());
         let tmp = scene.clone();
-        self.scenes.borrow_mut().push(scene);
 
+        self.scenes.push(scene);
         tmp
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct ObsContextShutdownZST {}
+struct _ObsContextShutdownZST {}
 
-impl Drop for ObsContextShutdownZST {
+impl Drop for _ObsContextShutdownZST {
     fn drop(&mut self) {
-        // Clean up sources
-        for i in 0..libobs::MAX_CHANNELS {
-            unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
-        }
-
         unsafe { libobs::obs_shutdown() }
 
         let r = LOGGER.lock();
@@ -369,14 +352,11 @@ impl Drop for ObsContextShutdownZST {
                 logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
                 let allocs = unsafe { libobs::bnum_allocs() };
 
-                // Increasing this to 1 because of whats described below
-                let level = if allocs > 1 {
+                let level = if allocs != 0 {
                     ObsLogLevel::Error
                 } else {
                     ObsLogLevel::Info
                 };
-                // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
-                // even when obs_remove_data_path is called. This is a bug in OBS.
                 logger.log(level, format!("Number of memory leaks: {}", allocs))
             }
             Err(_) => {

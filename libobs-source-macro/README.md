@@ -1,6 +1,6 @@
 # libOBS source macro
 
-This is a helper macro for the [libobs-sources crate](https://crates.io/crates/libobs-sources).
+This is a helper macro for the [libOBS sources crate](https://crates.io/crates/libobs-sources).
 
 ## Usage
 This is an example for the window_capture source:
@@ -21,4 +21,4 @@ pub struct WindowCaptureSourceBuilder {
     cursor: bool,
 }
 ```
-For more examples look at the [libobs-sources crate](https://github.com/joshprk/libobs-rs/tree/source-trait/libobs-sources).
+For more examples look at the [libOBS sources crate](https://github.com/sshcrack/libobs-rs/tree/source-trait/libobs-sources).

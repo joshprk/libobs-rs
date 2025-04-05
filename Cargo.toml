@@ -1,16 +1,15 @@
 [workspace]
-resolver = "2"
+resolver="2"
 members = [
     "cargo-obs-build",
     "libobs",
+    "libobs-segfault-trace",
     "libobs-source-macro",
     "libobs-sources",
     "libobs-window-helper",
-    "libobs-wrapper",
-    "examples/*",
-    "libobs-encoders/*",
+    "libobs-wrapper"
 ]
 
 [workspace.metadata]
-libobs-version = "31.0.3"
-libobs-cache-dir = "../obs-build"
+libobs-version="31.0.3"
+libobs-cache-dir="../obs-build"

@@ -1,13 +1,16 @@
 use std::{
     cell::RefCell,
     rc::Rc,
+    sync::{Arc, Mutex},
 };
 
 use getters0::Getters;
 use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
 
 use crate::{
-    context::ObsContextShutdownZST, sources::ObsSourceRef, unsafe_send::WrappedObsScene, utils::{ObsError, ObsString, SourceInfo}
+    sources::ObsSourceRef,
+    unsafe_send::WrappedObsScene,
+    utils::{ObsError, ObsString, SourceInfo},
 };
 
 #[derive(Debug)]
@@ -32,17 +35,14 @@ pub struct ObsSceneRef {
     #[get_mut]
     pub(crate) sources: Rc<RefCell<Vec<ObsSourceRef>>>,
     #[skip_getter]
-    pub(crate) active_scene: Rc<RefCell<Option<WrappedObsScene>>>,
+    pub(crate) active_scene: Arc<Mutex<Option<WrappedObsScene>>>,
 
     #[skip_getter]
     _guard: Rc<_SceneDropGuard>,
-
-    #[skip_getter]
-    _shutdown: Rc<ObsContextShutdownZST>,
 }
 
 impl ObsSceneRef {
-    pub(crate) fn new(name: ObsString, active_scene: Rc<RefCell<Option<WrappedObsScene>>>, shutdown: Rc<ObsContextShutdownZST>) -> Self {
+    pub fn new(name: ObsString, active_scene: Arc<Mutex<Option<WrappedObsScene>>>) -> Self {
         let scene = unsafe { obs_scene_create(name.as_ptr()) };
 
         Self {
@@ -53,12 +53,11 @@ impl ObsSceneRef {
             _guard: Rc::new(_SceneDropGuard {
                 scene: WrappedObsScene(scene),
             }),
-            _shutdown: shutdown
         }
     }
 
     pub fn add_and_set(&self, channel: u32) {
-        let mut s = self.active_scene.borrow_mut();
+        let mut s = self.active_scene.lock().unwrap();
         *s = Some(WrappedObsScene(self.as_ptr()));
 
         unsafe {

@@ -1,6 +1,7 @@
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+
 /// String wrapper for OBS function calls.
 ///
 /// This struct wraps `CString` internally with included helper

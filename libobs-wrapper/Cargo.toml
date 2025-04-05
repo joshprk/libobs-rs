@@ -1,8 +1,8 @@
 [package]
 name = "libobs-wrapper"
-description = "A safe wrapper around libobs"
-version = "2.0.3"
-repository = "https://github.com/joshprk/libobs-rs"
+description = "A safe wrapper around libobs-new"
+version = "0.2.2"
+repository = "https://github.com/sshcrack/libobs-rs"
 readme = "README.md"
 authors = ["sshcrack"]
 categories = [
@@ -16,35 +16,20 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.97"
-libobs = { package = "libobs", version = "2.0.3", path = "../libobs" }
-display-info = "0.5.4"
+anyhow = "1.0.91"
+libobs = { package = "libobs-new", version = "2.0.2", path = "../libobs" }
+display-info = "0.5.1"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 lazy_static = "1.5.0"
-crossbeam-channel = "0.5.14"
-log = "0.4.27"
+crossbeam-channel = "0.5.13"
+log = "0.4.22"
 vsprintf = "2.0.0"
-chrono = "0.4.40"
+chrono = "0.4.38"
 getters0 = "0.1.1"
 colored = { version = "3.0.0", optional = true }
 parking_lot = "0.12.3"
-oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
-async-stream = { version = "0.3.6", optional = true }
-futures-core = { version = "0.3.31", optional = true }
-futures-util = { version = "0.3.31", optional = true }
-semver = { version = "1.0.26", optional = true }
-tokio = { version = "1.44.1", optional = true, features = ["full"] }
-sevenz-rust = { version = "0.6.1", optional = true }
-async-trait = { version = "0.1.88", optional = true }
-sha2 = { version = "0.10.8", optional = true }
-uuid = { version = "1.16.0", optional = true, features = ["v4"] }
-reqwest = { version = "0.12.15", features = [
-    "stream",
-    "json",
-], optional = true }
-serde = { version = "1.0.219", optional = true, features = ["derive"] }
-hex = { version = "0.4.3", optional = true }
+oneshot = { version = "0.1.8", default-features = false, features = ["std"] }
 arboard = { version = "3.4.1", optional = true }
 dialog = { version = "0.3.0", optional = true }
 
@@ -60,22 +45,8 @@ windows = { version = "0.61.1", features = [
 ] }
 
 [features]
-default = ["color-logger", "downloader", "dialog_crash_handler"]
+default = ["color-logger", "dialog_crash_handler"]
 unsafe-send = []
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
-downloader = [
-    "dep:async-stream",
-    "dep:futures-core",
-    "dep:futures-util",
-    "dep:semver",
-    "dep:tokio",
-    "dep:sevenz-rust",
-    "dep:async-trait",
-    "dep:sha2",
-    "dep:uuid",
-    "dep:reqwest",
-    "dep:serde",
-    "dep:hex"
-]
