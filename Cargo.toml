@@ -7,10 +7,7 @@ members = [
     "libobs-sources",
     "libobs-window-helper",
     "libobs-wrapper",
-    "examples/download-at-runtime",
-    "examples/monitor-capture",
-    "examples/obs-preview",
-    "examples/tauri-example/src-tauri",
+    "examples/*",
     "libobs-encoders/*",
 ]
 
