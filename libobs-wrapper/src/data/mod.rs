@@ -13,6 +13,7 @@ mod lib_support;
 pub mod output;
 pub mod video;
 pub mod immutable;
+pub mod properties;
 pub use lib_support::*;
 
 /// Contains `obs_data` and its related strings. Note that

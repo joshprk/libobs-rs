@@ -1,10 +1,7 @@
-mod enums;
-
 use std::ffi::CStr;
 
-use enums::{ObsComboFormat, ObsPropertyType};
 use libobs::obs_get_encoder_properties;
-use libobs_wrapper::{context::ObsContext, encoders::ObsContextEncoders, utils::ObsString};
+use libobs_wrapper::{context::ObsContext, data::properties::{ObsComboFormat, ObsPropertyType}, encoders::ObsContextEncoders, utils::ObsString};
 use num_traits::FromPrimitive;
 
 fn main() -> anyhow::Result<()> {
