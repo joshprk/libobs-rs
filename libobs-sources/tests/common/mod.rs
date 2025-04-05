@@ -38,7 +38,7 @@ fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     Ok(total_seconds)
 }
 
-pub async fn test_video(vid_path: &Path) -> anyhow::Result<()> {
+pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
     check_ffmpeg().await?;
 
     let prog = FFmpeg::get_program()?.ok_or_else(|| anyhow::anyhow!("Couldn't find FFmpeg"))?;
@@ -93,7 +93,7 @@ pub async fn test_video(vid_path: &Path) -> anyhow::Result<()> {
 
     let black_duration = black_duration.parse::<f64>()?;
 
-    let max_no_black = 0.7;
+    let max_no_black = 0.7 / divider;
 
     if black_duration / duration > max_no_black {
         return Err(anyhow::anyhow!("Black duration too long, Invalid video"));

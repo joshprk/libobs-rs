@@ -40,7 +40,7 @@ fn get_encoders_raw(encoder_type: ObsEncoderType) -> Vec<String> {
                 }
             }
 
-            println!("Found encoder: {}", enc);
+            log::debug!("Found encoder: {}", enc);
             encoders.push(enc.into());
         }
     }

@@ -1,14 +1,17 @@
-use libobs::{obs_source, obs_data, obs_output, obs_display_t, obs_scene_t, obs_encoder, gs_vertex_buffer, obs_video_info};
+use libobs::{
+    obs_data, obs_display_t, obs_encoder, obs_output, obs_scene_t, obs_source,
+    obs_video_info,
+};
 use windows::Win32::Foundation::HWND;
 
 macro_rules! impl_send_sync {
     ($n:ident, $t:ty) => {
         #[derive(Debug)]
         pub struct $n(pub $t);
-    
-        #[cfg(feature="unsafe-send")]
+
+        #[cfg(feature = "unsafe-send")]
         unsafe impl Send for $n {}
-        #[cfg(feature="unsafe-send")]
+        #[cfg(feature = "unsafe-send")]
         unsafe impl Sync for $n {}
     };
 }
@@ -18,9 +21,9 @@ impl_send_sync! { WrappedObsOutput, *mut obs_output}
 impl_send_sync! { WrappedObsDisplay, *mut obs_display_t}
 impl_send_sync! { WrappedObsScene, *mut obs_scene_t}
 impl_send_sync! { WrappedObsEncoder, *mut obs_encoder}
-impl_send_sync! { WrappedGsVertexBuffer, *mut gs_vertex_buffer}
 impl_send_sync! { WrappedObsVideoInfo, obs_video_info}
 impl_send_sync! { WrappedObsSource, *mut obs_source}
+impl_send_sync! { WrappedVoidPtr, *mut std::ffi::c_void}
 impl_send_sync! { WrappedHWND, HWND }
 
 impl Clone for WrappedObsVideoInfo {

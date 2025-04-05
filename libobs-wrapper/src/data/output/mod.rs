@@ -8,10 +8,11 @@ use libobs::{
     audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video, obs_output_active, obs_output_create, obs_output_get_last_error, obs_output_get_name, obs_output_get_signal_handler, obs_output_release, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, signal_handler_connect, signal_handler_disconnect, video_output
 };
 
+use crate::context::ObsContextShutdownZST;
 use crate::enums::ObsOutputSignal;
 use crate::signals::{rec_output_signal, OUTPUT_SIGNALS};
 use crate::unsafe_send::WrappedObsOutput;
-use crate::utils::{AudioEncoderInfo, VideoEncoderInfo};
+use crate::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
@@ -63,29 +64,21 @@ pub struct ObsOutputRef {
     pub(crate) name: ObsString,
 
     #[skip_getter]
-    _drop_guard: Rc<_ObsDropGuard>
+    _drop_guard: Rc<_ObsDropGuard>,
+
+    #[skip_getter]
+    _shutdown: Rc<ObsContextShutdownZST>
 }
 
 
 impl ObsOutputRef {
-    pub fn new(
-        id: impl Into<ObsString>,
-        name: impl Into<ObsString>,
-        settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>,
-    ) -> Result<Self, ObsError> {
-        // Likely unnecessary as this is private and only
-        // constructible with ObsContext member functions.
-        /*if let Ok(thread_id) = wrapper::OBS_THREAD_ID.lock() {
-            if *thread_id != Some(thread::current().id()) {
-                return Err(ObsError::CreateThreadError)
-            }
-        } else {
-            panic!();
-        }*/
-
-        let id = id.into();
-        let name = name.into();
+    pub(crate) fn new(output: OutputInfo, context: Rc<ObsContextShutdownZST>) -> Result<Self, ObsError> {
+        let OutputInfo {
+            id,
+            name,
+            settings,
+            hotkey_data,
+        } = output;
 
         let settings_ptr = match settings.as_ref() {
             Some(x) => x.as_ptr(),
@@ -126,6 +119,7 @@ impl ObsOutputRef {
             _drop_guard: Rc::new(_ObsDropGuard {
                 output: WrappedObsOutput(output),
             }),
+            _shutdown: context
         })
     }
 

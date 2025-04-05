@@ -2,7 +2,10 @@
     "files.associations": {
         "*.scss": "scss",
         "math.h": "c",
-        "vec4.h": "c"
+        "vec4.h": "c",
+        "corecrt_math.h": "c",
+        "corecrt.h": "c",
+        "vcruntime.h": "c"
     },
     "rust-analyzer.cargo.targetDir": true
 }
