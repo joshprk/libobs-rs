@@ -65,3 +65,17 @@ unsafe-send = []
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
+downloader = [
+    "dep:async-stream",
+    "dep:futures-core",
+    "dep:futures-util",
+    "dep:semver",
+    "dep:tokio",
+    "dep:sevenz-rust",
+    "dep:async-trait",
+    "dep:sha2",
+    "dep:uuid",
+    "dep:reqwest",
+    "dep:serde",
+    "dep:hex"
+]
