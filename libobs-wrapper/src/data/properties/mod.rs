@@ -1,6 +1,7 @@
 mod enums;
 mod macros;
 pub mod types;
+pub mod prop_impl;
 
 use std::ffi::CStr;
 
