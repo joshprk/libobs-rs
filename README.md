@@ -17,4 +17,4 @@ Compiled Windows DLLs for libobs can be found at https://github.com/joshprk/libo
 
 Below is an example that will record video-only footage of an exclusive fullscreen application. Note that the API is extremely limited right now, but you can already record both video and audio with full control over the output already. If you need more, libobs is exposed.
 
-For examples look at [libobs-sources](./libobs-sources/README.md) or the [wrapper](./libobs-wrapper/README.md).
+For examples look at [libobs-sources](./libobs-sources/README.md) or the [wrapper](./libobs-wrapper/README.md).sadf
