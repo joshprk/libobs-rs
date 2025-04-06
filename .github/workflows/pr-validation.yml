@@ -1,0 +1,64 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-test:
+    name: Build and Test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.cargo/bin
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install cargo-obs-build
+        run: |
+          if ! command -v cargo-obs-build &> /dev/null; then
+            cargo install cargo-obs-build
+          fi
+        shell: bash
+
+      # Run cargo obs-build for debug build
+      - name: Set up OBS dependencies for debug
+        run: cargo obs-build --out-dir target/debug
+        shell: bash
+
+      # Run tests in debug mode
+      - name: Test debug build
+        run: cargo test
+        shell: bash
+
+      # Run cargo obs-build for release build
+      - name: Set up OBS dependencies for release
+        run: cargo obs-build --out-dir target/release
+        shell: bash
+
+      # Run tests in release mode
+      - name: Test release build
+        run: cargo test --release
+        shell: bash
+
+      # Run cargo check to ensure code will compile
+      - name: Check code compilation
+        run: cargo check --all
+        shell: bash
