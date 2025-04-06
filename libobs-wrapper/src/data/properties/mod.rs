@@ -38,6 +38,10 @@ pub enum ObsProperty {
     EditableList(ObsEditableListProperty),
     /// A frame rate property
     FrameRate(ObsFrameRateProperty),
+    /// A group property
+    Group(ObsGroupProperty),
+    /// A color alpha property
+    ColorAlpha(ObsColorAlphaProperty),
 }
 
 pub trait ObsPropertyObjectPrivate {
