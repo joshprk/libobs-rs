@@ -10,8 +10,6 @@ pub use enums::*;
 use num_traits::FromPrimitive;
 use types::*;
 
-
-
 #[derive(Debug, Clone)]
 pub enum ObsProperty {
     /// A property that is not valid
@@ -53,7 +51,11 @@ pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
     fn get_properties(&self) -> anyhow::Result<Vec<ObsProperty>> {
         let properties = self.get_properties_raw();
-        let mut props = Vec::new();
+        let mut result = Vec::new();
+
+        if properties.is_null() {
+            return Ok(result);
+        }
 
         let mut property = unsafe { libobs::obs_properties_first(properties) };
         while !property.is_null() {
@@ -61,26 +63,21 @@ pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
             let name = unsafe { CStr::from_ptr(name as _) };
             let name = name.to_str()?.to_string();
 
-            let description = unsafe { libobs::obs_property_description(property) };
-            let description = unsafe { CStr::from_ptr(description as _) };
-            let description = description.to_str()?.to_string();
-
             let p_type = unsafe { libobs::obs_property_get_type(property) };
             let p_type = ObsPropertyType::from_i32(p_type);
 
-            if p_type.is_none() {
-                props.push(ObsProperty::Invalid(name));
-                continue;
+            match p_type {
+                Some(p_type) => {
+                    result.push(p_type.to_property_struct(property)?);
+                }
+                None => result.push(ObsProperty::Invalid(name)),
             }
-
-            let p_type = p_type.unwrap();
 
             // Move to the next property
             unsafe { libobs::obs_property_next(&mut property) };
         }
-
         unsafe { libobs::obs_properties_destroy(properties) };
 
-        Ok(props)
+        Ok(result)
     }
 }
