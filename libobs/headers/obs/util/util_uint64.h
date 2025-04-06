@@ -16,8 +16,9 @@
 
 #pragma once
 
-#ifdef _MSC_VER
-#include <intrin.h>  // Required for _umul128 and _udiv128 intrinsics
+
+#if defined(_MSC_VER) && defined(_M_X64)
+#include <intrin.h>
 #endif
 
 static inline uint64_t util_mul_div64(uint64_t num, uint64_t mul, uint64_t div)
