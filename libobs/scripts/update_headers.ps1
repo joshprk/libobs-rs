@@ -1,6 +1,6 @@
 param(
-    [string]$Branch = "",  # Allow specifying branch as a parameter
-    [string]$Repository="obsproject/obs-studio"
+    [string]$Branch = "", # Allow specifying branch as a parameter
+    [string]$Repository = "obsproject/obs-studio"
 )
 
 # Function to get the latest release tag from GitHub
@@ -72,5 +72,7 @@ foreach ($file in $headerFiles) {
 
 Write-Host "Cleaning up temporary directory..."
 Remove-Item -Path $tempDir -Recurse -Force
+
+git -C $PSScriptRoot/../ apply $PSScriptRoot/patches/001_gh_action_fix_compile.patch
 
 Write-Host "Header files updated successfully!"

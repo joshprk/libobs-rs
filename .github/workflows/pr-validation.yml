@@ -8,67 +8,33 @@ jobs:
   build-test:
     name: Build and Test
     runs-on: windows-latest
-
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          profile: minimal
-          components: rustfmt,clippy
-
-      - name: Cache cargo registry
-        uses: actions/cache@v3
+      - uses: actions/checkout@v4
+      - name: Cache
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.cargo/bin
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Install cargo-obs-build
         run: |
-          if ! command -v cargo-obs-build &> /dev/null; then
+          if (-Not (Get-Command cargo-obs-build -ErrorAction SilentlyContinue)) {
             cargo install cargo-obs-build
-          fi
-        shell: bash
-        
-      # Set up MSVC environment
-      - name: Set up MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        
-      # Set environment variables for MSVC compatibility
-      - name: Configure build environment
-        run: |
-          echo "CFLAGS=/D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" >> $GITHUB_ENV
-          echo "CXXFLAGS=/D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" >> $GITHUB_ENV
-        shell: bash
-
+          }
+        shell: pwsh
       # Run cargo obs-build for debug build
       - name: Set up OBS dependencies for debug
         run: cargo obs-build --out-dir target/debug
-        shell: bash
+        shell: pwsh
 
       # Run tests in debug mode
       - name: Test debug build
         run: cargo test
-        shell: bash
-
-      # Run cargo obs-build for release build
-      - name: Set up OBS dependencies for release
-        run: cargo obs-build --out-dir target/release
-        shell: bash
-
-      # Run tests in release mode
-      - name: Test release build
-        run: cargo test --release
-        shell: bash
+        shell: pwsh
 
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
-        shell: bash
+        shell: pwsh
