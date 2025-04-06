@@ -37,6 +37,17 @@ jobs:
             cargo install cargo-obs-build
           fi
         shell: bash
+        
+      # Set up MSVC environment
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        
+      # Set environment variables for MSVC compatibility
+      - name: Configure build environment
+        run: |
+          echo "CFLAGS=/D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" >> $GITHUB_ENV
+          echo "CXXFLAGS=/D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" >> $GITHUB_ENV
+        shell: bash
 
       # Run cargo obs-build for debug build
       - name: Set up OBS dependencies for debug
