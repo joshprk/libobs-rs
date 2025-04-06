@@ -4,8 +4,6 @@ use std::{
     ptr,
 };
 
-use libobs_new as libobs;
-
 fn main() {
     // STARTUP
     unsafe {
@@ -59,6 +57,24 @@ fn main() {
         let curr_exe = current_exe().unwrap();
         let curr_exe = curr_exe.parent().unwrap();
 
+        println!("Adding module path");
+        let module_bin_path =
+            CString::new(curr_exe.join("./obs-plugins/64bit/").to_str().unwrap()).unwrap();
+        let module_path = curr_exe.join("./data/obs-plugins/%module%/");
+        let module_data_path = module_path.to_str().unwrap();
+        let module_data_path = CString::new(module_data_path).unwrap();
+        println!(
+            "Module bin path pointer: {:?}",
+            module_bin_path.to_str().unwrap()
+        );
+        println!(
+            "Module data path pointer: {:?}",
+            module_data_path.to_str().unwrap()
+        );
+
+        libobs::obs_add_module_path(module_bin_path.as_ptr(), module_data_path.as_ptr());
+
+        println!("Module paths added successfully");
         let data_path = curr_exe.join("./data/libobs/");
         let data_path = data_path.to_str().unwrap();
 
@@ -66,19 +82,8 @@ fn main() {
         let data_path = CString::new(data_path).unwrap();
         println!("Data path pointer: {:?}", data_path.as_ptr());
         libobs::obs_add_data_path(data_path.as_ptr());
+
         println!("Data path added successfully");
-
-        println!("Adding module path");
-        let module_bin_path =
-            CString::new(curr_exe.join("./obs-plugins/64bit/").to_str().unwrap()).unwrap();
-        let module_path = curr_exe.join("./data/obs-plugins/%module%/");
-        let module_data_path = module_path.to_str().unwrap();
-        let module_data_path = CString::new(module_data_path).unwrap();
-        println!("Module bin path pointer: {:?}", module_bin_path.to_str().unwrap());
-        println!("Module data path pointer: {:?}", module_data_path.to_str().unwrap());
-
-        libobs::obs_add_module_path(module_bin_path.as_ptr(), module_data_path.as_ptr());
-        println!("Module paths added successfully");
 
         // Audio settings
         println!("Configuring audio settings");
@@ -124,7 +129,7 @@ fn main() {
         };
 
         println!("Resetting video system");
-       let reset_video_code = libobs::obs_reset_video(&mut ovi);
+        let reset_video_code = libobs::obs_reset_video(&mut ovi);
         if reset_video_code != 0 {
             panic!("error on libobs reset video: {}", reset_video_code);
         }
@@ -143,7 +148,11 @@ fn main() {
         libobs::obs_data_set_string(
             video_source_settings,
             CString::new("monitor_id").unwrap().as_ptr(),
-            CString::new("\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").unwrap().as_ptr(),
+            CString::new(
+                "\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}",
+            )
+            .unwrap()
+            .as_ptr(),
         );
 
         libobs::obs_data_set_int(
@@ -294,11 +303,19 @@ fn main() {
         libobs::obs_encoder_release(video_encoder);
 
         libobs::obs_source_release(audio_source);
+
         libobs::obs_source_release(video_source);
 
+        // Clear sources
+        libobs::obs_set_output_source(0, ptr::null_mut()); // 0 = VIDEO CHANNEL
+        libobs::obs_set_output_source(1, ptr::null_mut()); // 1 = Audio channel
+        libobs::obs_remove_data_path(data_path.as_ptr());
         libobs::obs_shutdown();
 
-        println!("OBS shutdown completed with {} memleaks", libobs::bnum_allocs());
+        println!(
+            "OBS shutdown completed with {} memleaks",
+            libobs::bnum_allocs()
+        );
     }
 }
 

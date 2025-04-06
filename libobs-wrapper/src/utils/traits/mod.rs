@@ -2,6 +2,7 @@ use crate::data::{ObsData, ObsObjectUpdater};
 
 pub trait ObsUpdatable {
     /// Updates the object with the current settings.
+    /// Note that this example requires the `libobs-sources` crate.
     /// ## Example usage
     /// ```rust
     /// use libobs_wrapper::data::ObsObjectUpdater;
