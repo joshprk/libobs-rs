@@ -11,7 +11,7 @@ pub mod scenes;
 #[cfg(feature="bootstrapper")]
 pub mod bootstrap;
 
-#[cfg(feature="unsafe-send")]
+#[cfg(feature="runtime")]
 pub mod runtime;
 
 pub mod utils;

@@ -62,8 +62,9 @@ windows = { version = "0.61.1", features = [
 ] }
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "bootstrapper"]
+default = ["color-logger", "dialog_crash_handler", "bootstrapper", "runtime"]
 unsafe-send = []
+runtime = [ "unsafe-send" ]
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
