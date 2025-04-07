@@ -31,7 +31,7 @@ jobs:
 
       # Run tests in debug mode
       - name: Test debug build
-        run: cargo test
+        run: cargo test -- --nocapture
         shell: pwsh
 
       # Run cargo check to ensure code will compile
