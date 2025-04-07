@@ -22,7 +22,7 @@ use crate::{
 use anyhow::Result;
 use getters0::Getters;
 use libobs::{audio_output, video_output};
-static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
+pub(crate) static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 
 // Note to developers of this library:
 // I've updated everything in the ObsContext to use Rc and RefCell.

@@ -18,8 +18,9 @@ mod extract;
 mod github_types;
 mod options;
 mod version;
+pub mod status_handler;
 
-pub use options::ObsDownloaderOptions;
+pub use options::ObsBootstrapperOptions;
 
 pub enum BootstrapStatus {
     /// Downloading status (first is progress from 0.0 to 1.0 and second is message)
@@ -54,12 +55,12 @@ pub enum BootstrapStatus {
 /// [Example project](https://github.com/joshprk/libobs-rs/tree/main/examples/download-at-runtime)
 pub trait ObsBootstrap {
     fn is_valid_installation() -> anyhow::Result<bool>;
-    fn should_update() -> anyhow::Result<bool>;
+    fn is_update_available() -> anyhow::Result<bool>;
 
     /// Downloads the latest version of OBS from the specified repository and extracts it to a temporary directory.
     /// Puts the required dll files in the directory of the executable.
     async fn bootstrap(
-        options: options::ObsDownloaderOptions,
+        options: options::ObsBootstrapperOptions,
     ) -> anyhow::Result<impl Stream<Item = BootstrapStatus>>;
 
     /// This function is used to spawn the updater process. For more info see `BootstrapStatus::RestartRequired`.
@@ -93,7 +94,7 @@ impl ObsBootstrap for ObsContext {
         Ok(installed.is_some())
     }
 
-    fn should_update() -> anyhow::Result<bool> {
+    fn is_update_available() -> anyhow::Result<bool> {
         let installed = version::get_installed_version(&get_obs_dll_path()?)?;
         if installed.is_none() {
             return Ok(true);
@@ -104,10 +105,15 @@ impl ObsBootstrap for ObsContext {
     }
 
     async fn bootstrap(
-        options: options::ObsDownloaderOptions,
+        options: options::ObsBootstrapperOptions,
     ) -> anyhow::Result<impl Stream<Item = BootstrapStatus>> {
         let repo = options.repository.to_string();
-        let update = Self::should_update()?;
+        let update = if options.update {
+            Self::is_update_available()?
+        } else {
+            Self::is_valid_installation()?
+        };
+
         Ok(stream! {
             if !update {
                 return;
@@ -166,6 +172,12 @@ impl ObsBootstrap for ObsContext {
                         yield BootstrapStatus::Extracting(progress, message);
                     }
                 }
+            }
+
+            let r = Self::spawn_updater().await;
+            if let Err(err) = r {
+                yield BootstrapStatus::Error(err);
+                return;
             }
 
             yield BootstrapStatus::RestartRequired;
