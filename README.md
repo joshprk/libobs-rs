@@ -17,7 +17,7 @@ Install the tool
 ```bash
 cargo install cargo-obs-build
 ```
-
+sadfasd
 > [!NOTE]
 > There is now a new bootstrapper that can download and install OBS binaries at runtime, which is useful for distributing applications without requiring users to install OBS separately. See the [OBS Bootstrapper](./libobs-wrapper/README.md#obs-bootstrapper) section for more details.
 
@@ -48,3 +48,4 @@ Below is an example that will record video-only footage of an exclusive fullscre
 
 Examples are located in the [examples](./examples) directory.
 Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).
+
