@@ -26,7 +26,7 @@ jobs:
         shell: pwsh
       # Run cargo obs-build for debug build
       - name: Set up OBS dependencies for debug
-        run: cargo obs-build --out-dir target/debug
+        run: cargo obs-build --out-dir target/debug/deps
         shell: pwsh
 
       # Run tests in debug mode

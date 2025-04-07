@@ -12,7 +12,8 @@ members = [
     "examples/download-at-runtime",
     "examples/monitor-capture",
     "examples/obs-preview",
-    "examples/tauri-app/src-tauri",
+    # Excluding Tauri for now because it makes checks ten times slower
+    # "examples/tauri-app/src-tauri",
 ]
 
 [workspace.metadata]

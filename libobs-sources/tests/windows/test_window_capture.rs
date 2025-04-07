@@ -35,7 +35,7 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-    let (mut context, output_name) = initialize_obs(rec_file);
+    let mut context = initialize_obs(rec_file);
     let mut scene = context.scene("main");
     scene.add_and_set(0);
 
@@ -45,7 +45,7 @@ pub async fn test_window_capture() {
         .add_to_scene(&mut scene)
         .unwrap();
 
-    let output = context.get_output(&output_name).unwrap();
+    let mut output = context.outputs().borrow()[0].clone();
     output.start().unwrap();
     println!("Recording started");
 
@@ -68,8 +68,6 @@ pub async fn test_window_capture() {
     }
     println!("Recording stop");
 
-    let mut output = context.get_output(&output_name).unwrap();
     output.stop().unwrap();
-
     test_video(&path_out, 1.0).await.unwrap();
 }

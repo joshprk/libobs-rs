@@ -2,7 +2,7 @@ use env_logger::Env;
 use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
 use std::{env::current_dir, fs::File, io::Write};
 
-pub fn initialize_obs<'a>(rec_file: ObsString) -> (ObsContext, String) {
+pub fn initialize_obs<'a>(rec_file: impl Into<ObsString>) -> ObsContext {
     initialize_obs_with_log(rec_file, false)
 }
 
@@ -21,7 +21,7 @@ impl ObsLogger for DebugLogger {
 }
 
 /// The string returned is the name of the obs output
-pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (ObsContext, String) {
+pub fn initialize_obs_with_log<'a>(rec_file: impl Into<ObsString>, file_logger: bool) -> ObsContext {
     let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug")).is_test(true).try_init();
 
     // Start the OBS context
@@ -80,5 +80,5 @@ pub fn initialize_obs_with_log<'a>(rec_file: ObsString, file_logger: bool) -> (O
     let audio_handler = ObsContext::get_audio_ptr().unwrap();
     output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
-    (context, output_name.to_string())
+    context
 }
