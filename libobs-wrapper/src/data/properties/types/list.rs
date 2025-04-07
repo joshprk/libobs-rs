@@ -21,13 +21,13 @@ pub struct ObsListItem {
     disabled: bool,
 }
 
-#[derive(Debug, Getters, Clone)]
-#[skip_new]
+#[derive(Debug, Clone)]
 pub enum ObsListItemValue {
     String(String),
     Int(i64),
     Float(f64),
     Bool(bool),
+    Invalid
 }
 
 impl ObsListItem {
@@ -65,7 +65,7 @@ impl From<PropertyCreationInfo> for ObsListProperty {
             };
             let is_disabled = unsafe { libobs::obs_property_list_item_disabled(pointer, i) };
             let value = match format {
-                ObsComboFormat::Invalid => todo!(),
+                ObsComboFormat::Invalid => ObsListItemValue::Invalid,
                 ObsComboFormat::Int => {
                     let int_val = unsafe { libobs::obs_property_list_item_int(pointer, i) };
                     ObsListItemValue::Int(int_val)
