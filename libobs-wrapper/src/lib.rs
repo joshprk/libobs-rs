@@ -11,5 +11,8 @@ pub mod scenes;
 #[cfg(feature="bootstrapper")]
 pub mod bootstrap;
 
+#[cfg(feature="runtime")]
+pub mod runtime;
+
 pub mod utils;
 pub mod enums;

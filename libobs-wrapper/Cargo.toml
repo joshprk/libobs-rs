@@ -56,13 +56,15 @@ windows = { version = "0.61.1", features = [
     "Win32_Graphics_Gdi",
     "Win32_System_LibraryLoader",
     "Win32_System_SystemInformation",
+    "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
     "Win32_Security"
 ] }
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "bootstrapper"]
+default = ["color-logger", "dialog_crash_handler", "bootstrapper", "runtime"]
 unsafe-send = []
+runtime = [ "unsafe-send" ]
 color-logger = ["dep:colored"]
 debug-tracing = ["libobs/debug-tracing"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]

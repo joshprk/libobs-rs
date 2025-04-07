@@ -3,6 +3,8 @@ impl_general_property!(Color);
 mod editable_list;
 impl_general_property!(Font);
 impl_general_property!(FrameRate);
+impl_general_property!(Group);
+impl_general_property!(ColorAlpha);
 mod list;
 mod number;
 mod path;
@@ -55,6 +57,8 @@ impl ObsPropertyType {
             ObsPropertyType::Font => ObsProperty::Font(ObsFontProperty::from(info)),
             ObsPropertyType::EditableList => ObsProperty::EditableList(ObsEditableListProperty::from(info)),
             ObsPropertyType::FrameRate => ObsProperty::FrameRate(ObsFrameRateProperty::from(info)),
+            ObsPropertyType::Group => ObsProperty::Group(ObsGroupProperty::from(info)),
+            ObsPropertyType::ColorAlpha => ObsProperty::ColorAlpha(ObsColorAlphaProperty::from(info))
         };
 
         Ok(res)

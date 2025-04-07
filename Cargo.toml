@@ -7,8 +7,12 @@ members = [
     "libobs-sources",
     "libobs-window-helper",
     "libobs-wrapper",
-    "examples/*",
     "libobs-encoders/*",
+
+    "examples/download-at-runtime",
+    "examples/monitor-capture",
+    "examples/obs-preview",
+    "examples/tauri-app/src-tauri",
 ]
 
 [workspace.metadata]
