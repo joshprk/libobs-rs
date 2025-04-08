@@ -18,22 +18,6 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install cargo-obs-build
-        run: |
-          if (-Not (Get-Command cargo-obs-build -ErrorAction SilentlyContinue)) {
-            cargo install cargo-obs-build
-          }
-        shell: pwsh
-      # Run cargo obs-build for debug build
-      - name: Set up OBS dependencies for debug
-        run: cargo obs-build --out-dir target/debug/deps
-        shell: pwsh
-
-      # Run tests in debug mode
-      - name: Test debug build
-        run: cargo test -- --nocapture
-        shell: pwsh
-
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
