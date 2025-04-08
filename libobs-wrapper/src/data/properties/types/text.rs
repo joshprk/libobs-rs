@@ -8,7 +8,7 @@ use super::PropertyCreationInfo;
 #[skip_new]
 pub struct ObsTextProperty {
     name: String,
-    description: String,
+    description: Option<String>,
     monospace: bool,
     text_type: ObsTextType,
     info_type: ObsTextInfoType,

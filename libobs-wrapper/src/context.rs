@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     crash_handler::main_crash_handler,
-    data::{output::ObsOutputRef, video::ObsVideoInfo},
+    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
     display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
@@ -339,6 +339,18 @@ impl ObsContext {
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
+    }
+
+    pub fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
+        match self
+            .outputs
+            .borrow_mut()
+            .iter_mut()
+            .find(|x| x.name().to_string().as_str() == name)
+        {
+            Some(output) => output.update_settings(settings),
+            None => Err(ObsError::OutputNotFound),
+        }
     }
 
     pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
