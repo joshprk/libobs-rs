@@ -8,7 +8,7 @@ use super::PropertyCreationInfo;
 #[skip_new]
 pub struct ObsButtonProperty {
     name: String,
-    description: String,
+    description: Option<String>,
     button_type: ObsButtonType,
     url: Option<String>,
 }

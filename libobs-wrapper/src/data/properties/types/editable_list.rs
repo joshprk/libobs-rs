@@ -8,7 +8,7 @@ use super::PropertyCreationInfo;
 #[skip_new]
 pub struct ObsEditableListProperty {
     name: String,
-    description: String,
+    description: Option<String>,
     list_type: ObsEditableListType,
     filter: String,
     default_path: String,

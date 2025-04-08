@@ -18,7 +18,7 @@ macro_rules! impl_general_property {
             #[skip_new]
             pub struct [<Obs $type Property>] {
                 name: String,
-                description: String
+                description: Option<String>
             }
             impl From<crate::data::properties::PropertyCreationInfo> for [<Obs $type Property>] {
                 fn from(

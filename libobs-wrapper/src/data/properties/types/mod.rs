@@ -12,7 +12,7 @@ mod text;
 
 pub(crate) struct PropertyCreationInfo {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub pointer: *mut libobs::obs_property,
 }
 
@@ -35,8 +35,12 @@ impl ObsPropertyType {
         let name = name.to_str()?.to_string();
 
         let description = unsafe { libobs::obs_property_description(pointer) };
-        let description = unsafe { CStr::from_ptr(description) };
-        let description = description.to_str()?.to_string();
+        let description = if description.is_null() {
+            None
+        } else {
+            let description = unsafe { CStr::from_ptr(description) };
+            Some(description.to_str()?.to_string())
+        };
 
         let info = PropertyCreationInfo {
             name,

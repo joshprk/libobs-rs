@@ -9,7 +9,7 @@ where
     T: Clone + Copy + std::fmt::Debug,
 {
     name: String,
-    description: String,
+    description: Option<String>,
     min: T,
     max: T,
     step: T,
