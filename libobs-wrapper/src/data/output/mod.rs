@@ -152,9 +152,10 @@ impl ObsOutputRef {
         if unsafe { !obs_output_active(self.output.0) } {
             unsafe { obs_output_update(self.output.0, settings.as_ptr()) }
             self.settings.borrow_mut().replace(settings);
+            Ok(())
+        } else {
+            Err(ObsError::OutputAlreadyActive)
         }
-
-        Err(ObsError::OutputAlreadyActive)
     }
 
     pub fn audio_encoder(

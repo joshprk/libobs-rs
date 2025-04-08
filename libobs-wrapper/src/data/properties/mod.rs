@@ -3,6 +3,9 @@ mod macros;
 pub mod types;
 pub mod prop_impl;
 
+#[cfg(test)]
+mod test;
+
 use std::ffi::CStr;
 
 use libobs::obs_properties;
@@ -96,3 +99,4 @@ pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
         get_properties_inner(properties_raw)
     }
 }
+
