@@ -2552,6 +2552,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "obs-flow"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "libobs-wrapper",
+]
+
+[[package]]
 name = "obs-preview"
 version = "0.1.0"
 dependencies = [
