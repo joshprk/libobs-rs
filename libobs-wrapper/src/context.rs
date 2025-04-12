@@ -361,6 +361,14 @@ impl ObsContext {
 
         tmp
     }
+
+    pub fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
+        self.scenes
+            .borrow()
+            .iter()
+            .find(|x| x.name().to_string().as_str() == name)
+            .map(|e| e.clone())
+    }
 }
 
 #[derive(Debug)]

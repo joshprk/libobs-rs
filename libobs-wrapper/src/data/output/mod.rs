@@ -148,6 +148,21 @@ impl ObsOutputRef {
         };
     }
 
+    pub fn set_video_encoder(&mut self, encoder: ObsVideoEncoder) -> Result<(), ObsError> {
+        if encoder.encoder.0.is_null() {
+            return Err(ObsError::NullPointer);
+        }
+
+        unsafe { obs_output_set_video_encoder(self.output.0, encoder.as_ptr()) }
+
+        if !self.video_encoders.borrow().iter().any(|x| x.encoder.0 == encoder.as_ptr()) {
+            let tmp = Rc::new(encoder);
+            self.video_encoders.borrow_mut().push(tmp.clone());
+        }
+        
+        Ok(())
+    }
+
     pub fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
         if unsafe { !obs_output_active(self.output.0) } {
             unsafe { obs_output_update(self.output.0, settings.as_ptr()) }
@@ -184,6 +199,21 @@ impl ObsOutputRef {
             }
             Err(x) => Err(x),
         };
+    }
+
+    pub fn set_audio_encoder(&mut self, encoder: ObsAudioEncoder, mixer_idx: usize) -> Result<(), ObsError> {
+        if encoder.encoder.0.is_null() {
+            return Err(ObsError::NullPointer);
+        }
+
+        unsafe { obs_output_set_audio_encoder(self.output.0, encoder.encoder.0, mixer_idx) }
+
+        if !self.audio_encoders.borrow().iter().any(|x| x.encoder.0 == encoder.encoder.0) {
+            let tmp = Rc::new(encoder);
+            self.audio_encoders.borrow_mut().push(tmp.clone());
+        }
+        
+        Ok(())
     }
 
     pub fn start(&self) -> Result<(), ObsError> {
