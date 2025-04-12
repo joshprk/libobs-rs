@@ -91,15 +91,13 @@ impl ObsRuntime {
         ObsRuntimeOptions::new()
     }
 
-    async fn startup(options: ObsRuntimeOptions) -> anyhow::Result<ObsRuntimeReturn> {
-        let obs_id = OBS_THREAD_ID.lock();
-        if obs_id.is_err() {
-            return Err(anyhow::anyhow!("Couldn't lock OBS thread ID"));
-        }
-
-        if obs_id.unwrap().is_some() {
+    async fn startup(mut options: ObsRuntimeOptions) -> anyhow::Result<ObsRuntimeReturn> {
+        let obs_id = OBS_THREAD_ID.lock().await;
+        if obs_id.is_some() {
             return Err(anyhow::anyhow!("OBS is already running"));
         }
+
+        drop(obs_id);
 
         #[cfg(not(feature = "bootstrapper"))]
         return Ok(ObsRuntime::init(options.startup_info).await?);
@@ -109,31 +107,36 @@ impl ObsRuntime {
             use crate::bootstrap::BootstrapStatus;
             use futures_util::{pin_mut, StreamExt};
 
+            log::trace!("Starting bootstrapper");
             let stream = ObsContext::bootstrap(options.bootstrapper_options).await?;
-            pin_mut!(stream);
+            if let Some(stream) = stream {
+                pin_mut!(stream);
 
-            while let Some(item) = stream.next().await {
-                match item {
-                    BootstrapStatus::Downloading(progress, message) => {
-                        if let Some(handler) = &options.bootstrap_handler {
-                            handler.handle_downloading(progress, message).await?;
+                log::trace!("Waiting for bootstrapper to finish");
+                while let Some(item) = stream.next().await {
+                    match item {
+                        BootstrapStatus::Downloading(progress, message) => {
+                            if let Some(handler) = &mut options.bootstrap_handler {
+                                handler.handle_downloading(progress, message).await?;
+                            }
                         }
-                    }
-                    BootstrapStatus::Extracting(progress, message) => {
-                        if let Some(handler) = &options.bootstrap_handler {
-                            handler.handle_extraction(progress, message).await?;
+                        BootstrapStatus::Extracting(progress, message) => {
+                            if let Some(handler) = &mut options.bootstrap_handler {
+                                handler.handle_extraction(progress, message).await?;
+                            }
                         }
-                    }
-                    BootstrapStatus::Error(err) => {
-                        return Err(err);
-                    }
-                    BootstrapStatus::RestartRequired => {
-                        return Ok(ObsRuntimeReturn::Restart);
+                        BootstrapStatus::Error(err) => {
+                            return Err(err);
+                        }
+                        BootstrapStatus::RestartRequired => {
+                            return Ok(ObsRuntimeReturn::Restart);
+                        }
                     }
                 }
             }
         }
 
+        log::trace!("Initializing OBS context");
         return Ok(ObsRuntimeReturn::Done(
             ObsRuntime::init(options.startup_info).await?,
         ));
@@ -144,11 +147,16 @@ impl ObsRuntime {
         let (init_tx, init_rx) = oneshot::channel();
 
         let handle = std::thread::spawn(move || {
+            log::trace!("Starting OBS thread");
             // Initialize OBS on this thread
             let res = ObsContext::new(info);
             match res {
                 Ok(mut context) => {
-                    let _ = init_tx.send(Ok(()));
+                    log::trace!("OBS context initialized successfully");
+                    let e = init_tx.send(Ok(()));
+                    if let Err(err) = e {
+                        log::error!("Failed to send initialization signal: {:?}", err);
+                    }
 
                     // Process commands until termination
                     while let Ok(command) = command_receiver.recv() {
@@ -165,11 +173,13 @@ impl ObsRuntime {
                     }
                 }
                 Err(err) => {
+                    log::error!("Failed to initialize OBS context: {:?}", err);
                     let _ = init_tx.send(Err(err));
                 }
             }
         });
 
+        log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
         init_rx.await??;
 

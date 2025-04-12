@@ -9,12 +9,9 @@ members = [
     "libobs-wrapper",
     "libobs-encoders/*",
 
-    "examples/download-at-runtime",
-    "examples/monitor-capture",
-    "examples/obs-preview",
-    # Excluding Tauri for now because it makes checks ten times slower
-    # "examples/tauri-app/src-tauri",
+    "examples/*",
 ]
+exclude = ["examples/tauri-app"]
 
 [workspace.metadata]
 libobs-version = "31.0.3"

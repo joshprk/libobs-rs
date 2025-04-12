@@ -5,7 +5,6 @@ use std::{
     pin::Pin,
     ptr,
     rc::Rc,
-    sync::Mutex,
     thread::{self, ThreadId},
 };
 
@@ -22,7 +21,10 @@ use crate::{
 use anyhow::Result;
 use getters0::Getters;
 use libobs::{audio_output, video_output};
-pub(crate) static OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
+use tokio::sync::Mutex;
+lazy_static::lazy_static! {
+    pub(crate) static ref OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
+}
 
 // Note to developers of this library:
 // I've updated everything in the ObsContext to use Rc and RefCell.
@@ -100,23 +102,21 @@ impl ObsContext {
         // Since this function is not meant to be
         // high-performance or called a thousand times,
         // a Mutex is fine here.
-        let mutex_lock = OBS_THREAD_ID.lock();
+        log::trace!("Checking if OBS is already initialized");
+        let mut mutex_value = OBS_THREAD_ID.blocking_lock();
+        log::trace!("Mutex locked");
 
-        if let Ok(mut mutex_value) = mutex_lock {
-            // Directly checks if the value of the
-            // Mutex is false. If true, then error.
-            if *mutex_value != None {
-                return Err(ObsError::ThreadFailure);
-            }
-
-            // If the Mutex is None, then change
-            // it to current thread ID so that no
-            // other thread can use libobs while
-            // the current thread is using it.
-            *mutex_value = Some(thread::current().id());
-        } else {
-            return Err(ObsError::MutexFailure);
+        // Directly checks if the value of the
+        // Mutex is false. If true, then error.
+        if *mutex_value != None {
+            return Err(ObsError::ThreadFailure);
         }
+
+        // If the Mutex is None, then change
+        // it to current thread ID so that no
+        // other thread can use libobs while
+        // the current thread is using it.
+        *mutex_value = Some(thread::current().id());
 
         Self::init(info)
     }
@@ -264,26 +264,12 @@ impl ObsContext {
     }
 
     pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
-        if let Ok(mutex_value) = OBS_THREAD_ID.lock() {
-            if *mutex_value != Some(thread::current().id()) {
-                return Err(ObsError::ThreadFailure);
-            }
-        } else {
-            return Err(ObsError::MutexFailure);
-        }
-
+        // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         Ok(unsafe { libobs::obs_get_video() })
     }
 
     pub fn get_audio_ptr() -> Result<*mut audio_output, ObsError> {
-        if let Ok(mutex_value) = OBS_THREAD_ID.lock() {
-            if *mutex_value != Some(thread::current().id()) {
-                return Err(ObsError::ThreadFailure);
-            }
-        } else {
-            return Err(ObsError::MutexFailure);
-        }
-
+        // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         Ok(unsafe { libobs::obs_get_audio() })
     }
 
@@ -390,10 +376,7 @@ impl Drop for ObsContextShutdownZST {
             libobs::base_set_log_handler(None, std::ptr::null_mut());
         }
 
-        if let Ok(mut mutex_value) = OBS_THREAD_ID.lock() {
-            *mutex_value = None;
-        } else if !thread::panicking() {
-            panic!()
-        }
+        let mut mutex_value = OBS_THREAD_ID.blocking_lock();
+        *mutex_value = None;
     }
 }

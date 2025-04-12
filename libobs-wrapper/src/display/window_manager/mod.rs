@@ -30,6 +30,8 @@ use crate::unsafe_send::{WrappedHWND, WrappedObsDisplay};
 
 mod position_trait;
 mod show_hide;
+mod misc;
+pub use misc::*;
 pub use position_trait::WindowPositionTrait;
 pub use show_hide::ShowHideTrait;
 

@@ -69,5 +69,6 @@ pub async fn test_window_capture() {
     println!("Recording stop");
 
     output.stop().unwrap();
+
     test_video(&path_out, 1.0).await.unwrap();
 }

@@ -1,6 +1,9 @@
 use std::path::Path;
 
+use libloading::Library;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
+
+pub type GetVersionFunc = unsafe extern "C" fn() -> *const ::std::os::raw::c_char;
 
 pub fn get_installed_version(obs_dll: &Path) -> anyhow::Result<Option<String>> {
     // The obs.dll should always exist
@@ -11,22 +14,30 @@ pub fn get_installed_version(obs_dll: &Path) -> anyhow::Result<Option<String>> {
     }
 
     log::trace!("Getting obs.dll version string");
-    let version = unsafe { libobs::obs_get_version_string() };
-    if version.is_null() {
-        log::trace!("obs.dll does not have a version string");
-        return Ok(None);
-    }
+    unsafe {
+        let lib = Library::new(obs_dll)?;
+        let get_version: libloading::Symbol<GetVersionFunc> = lib.get(b"obs_get_version_string")?;
+        let version = get_version();
 
-    let version_str = unsafe { std::ffi::CStr::from_ptr(version) }.to_str();
-    if version_str.is_err() {
-        log::trace!(
-            "obs.dll version string is not valid UTF-8: {}",
-            version_str.err().unwrap()
-        );
-        return Ok(None);
-    }
+        if version.is_null() {
+            lib.close()?;
+            log::trace!("obs.dll does not have a version string");
+            return Ok(None);
+        }
 
-    return Ok(Some(version_str.unwrap().to_string()))
+        let version_str = std::ffi::CStr::from_ptr(version).to_str();
+        if version_str.is_err() {
+            lib.close()?;
+            log::trace!(
+                "obs.dll version string is not valid UTF-8: {}",
+                version_str.err().unwrap()
+            );
+            return Ok(None);
+        }
+
+        lib.close()?;
+        return Ok(Some(version_str.unwrap().to_string()));
+    }
 }
 
 pub fn should_update(version_str: &str) -> anyhow::Result<bool> {
