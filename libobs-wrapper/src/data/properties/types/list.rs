@@ -7,7 +7,7 @@ use std::ffi::CStr;
 #[skip_new]
 pub struct ObsListProperty {
     name: String,
-    description: String,
+    description: Option<String>,
     list_type: ObsComboType,
     format: ObsComboFormat,
     items: Vec<ObsListItem>,

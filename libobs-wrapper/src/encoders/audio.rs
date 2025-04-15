@@ -1,4 +1,4 @@
-use libobs::{obs_audio_encoder_create, obs_encoder_release};
+use libobs::{audio_output, obs_audio_encoder_create, obs_encoder_release, obs_encoder_set_audio};
 use std::{borrow::Borrow, ptr};
 
 use crate::{data::ObsData, unsafe_send::WrappedObsEncoder, utils::{ObsError, ObsString}};
@@ -56,6 +56,12 @@ impl ObsAudioEncoder {
             settings,
             hotkey_data,
         })
+    }
+
+    /// This is only needed once for global audio context
+    pub fn set_audio_context(&mut self, handler: *mut audio_output) -> Result<(), ObsError> {
+        unsafe { obs_encoder_set_audio(self.encoder.0, handler) }
+        Ok(())
     }
 }
 

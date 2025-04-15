@@ -98,6 +98,30 @@ impl ObsSceneRef {
             .map(|x| x.clone())
     }
 
+    pub fn remove_source(&mut self, name: ObsString) -> Result<(), ObsError> {
+        // Find the source by name
+        let index =if let Some(index) = self.sources.borrow().iter().position(|x| x.name == name) {
+            unsafe {
+                // Find the scene item for this source
+                let scene_item = libobs::obs_scene_find_source(self.scene.0, name.as_ptr());
+                if !scene_item.is_null() {
+                    // Remove the scene item
+                    libobs::obs_sceneitem_remove(scene_item);
+                    // Release the scene item reference
+                    libobs::obs_sceneitem_release(scene_item);
+                }
+            }
+            
+            index
+        } else {
+            return Err(ObsError::SourceNotFound)
+        };
+
+        // Remove from our sources list
+        self.sources.borrow_mut().remove(index);
+        Ok(())
+    }
+
     pub fn as_ptr(&self) -> *mut obs_scene_t {
         self.scene.0
     }

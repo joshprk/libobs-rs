@@ -1,4 +1,4 @@
-use libobs::{obs_encoder, obs_encoder_release, obs_video_encoder_create};
+use libobs::{obs_encoder, obs_encoder_release, obs_encoder_set_video, obs_video_encoder_create, video_output};
 use std::{borrow::Borrow, ptr};
 
 use crate::{data::ObsData, unsafe_send::WrappedObsEncoder, utils::{ObsError, ObsString}};
@@ -58,6 +58,12 @@ impl ObsVideoEncoder {
 
     pub fn as_ptr(&self) -> *mut obs_encoder {
         self.encoder.0
+    }
+
+    /// This is only needed once for global video context
+    pub fn set_video_context(&mut self, handler: *mut video_output) -> Result<(), ObsError> {
+        unsafe { obs_encoder_set_video(self.as_ptr(), handler) }
+        Ok(())
     }
 }
 

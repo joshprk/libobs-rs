@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     crash_handler::main_crash_handler,
-    data::{output::ObsOutputRef, video::ObsVideoInfo},
+    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
     display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::{extern_log_callback, internal_log_global, LOGGER},
@@ -327,6 +327,18 @@ impl ObsContext {
             .map(|e| e.clone())
     }
 
+    pub fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
+        match self
+            .outputs
+            .borrow_mut()
+            .iter_mut()
+            .find(|x| x.name().to_string().as_str() == name)
+        {
+            Some(output) => output.update_settings(settings),
+            None => Err(ObsError::OutputNotFound),
+        }
+    }
+
     pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
         let scene = ObsSceneRef::new(name.into(), self.active_scene.clone(),  self.context_shutdown_zst.clone());
 
@@ -334,6 +346,14 @@ impl ObsContext {
         self.scenes.borrow_mut().push(scene);
 
         tmp
+    }
+
+    pub fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
+        self.scenes
+            .borrow()
+            .iter()
+            .find(|x| x.name().to_string().as_str() == name)
+            .map(|e| e.clone())
     }
 }
 
