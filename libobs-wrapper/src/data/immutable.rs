@@ -5,7 +5,7 @@ use crate::unsafe_send::WrappedObsData;
 use super::ObsData;
 
 #[derive(Debug)]
-/// Immutable wrapper around obs_data_t t o be prevent modification and to be used in creation of other objects.
+/// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
 pub struct ImmutableObsData(WrappedObsData);
 
