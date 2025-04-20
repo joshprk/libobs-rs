@@ -27,30 +27,30 @@ impl Drop for _SceneDropGuard {
 #[skip_new]
 pub struct ObsSceneRef {
     #[skip_getter]
-    scene: Rc<WrappedObsScene>,
+    scene: Arc<WrappedObsScene>,
     name: ObsString,
     #[get_mut]
-    pub(crate) sources: Rc<RefCell<Vec<ObsSourceRef>>>,
+    pub(crate) sources: Arc<RwLock<Vec<ObsSourceRef>>>,
     #[skip_getter]
-    pub(crate) active_scene: Rc<RefCell<Option<WrappedObsScene>>>,
+    pub(crate) active_scene: Arc<RwLock<Option<WrappedObsScene>>>,
 
     #[skip_getter]
-    _guard: Rc<_SceneDropGuard>,
+    _guard: Arc<_SceneDropGuard>,
 
     #[skip_getter]
-    _shutdown: Rc<ObsContextShutdownZST>,
+    _shutdown: Arc<ObsContextShutdownZST>,
 }
 
 impl ObsSceneRef {
-    pub(crate) fn new(name: ObsString, active_scene: Rc<RefCell<Option<WrappedObsScene>>>, shutdown: Rc<ObsContextShutdownZST>) -> Self {
+    pub(crate) fn new(name: ObsString, active_scene: Arc<RwLock<Option<WrappedObsScene>>>, shutdown: Arc<ObsContextShutdownZST>) -> Self {
         let scene = unsafe { obs_scene_create(name.as_ptr()) };
 
         Self {
             name,
-            scene: Rc::new(WrappedObsScene(scene)),
-            sources: Rc::new(RefCell::new(vec![])),
+            scene: Arc::new(WrappedObsScene(scene)),
+            sources: Arc::new(RwLock::new(vec![])),
             active_scene: active_scene.clone(),
-            _guard: Rc::new(_SceneDropGuard {
+            _guard: Arc::new(_SceneDropGuard {
                 scene: WrappedObsScene(scene),
             }),
             _shutdown: shutdown

@@ -2,6 +2,13 @@ use std::fmt::Display;
 
 use crate::enums::ObsResetVideoStatus;
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ObsBootstrapError {
+    GeneralError(String),
+    DownloadError(String),
+    ExtractError(String),
+}
+
 /// Error type for OBS function calls.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObsError {
@@ -14,6 +21,8 @@ pub enum ObsError {
     ThreadFailure,
     /// Unable to reset video.
     ResetVideoFailure(ObsResetVideoStatus),
+    /// Unable to bootstrap OBS for downloading and installing
+    BootstrapperFailure(ObsBootstrapError),
     /// Unable to reset video because the program attempted to
     /// change the graphics module. This is a bug!
     ResetVideoFailureGraphicsModule,
@@ -30,7 +39,10 @@ pub enum ObsError {
     /// Native error from the Windows API when creating a display
     DisplayCreationError(String),
 
-    OutputSaveBufferFailure(String)
+    OutputSaveBufferFailure(String),
+
+    /// The obs thread couldn't be called
+    InvocationError(String),
 }
 
 impl Display for ObsError {
@@ -51,6 +63,12 @@ impl Display for ObsError {
             ObsError::DisplayCreationError(e) => write!(f, "Native error from the Windows API when creating a display: {:?}", e),
             ObsError::OutputSaveBufferFailure(e) => write!(f, "Couldn't save output buffer: {:?}", e),
             ObsError::SourceNotFound => write!(f, "Source not found."),
+            ObsError::BootstrapperFailure(error) => match error {
+                ObsBootstrapError::GeneralError(e) => write!(f, "Bootstrapper error: {:?}", e),
+                ObsBootstrapError::DownloadError(e) => write!(f, "Bootstrapper download error: {:?}", e),
+                ObsBootstrapError::ExtractError(e) => write!(f, "Bootstrapper extract error: {:?}", e),
+            },
+            ObsError::InvocationError(e) => write!(f, "The obs thread couldn't be called: {:?}", e),
         }
     }
 }

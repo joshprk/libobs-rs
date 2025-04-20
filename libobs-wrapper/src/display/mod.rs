@@ -32,11 +32,11 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 /// This is a wrapper around the obs_display struct and contains direct memory references.
 /// You should ALWAYS use the context to get to this struct, and as said NEVER store it.
 pub struct ObsDisplayRef {
-    display: Rc<WrappedObsDisplay>,
+    display: Arc<WrappedObsDisplay>,
     id: usize,
 
     // The callbacks and obs display first
-    _guard: Rc<RefCell<_DisplayDropGuard>>,
+    _guard: Arc<RwLock<_DisplayDropGuard>>,
 
     // Keep for window, manager is accessed by render thread as well so Arc and RwLock
     manager: Arc<RwLock<DisplayWindowManager>>,
@@ -44,7 +44,7 @@ pub struct ObsDisplayRef {
     _fixed_in_heap: PhantomPinned,
 
     /// Stored so the obs context is not dropped while this is alive
-    _shutdown: Rc<ObsContextShutdownZST>,
+    _shutdown: Arc<ObsContextShutdownZST>,
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
@@ -80,7 +80,7 @@ impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
-    pub(crate) fn new(data: creation_data::ObsDisplayCreationData, shutdown: Rc<ObsContextShutdownZST>) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
+    pub(crate) fn new(data: creation_data::ObsDisplayCreationData, shutdown: Arc<ObsContextShutdownZST>) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
         use std::{cell::RefCell, sync::atomic::Ordering};
 
         use anyhow::bail;
@@ -116,10 +116,10 @@ impl ObsDisplayRef {
         manager.obs_display = Some(WrappedObsDisplay(display));
 
         let mut instance = Box::pin(Self {
-            display: Rc::new(WrappedObsDisplay(display)),
+            display: Arc::new(WrappedObsDisplay(display)),
             manager: Arc::new(RwLock::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-            _guard: Rc::new(RefCell::new(_DisplayDropGuard {
+            _guard: Arc::new(RwLock::new(_DisplayDropGuard {
                 display: WrappedObsDisplay(display),
                 self_ptr: None,
             })),

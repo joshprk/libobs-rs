@@ -64,7 +64,7 @@ pub trait ObsBootstrap {
     /// - `Ok(Some(stream))` if an update is needed. The stream will yield `BootstrapStatus` items.
     /// - `Err(err)` if an error occurred during the process.
     async fn bootstrap(
-        options: options::ObsBootstrapperOptions,
+        options: &options::ObsBootstrapperOptions,
     ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>>;
 
     /// This function is used to spawn the updater process. For more info see `BootstrapStatus::RestartRequired`.
@@ -109,7 +109,7 @@ impl ObsBootstrap for ObsContext {
     }
 
     async fn bootstrap(
-        options: options::ObsBootstrapperOptions,
+        options: &options::ObsBootstrapperOptions,
     ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {
         let repo = options.repository.to_string();
 

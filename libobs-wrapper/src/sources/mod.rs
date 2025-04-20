@@ -13,13 +13,13 @@ use std::{ptr, rc::Rc};
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct ObsSourceRef {
-    pub(crate) source: Rc<WrappedObsSource>,
+    pub(crate) source: Arc<WrappedObsSource>,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
-    pub(crate) settings: Rc<ImmutableObsData>,
-    pub(crate) hotkey_data: Rc<ImmutableObsData>,
+    pub(crate) settings: Arc<ImmutableObsData>,
+    pub(crate) hotkey_data: Arc<ImmutableObsData>,
 
-    _guard: Rc<_ObsSourceGuard>,
+    _guard: Arc<_ObsSourceGuard>,
 }
 
 impl ObsSourceRef {
@@ -56,12 +56,12 @@ impl ObsSourceRef {
         }
 
         Ok(Self {
-            source: Rc::new(WrappedObsSource(source)),
+            source: Arc::new(WrappedObsSource(source)),
             id,
             name,
-            settings: Rc::new(settings),
-            hotkey_data: Rc::new(hotkey_data),
-            _guard: Rc::new(_ObsSourceGuard {
+            settings: Arc::new(settings),
+            hotkey_data: Arc::new(hotkey_data),
+            _guard: Arc::new(_ObsSourceGuard {
                 source: WrappedObsSource(source),
             }),
         })

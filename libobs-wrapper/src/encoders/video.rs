@@ -1,13 +1,13 @@
 use libobs::{obs_encoder, obs_encoder_release, obs_encoder_set_video, obs_video_encoder_create, video_output};
 use std::{borrow::Borrow, ptr};
 
-use crate::{data::ObsData, unsafe_send::WrappedObsEncoder, utils::{ObsError, ObsString}};
+use crate::{data::ObsData, unsafe_send::Sendable, utils::{ObsError, ObsString}};
 
 
 #[derive(Debug)]
 #[allow(dead_code)]
 pub struct ObsVideoEncoder {
-    pub(crate) encoder: WrappedObsEncoder,
+    pub(crate) encoder: Sendable<*mut obs_encoder>,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
     pub(crate) settings: Option<ObsData>,
@@ -48,7 +48,7 @@ impl ObsVideoEncoder {
         }
 
         Ok(Self {
-            encoder: WrappedObsEncoder(encoder),
+            encoder: Sendable(encoder),
             id,
             name,
             settings,

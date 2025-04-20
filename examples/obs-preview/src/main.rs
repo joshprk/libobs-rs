@@ -20,7 +20,7 @@ struct App {
     // Notice: Refs should never be stored in a struct, it could cause memory leaks or crashes, thats why
     // we are using a boolean here and fetching the display afterwards
     display_id: Option<usize>,
-    context: Rc<RefCell<ObsContext>>,
+    context: Arc<RwLock<ObsContext>>,
 }
 
 impl ApplicationHandler for App {

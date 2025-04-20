@@ -1,16 +1,21 @@
-use crate::{data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsPath, ObsString}};
-
-
+use crate::{
+    context::{ObsContext, ObsContextReturn}, data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsError, ObsPath, ObsString}
+};
 
 /// Contains information to start a libobs context.
 /// This is passed to the creation of `ObsContext`.
 #[derive(Debug)]
 pub struct StartupInfo {
+    #[cfg(feature = "bootstrapper")]
+    pub(crate) bootstrap_handler: Option<Box<dyn crate::bootstrap::status_handler::ObsBootstrapStatusHandler>>,
+    #[cfg(feature = "bootstrapper")]
+    pub(crate) bootstrapper_options: crate::bootstrap::ObsBootstrapperOptions,
+
     pub(crate) startup_paths: StartupPaths,
     pub(crate) obs_video_info: ObsVideoInfo,
     pub(crate) obs_audio_info: ObsAudioInfo,
     // Option because logger is taken when creating
-    pub(crate) logger: Option<Box<dyn ObsLogger>>
+    pub(crate) logger: Option<Box<dyn ObsLogger>>,
 }
 
 impl StartupInfo {
@@ -32,6 +37,24 @@ impl StartupInfo {
         self.logger = Some(logger);
         self
     }
+
+    #[cfg(feature = "bootstrapper")]
+    pub fn enable_bootstrapper<T>(
+        mut self,
+        handler: T,
+        options: crate::bootstrap::ObsBootstrapperOptions,
+    ) -> Self
+    where
+        T: crate::bootstrap::status_handler::ObsBootstrapStatusHandler + 'static,
+    {
+        self.bootstrap_handler = Some(Box::new(handler));
+        self.bootstrapper_options = options;
+        self
+    }
+
+    pub async fn start(self) -> Result<ObsContextReturn, ObsError> {
+        ObsContext::new(self).await
+    }
 }
 
 impl Default for StartupInfo {
@@ -41,6 +64,11 @@ impl Default for StartupInfo {
             obs_video_info: ObsVideoInfo::default(),
             obs_audio_info: ObsAudioInfo::default(),
             logger: Some(Box::new(ConsoleLogger::new())),
+            #[cfg(feature = "bootstrapper")]
+            bootstrap_handler: None,
+
+            #[cfg(feature = "bootstrapper")]
+            bootstrapper_options: Default::default()
         }
     }
 }
