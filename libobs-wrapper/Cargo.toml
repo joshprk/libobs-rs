@@ -28,7 +28,6 @@ vsprintf = "2.0.0"
 chrono = "0.4.40"
 getters0 = "0.1.1"
 colored = { version = "3.0.0", optional = true }
-parking_lot = "0.12.3"
 oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
 async-stream = { version = "0.3.6", optional = true }
 futures-core = { version = "0.3.31", optional = true }

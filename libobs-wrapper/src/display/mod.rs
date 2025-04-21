@@ -7,14 +7,12 @@ mod window_manager;
 
 pub use creation_data::*;
 pub use enums::*;
-use parking_lot::RwLock;
+use tokio::sync::RwLock;
 pub use window_manager::*;
 
 use std::{
-    cell::RefCell,
     ffi::c_void,
     marker::PhantomPinned,
-    rc::Rc,
     sync::{atomic::AtomicUsize, Arc},
 };
 
@@ -23,7 +21,7 @@ use libobs::{
     gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
-use crate::{context::ObsContextShutdownZST, unsafe_send::{WrappedObsDisplay, WrappedVoidPtr}};
+use crate::{impl_obs_drop, runtime::ObsRuntime, unsafe_send::Sendable};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -32,7 +30,7 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 /// This is a wrapper around the obs_display struct and contains direct memory references.
 /// You should ALWAYS use the context to get to this struct, and as said NEVER store it.
 pub struct ObsDisplayRef {
-    display: Arc<WrappedObsDisplay>,
+    display: Sendable<*mut libobs::obs_display_t>,
     id: usize,
 
     // The callbacks and obs display first
@@ -44,14 +42,14 @@ pub struct ObsDisplayRef {
     _fixed_in_heap: PhantomPinned,
 
     /// Stored so the obs context is not dropped while this is alive
-    _shutdown: Arc<ObsContextShutdownZST>,
+    pub(crate) runtime: ObsRuntime,
 }
 
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     let s = &*(data as *mut ObsDisplayRef);
 
-    let (x, y) = s.get_pos();
-    let (width, height) = s.get_size();
+    let (x, y) = s.get_pos_blocking();
+    let (width, height) = s.get_size_blocking();
 
     let mut ovi: obs_video_info = std::mem::zeroed();
     obs_get_video_info(&mut ovi);
@@ -80,14 +78,18 @@ impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
-    pub(crate) fn new(data: creation_data::ObsDisplayCreationData, shutdown: Arc<ObsContextShutdownZST>) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
-        use std::{cell::RefCell, sync::atomic::Ordering};
+    pub(crate) async fn new(
+        data: creation_data::ObsDisplayCreationData,
+        runtime: ObsRuntime,
+    ) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
+        use std::sync::atomic::Ordering;
 
         use anyhow::bail;
         use creation_data::ObsDisplayCreationData;
         use libobs::gs_window;
-        use parking_lot::lock_api::RwLock;
         use window_manager::DisplayWindowManager;
+
+        use crate::run_with_obs;
 
         let ObsDisplayCreationData {
             x,
@@ -108,34 +110,38 @@ impl ObsDisplayRef {
         });
 
         log::trace!("Creating obs display...");
-        let display = unsafe { libobs::obs_display_create(&init_data, background_color) };
+        let display = run_with_obs!(runtime, (init_data), move || unsafe {
+            libobs::obs_display_create(&init_data, background_color)
+        })?;
+
         if display.is_null() {
             bail!("OBS failed to create display");
         }
 
-        manager.obs_display = Some(WrappedObsDisplay(display));
-
+        manager.obs_display = Some(Sendable(display));
         let mut instance = Box::pin(Self {
-            display: Arc::new(WrappedObsDisplay(display)),
+            display: Sendable(display),
             manager: Arc::new(RwLock::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             _guard: Arc::new(RwLock::new(_DisplayDropGuard {
-                display: WrappedObsDisplay(display),
+                display: Sendable(display),
                 self_ptr: None,
+                runtime: runtime.clone(),
             })),
             _fixed_in_heap: PhantomPinned,
-            _shutdown: shutdown,
+            runtime
         });
 
-        let instance_ptr = unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void };
+        let instance_ptr =
+            unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void };
 
-        instance._guard.borrow_mut().self_ptr = Some(WrappedVoidPtr(instance_ptr));
+        instance._guard.write().await.self_ptr = Some(Sendable(instance_ptr));
 
         log::trace!(
             "Adding draw callback with display {:?} and draw callback params at {:?} (pos is {:?})...",
             instance.display,
             instance_ptr,
-            instance.get_pos()
+            instance.get_pos().await
         );
         unsafe {
             libobs::obs_display_add_draw_callback(
@@ -155,23 +161,20 @@ impl ObsDisplayRef {
 
 #[derive(Debug)]
 struct _DisplayDropGuard {
-    display: WrappedObsDisplay,
-    self_ptr: Option<WrappedVoidPtr>,
+    display: Sendable<*mut libobs::obs_display_t>,
+    self_ptr: Option<Sendable<*mut c_void>>,
+    runtime: ObsRuntime
 }
 
-impl Drop for _DisplayDropGuard {
-    fn drop(&mut self) {
-        unsafe {
-            if let Some(ptr) = &self.self_ptr {
-                log::trace!("Destroying display with callback at {:?}...", ptr.0);
-                libobs::obs_display_remove_draw_callback(
-                    self.display.0,
-                    Some(render_display),
-                    ptr.0,
-                );
-            }
-
-            libobs::obs_display_destroy(self.display.0);
-        }
+impl_obs_drop!(_DisplayDropGuard, (display, self_ptr), move || unsafe {
+    if let Some(ptr) = &self_ptr {
+        log::trace!("Destroying display with callback at {:?}...", ptr.0);
+        libobs::obs_display_remove_draw_callback(
+            display.0,
+            Some(render_display),
+            ptr.0,
+        );
     }
-}
+
+    libobs::obs_display_destroy(display.0);
+});

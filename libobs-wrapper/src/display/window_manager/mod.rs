@@ -6,6 +6,7 @@ use std::sync::{
 };
 
 use lazy_static::lazy_static;
+use libobs::obs_display_t;
 use windows::{
     core::{w, HSTRING, PCWSTR},
     Win32::{
@@ -26,7 +27,7 @@ use windows::{
     },
 };
 
-use crate::unsafe_send::{WrappedHWND, WrappedObsDisplay};
+use crate::unsafe_send::Sendable;
 
 mod position_trait;
 mod show_hide;
@@ -120,7 +121,7 @@ pub struct DisplayWindowManager {
     // Shouldn't really be needed
     message_thread: Option<std::thread::JoinHandle<()>>,
     should_exit: Arc<AtomicBool>,
-    hwnd: WrappedHWND,
+    hwnd: Sendable<HWND>,
 
     x: i32,
     y: i32,
@@ -134,14 +135,8 @@ pub struct DisplayWindowManager {
 
     render_at_bottom: bool,
 
-    pub(super) obs_display: Option<WrappedObsDisplay>,
+    pub(super) obs_display: Option<Sendable<*mut obs_display_t>>,
 }
-
-#[derive(Debug, Clone, Copy)]
-struct SendableHWND(pub HWND);
-
-unsafe impl Sync for SendableHWND {}
-unsafe impl Send for SendableHWND {}
 
 impl DisplayWindowManager {
     pub fn new(parent: HWND, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
@@ -150,7 +145,7 @@ impl DisplayWindowManager {
         let should_exit = Arc::new(AtomicBool::new(false));
         let tmp = should_exit.clone();
 
-        let parent = Mutex::new(SendableHWND(parent));
+        let parent = Mutex::new(Sendable(parent));
         let message_thread = std::thread::spawn(move || {
             let parent = parent.lock().unwrap().0;
             // We have to have the whole window creation stuff here as well so the message loop functions
@@ -221,7 +216,7 @@ impl DisplayWindowManager {
                     SetWindowLongPtrW(window, GWL_EXSTYLE, ex_style);
                 }
 
-                Result::<SendableHWND, anyhow::Error>::Ok(SendableHWND(window))
+                Result::<Sendable<HWND>, anyhow::Error>::Ok(Sendable(window))
             };
 
             let r = create();
@@ -255,7 +250,7 @@ impl DisplayWindowManager {
             width,
             height,
             scale: 1.0,
-            hwnd: WrappedHWND(window.0),
+            hwnd: window,
             should_exit,
             message_thread: Some(message_thread),
             render_at_bottom: false,

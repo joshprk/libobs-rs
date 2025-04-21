@@ -3,7 +3,7 @@ macro_rules! run_with_obs_impl {
     ($self:expr, $function:ident, $operation:expr) => {
         {
             $self.$function(move || {
-                let e = unsafe { $operation };
+                let e = { $operation };
                 return crate::unsafe_send::Sendable(e())
             })
         }
@@ -13,7 +13,7 @@ macro_rules! run_with_obs_impl {
             $(let $var = crate::unsafe_send::Sendable($var.clone());)*
             $self.$function(move || {
                 $(let $var = $var.clone();)*
-                let e = unsafe {
+                let e = {
                     $(let $var = $var.0;)*
                     $operation
                 };
@@ -66,7 +66,7 @@ macro_rules! impl_obs_drop {
             fn drop(&mut self) {
                 $(let $var = self.$var.clone();)*
                 let r = crate::run_with_obs_blocking!($self, ($($var),*), $operation);
-                if thread::panicking() {
+                if std::thread::panicking() {
                     return;
                 }
 

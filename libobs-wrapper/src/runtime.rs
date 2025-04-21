@@ -22,8 +22,8 @@ use crate::impl_obs_drop;
 // Command type for operations to perform on the OBS thread
 enum ObsCommand {
     Execute(
-        Box<dyn FnOnce() -> anyhow::Result<Box<dyn std::any::Any + Send>> + Send>,
-        oneshot::Sender<anyhow::Result<Box<dyn std::any::Any + Send>>>,
+        Box<dyn FnOnce() -> Box<dyn std::any::Any + Send> + Send>,
+        oneshot::Sender<Box<dyn std::any::Any + Send>>,
     ),
     Terminate,
 }
@@ -196,9 +196,9 @@ impl ObsRuntime {
         let (tx, rx) = oneshot::channel();
 
         // Create a wrapper closure that boxes the result as Any
-        let wrapper = move || -> anyhow::Result<Box<dyn std::any::Any + Send>> {
+        let wrapper = move || -> Box<dyn std::any::Any + Send> {
             let result = operation();
-            Ok(Box::new(result))
+            Box::new(result)
         };
 
         self.command_sender
@@ -207,7 +207,7 @@ impl ObsRuntime {
 
         let result = rx
             .blocking_recv()
-            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))??;
+            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         result
@@ -227,9 +227,9 @@ impl ObsRuntime {
         let (tx, rx) = oneshot::channel();
 
         // Create a wrapper closure that boxes the result as Any
-        let wrapper = move || -> anyhow::Result<Box<dyn std::any::Any + Send>> {
+        let wrapper = move || -> Box<dyn std::any::Any + Send> {
             let result = operation();
-            Ok(Box::new(result))
+            Box::new(result)
         };
 
         self.command_sender
@@ -238,7 +238,7 @@ impl ObsRuntime {
 
         let result = rx
             .await
-            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))??;
+            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         result

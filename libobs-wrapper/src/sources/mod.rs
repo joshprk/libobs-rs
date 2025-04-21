@@ -7,7 +7,11 @@ use libobs::{
 };
 
 use crate::{
-    data::{immutable::ImmutableObsData, ObsData}, impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{traits::ObsUpdatable, ObsError, ObsString}
+    data::{immutable::ImmutableObsData, ObsData},
+    impl_obs_drop, run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{traits::ObsUpdatable, ObsError, ObsString},
 };
 use std::{ptr, sync::Arc};
 
@@ -21,7 +25,7 @@ pub struct ObsSourceRef {
     pub(crate) hotkey_data: Arc<ImmutableObsData>,
 
     _guard: Arc<_ObsSourceGuard>,
-    runtime: ObsRuntime,
+    pub(crate) runtime: ObsRuntime,
 }
 
 impl ObsSourceRef {
@@ -37,12 +41,12 @@ impl ObsSourceRef {
 
         let settings = match settings.take() {
             Some(x) => ImmutableObsData::from(x),
-            None => ImmutableObsData::new(),
+            None => ImmutableObsData::new(&runtime).await?,
         };
 
         let hotkey_data = match hotkey_data.take() {
             Some(x) => ImmutableObsData::from(x),
-            None => ImmutableObsData::new(),
+            None => ImmutableObsData::new(&runtime).await?,
         };
 
         let hotkey_data_ptr = hotkey_data.as_ptr();
@@ -53,7 +57,7 @@ impl ObsSourceRef {
         let source = run_with_obs!(
             runtime,
             (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
-            move || { obs_source_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr,) }
+            move || unsafe { obs_source_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr) }
         )?;
 
         if source == ptr::null_mut() {
@@ -70,7 +74,7 @@ impl ObsSourceRef {
                 source: Sendable(source),
                 runtime: runtime.clone(),
             }),
-            runtime
+            runtime,
         })
     }
 
@@ -95,15 +99,14 @@ impl ObsSourceRef {
 impl ObsUpdatable for ObsSourceRef {
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
-        run_with_obs!(self.runtime, (source_ptr), move || obs_source_update(
-            source_ptr.0,
-            data.as_ptr()
-        ))
+        run_with_obs!(self.runtime, (source_ptr), move || unsafe {
+            obs_source_update(source_ptr.0, data.as_ptr())
+        })
     }
 
     async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
-        run_with_obs!(self.runtime, (source_ptr), move || {
+        run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             obs_source_reset_settings(source_ptr.0, data.as_ptr());
         })
     }
@@ -115,6 +118,6 @@ struct _ObsSourceGuard {
     runtime: ObsRuntime,
 }
 
-impl_obs_drop!(_ObsSourceGuard, (source), move || {
+impl_obs_drop!(_ObsSourceGuard, (source), move || unsafe {
     obs_source_release(source.0);
 });

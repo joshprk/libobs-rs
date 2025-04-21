@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use getters0::Getters;
-use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
+use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -51,7 +51,9 @@ impl ObsSceneRef {
         runtime: ObsRuntime,
     ) -> Result<Self, ObsError> {
         let name_ptr = name.as_ptr();
-        let scene = run_with_obs!(runtime, (name_ptr), move || obs_scene_create(name_ptr))?;
+        let scene = run_with_obs!(runtime, (name_ptr), move || unsafe {
+            libobs::obs_scene_create(name_ptr)
+        })?;
 
         Ok(Self {
             name,
@@ -71,14 +73,14 @@ impl ObsSceneRef {
         *s = Some(Sendable(self.as_ptr()));
 
         let scene_source_ptr = self.get_scene_source_ptr().await?;
-        run_with_obs!(self.runtime, (scene_source_ptr), move || {
+        run_with_obs!(self.runtime, (scene_source_ptr), move || unsafe {
             obs_set_output_source(channel, scene_source_ptr);
         })
     }
 
     pub async fn get_scene_source_ptr(&self) -> Result<*mut obs_source_t, ObsError> {
         let scene_ptr = self.scene.0;
-        run_with_obs!(self.runtime, (scene_ptr), move || {
+        run_with_obs!(self.runtime, (scene_ptr), move || unsafe {
             libobs::obs_scene_get_source(scene_ptr)
         })
     }
@@ -95,7 +97,7 @@ impl ObsSceneRef {
 
         let scene_ptr = self.scene.0;
         let source_ptr = source.source.0;
-        run_with_obs!(self.runtime, (scene_ptr, source_ptr), move || {
+        run_with_obs!(self.runtime, (scene_ptr, source_ptr), move || unsafe {
             libobs::obs_scene_add(scene_ptr, source_ptr);
         })?;
 
@@ -127,7 +129,7 @@ impl ObsSceneRef {
         {
             let name_ptr = name.as_ptr();
             let scene_ptr = self.scene.0;
-            run_with_obs!(self.runtime, (name_ptr, scene_ptr), move || {
+            run_with_obs!(self.runtime, (name_ptr, scene_ptr), move || unsafe {
                 // Find the scene item for this source
                 let scene_item = libobs::obs_scene_find_source(scene_ptr, name_ptr);
                 if !scene_item.is_null() {

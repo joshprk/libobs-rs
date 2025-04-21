@@ -13,18 +13,18 @@ use crate::{
 
 use super::ObsOutputRef;
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 pub trait ReplayBufferOutput {
     async fn save_buffer(&self) -> Result<Box<Path>, ObsError>;
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl ReplayBufferOutput for ObsOutputRef {
     async fn save_buffer(&self) -> Result<Box<Path>, ObsError> {
-        let output_ptr = self.output.0;
+        let output_ptr = self.output.clone();
 
         let path = run_with_obs!(self.runtime, (output_ptr), move || {
-            let ph = obs_output_get_proc_handler(output_ptr);
+            let ph = unsafe { obs_output_get_proc_handler(output_ptr.0) };
             if ph.is_null() {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get proc handler.".to_string(),
@@ -32,7 +32,7 @@ impl ReplayBufferOutput for ObsOutputRef {
             }
 
             let name = ObsString::new("save");
-            let call_success = {
+            let call_success = unsafe {
                 let mut calldata = MaybeUninit::<calldata_t>::zeroed();
                 proc_handler_call(ph, name.as_ptr(), calldata.as_mut_ptr())
             };
@@ -44,7 +44,7 @@ impl ReplayBufferOutput for ObsOutputRef {
             }
 
             let func_get = ObsString::new("get_last_replay");
-            let last_replay = {
+            let last_replay = unsafe {
                 let mut calldata = MaybeUninit::<calldata_t>::zeroed();
                 let success = proc_handler_call(ph, func_get.as_ptr(), calldata.as_mut_ptr());
 
@@ -61,15 +61,16 @@ impl ReplayBufferOutput for ObsOutputRef {
 
             let mut s = MaybeUninit::<*const c_char>::uninit();
 
-            let res = calldata_get_string(&last_replay, path_get.as_ptr(), s.as_mut_ptr());
+            let res =
+                unsafe { calldata_get_string(&last_replay, path_get.as_ptr(), s.as_mut_ptr()) };
             if !res {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get path from last replay.".to_string(),
                 ));
             }
 
-            let s: *const c_char = s.assume_init();
-            let path = std::ffi::CStr::from_ptr(s).to_str().unwrap();
+            let s: *const c_char = unsafe { s.assume_init() };
+            let path = unsafe { std::ffi::CStr::from_ptr(s) }.to_str().unwrap();
 
             Ok(PathBuf::from(path))
         })??;

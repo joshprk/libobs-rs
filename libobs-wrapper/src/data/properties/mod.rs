@@ -12,7 +12,7 @@ pub use enums::*;
 use num_traits::FromPrimitive;
 use types::*;
 
-use crate::{run_with_obs, runtime::ObsRuntime, utils::ObsString};
+use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}};
 
 #[derive(Debug, Clone)]
 pub enum ObsProperty {
@@ -46,33 +46,35 @@ pub enum ObsProperty {
     ColorAlpha(ObsColorAlphaProperty),
 }
 
+#[async_trait::async_trait(?Send)]
 pub trait ObsPropertyObjectPrivate {
-    fn get_properties_raw(&self) -> *mut libobs::obs_properties_t;
-    fn get_properties_by_id_raw(id: ObsString) -> *mut libobs::obs_properties_t;
+    async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    async fn get_properties_by_id_raw(id: ObsString, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
 
 async fn get_properties_inner(
-    properties_raw: *mut obs_properties,
+    properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
-) -> anyhow::Result<Vec<ObsProperty>> {
+) -> Result<Vec<ObsProperty>, ObsError> {
+    let properties_raw = properties_raw.0;
     if properties_raw.is_null() {
         return Ok(vec![]);
     }
 
-    let res = run_with_obs!(runtime, (properties_raw), move || {
+    run_with_obs!(runtime, (properties_raw), move || {
         let mut result = Vec::new();
         let mut property = unsafe { libobs::obs_properties_first(properties_raw) };
         while !property.is_null() {
             let name = unsafe { libobs::obs_property_name(property) };
             let name = unsafe { CStr::from_ptr(name as _) };
-            let name = name.to_str()?.to_string();
+            let name = name.to_string_lossy().to_string();
 
             let p_type = unsafe { libobs::obs_property_get_type(property) };
             let p_type = ObsPropertyType::from_i32(p_type);
 
             match p_type {
                 Some(p_type) => {
-                    result.push(p_type.to_property_struct(property)?);
+                    result.push(p_type.to_property_struct(property));
                 }
                 None => result.push(ObsProperty::Invalid(name)),
             }
@@ -82,26 +84,17 @@ async fn get_properties_inner(
         }
 
         unsafe { libobs::obs_properties_destroy(properties_raw) };
-        Result::<_, anyhow::Error>::Ok(result)
-    });
-
-    match res {
-        Ok(res) => Ok(res?),
-        Err(e) => Err(anyhow::anyhow!(e)),
-    }
+        result
+    })
 }
 
 /// This trait is implemented for all obs objects that can have properties
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
-    async fn get_properties(&self, runtime: ObsRuntime) -> anyhow::Result<Vec<ObsProperty>> {
-        let properties_raw = self.get_properties_raw();
-        get_properties_inner(properties_raw, runtime).await
-    }
-
-    async fn get_properties_by_id(id: ObsString, runtime: ObsRuntime) -> anyhow::Result<Vec<ObsProperty>> {
-        let properties_raw = Self::get_properties_by_id_raw(id);
+    async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError>;
+    async fn get_properties_by_id(id: ObsString, runtime: ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
+        let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone()).await?;
         get_properties_inner(properties_raw, runtime).await
     }
 }

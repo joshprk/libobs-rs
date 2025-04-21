@@ -1,6 +1,5 @@
 use std::ffi::CString;
 use std::sync::Arc;
-use std::thread;
 use std::{ffi::CStr, ptr};
 
 use anyhow::bail;
@@ -37,7 +36,7 @@ struct _ObsDropGuard {
     runtime: ObsRuntime,
 }
 
-impl_obs_drop!(_ObsDropGuard, (output), move || {
+impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
     let handler = obs_output_get_signal_handler(output.0);
     let signal = ObsString::new("stop");
     signal_handler_disconnect(
@@ -71,7 +70,7 @@ pub struct ObsOutputRef {
     _drop_guard: Arc<_ObsDropGuard>,
 
     #[skip_getter]
-    runtime: ObsRuntime,
+    pub(crate) runtime: ObsRuntime,
 }
 
 impl ObsOutputRef {
@@ -149,26 +148,32 @@ impl ObsOutputRef {
         info: VideoEncoderInfo,
         handler: *mut video_output,
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
-        let video_enc = ObsVideoEncoder::new(info.id, info.name, info.settings, info.hotkey_data);
+        let video_enc = ObsVideoEncoder::new(
+            info.id,
+            info.name,
+            info.settings,
+            info.hotkey_data,
+            self.runtime.clone(),
+        )
+        .await?;
 
-        return match video_enc {
-            Ok(x) => {
-                let encoder_ptr = x.encoder.0;
-                let output_ptr = self.output.0;
-                let handler = handler;
+        let encoder_ptr = video_enc.encoder.0;
+        let output_ptr = self.output.0;
+        let handler = handler;
 
-                run_with_obs!(self.runtime, (encoder_ptr, output_ptr, handler), move || {
-                    obs_encoder_set_video(encoder_ptr, handler);
-                    obs_output_set_video_encoder(output_ptr, encoder_ptr);
-                })?;
-
-                let tmp = Arc::new(x);
-                self.video_encoders.write().await.push(tmp.clone());
-
-                Ok(tmp)
+        run_with_obs!(
+            self.runtime,
+            (encoder_ptr, output_ptr, handler),
+            move || unsafe {
+                obs_encoder_set_video(encoder_ptr, handler);
+                obs_output_set_video_encoder(output_ptr, encoder_ptr);
             }
-            Err(x) => Err(x),
-        };
+        )?;
+
+        let tmp = Arc::new(video_enc);
+        self.video_encoders.write().await.push(tmp.clone());
+
+        Ok(tmp)
     }
 
     pub async fn set_video_encoder(&mut self, encoder: ObsVideoEncoder) -> Result<(), ObsError> {
@@ -179,7 +184,7 @@ impl ObsOutputRef {
         let output = self.output.clone();
         let encoder_ptr = encoder.as_ptr();
 
-        run_with_obs!(self.runtime, (output, encoder_ptr), move || {
+        run_with_obs!(self.runtime, (output, encoder_ptr), move || unsafe {
             obs_output_set_video_encoder(output.0, encoder_ptr);
         })?;
 
@@ -200,13 +205,16 @@ impl ObsOutputRef {
 
     pub async fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
         let output = self.output.clone();
-        let output_active =
-            run_with_obs!(self.runtime, (output), move || obs_output_active(output.0))?;
+        let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
+            obs_output_active(output.0)
+        })?;
 
         if !output_active {
             let settings_ptr = settings.as_ptr();
 
-            run_with_obs!(self.runtime, (output, settings_ptr), move || obs_output_update(output.0, settings_ptr))?;
+            run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
+                obs_output_update(output.0, settings_ptr)
+            })?;
 
             self.settings.write().await.replace(settings);
             Ok(())
@@ -227,22 +235,18 @@ impl ObsOutputRef {
             info.settings,
             mixer_idx,
             info.hotkey_data,
-        );
+            self.runtime.clone(),
+        ).await?;
 
-        return match audio_enc {
-            Ok(x) => {
-                let encoder_ptr = x.encoder.0;
-                run_with_obs!(self.runtime, (encoder_ptr), move || {
-                    obs_encoder_set_audio(x.encoder.0, handler);
-                    obs_output_set_audio_encoder(self.output.0, x.encoder.0, mixer_idx);
-                })?;
+        let encoder_ptr = audio_enc.encoder.0;
+        run_with_obs!(self.runtime, (encoder_ptr), move || unsafe {
+            obs_encoder_set_audio(audio_enc.encoder.0, handler);
+            obs_output_set_audio_encoder(self.output.0, audio_enc.encoder.0, mixer_idx);
+        })?;
 
-                let x = Arc::new(x);
-                self.audio_encoders.write().await.push(x.clone());
-                Ok(x)
-            }
-            Err(x) => Err(x),
-        };
+        let x = Arc::new(audio_enc);
+        self.audio_encoders.write().await.push(x.clone());
+        Ok(x)
     }
 
     pub async fn set_audio_encoder(
@@ -256,7 +260,7 @@ impl ObsOutputRef {
 
         let encoder_ptr = encoder.encoder.0;
         let output_ptr = self.output.0;
-        run_with_obs!(self.runtime, (encoder_ptr), move || {
+        run_with_obs!(self.runtime, (encoder_ptr), move || unsafe {
             obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
         })?;
 
@@ -276,17 +280,20 @@ impl ObsOutputRef {
 
     pub async fn start(&self) -> Result<(), ObsError> {
         let output_ptr = self.output.0;
-        let output_active = run_with_obs!(self.runtime, (output_ptr), move || {
+        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
         })?;
 
         if !output_active {
-            let res = run_with_obs!(self.runtime, (output_ptr), move || obs_output_start(output_ptr))?;
+            let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+                obs_output_start(output_ptr)
+            })?;
+
             if res {
                 return Ok(());
             }
 
-            let err = run_with_obs!(self.runtime, (output_ptr), move || {
+            let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_get_last_error(output_ptr)
             })?;
 
@@ -301,12 +308,12 @@ impl ObsOutputRef {
 
     pub async fn stop(&mut self) -> Result<(), ObsError> {
         let output_ptr = self.output.0;
-        let output_active = run_with_obs!(self.runtime, (output_ptr), move || {
+        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
         })?;
 
         if output_active {
-            run_with_obs!(self.runtime, (output_ptr), move || {
+            run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_stop(output_ptr)
             })?;
 

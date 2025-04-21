@@ -1,4 +1,4 @@
-use libobs::obs_display_resize;
+use async_trait::async_trait;
 use windows::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{RedrawWindow, RDW_ERASE, RDW_INVALIDATE},
@@ -8,33 +8,39 @@ use windows::Win32::{
     },
 };
 
-use crate::display::ObsDisplayRef;
+use crate::{display::ObsDisplayRef, run_with_obs};
 
+#[async_trait(?Send)]
 pub trait WindowPositionTrait {
-    fn set_render_at_bottom(&self, render_at_bottom: bool);
-    fn get_render_at_bottom(&self) -> bool;
-    fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()>;
-    fn set_size(&self, width: u32, height: u32) -> windows::core::Result<()>;
-    fn set_scale(&self, scale: f32);
+    async fn set_render_at_bottom(&self, render_at_bottom: bool);
+    async fn get_render_at_bottom(&self) -> bool;
+    async fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()>;
+    async fn set_size(&self, width: u32, height: u32) -> anyhow::Result<()>;
+    async fn set_scale(&self, scale: f32);
 
-    fn get_pos(&self) -> (i32, i32);
-    fn get_size(&self) -> (u32, u32);
-    fn get_scale(&self) -> f32;
+    async fn get_pos(&self) -> (i32, i32);
+    fn get_pos_blocking(&self) -> (i32, i32);
+
+    async fn get_size(&self) -> (u32, u32);
+    fn get_size_blocking(&self) -> (u32, u32);
+
+    async fn get_scale(&self) -> f32;
 }
 
+#[async_trait(?Send)]
 impl WindowPositionTrait for ObsDisplayRef {
-    fn set_render_at_bottom(&self, render_at_bottom: bool) {
+    async fn set_render_at_bottom(&self, render_at_bottom: bool) {
         log::trace!("Set render bottom");
-        self.manager.write().render_at_bottom = render_at_bottom;
+        self.manager.write().await.render_at_bottom = render_at_bottom;
     }
 
-    fn get_render_at_bottom(&self) -> bool {
-        self.manager.read().render_at_bottom
+    async fn get_render_at_bottom(&self) -> bool {
+        self.manager.read().await.render_at_bottom
     }
 
-    fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()> {
+    async fn set_pos(&self, x: i32, y: i32) -> windows::core::Result<()> {
         log::trace!("Set pos {x} {y}");
-        let mut m = self.manager.write();
+        let mut m = self.manager.write().await;
 
         assert!(
             m.obs_display.is_some(),
@@ -53,25 +59,42 @@ impl WindowPositionTrait for ObsDisplayRef {
         unsafe {
             let flags = SWP_NOCOPYBITS | SWP_NOSIZE | SWP_NOACTIVATE;
             // Just use dummy values as size is not changed
-            SetWindowPos(m.hwnd.0, Some(insert_after), x, y, 1 as i32, 1 as i32, flags)?;
+            SetWindowPos(
+                m.hwnd.0,
+                Some(insert_after),
+                x,
+                y,
+                1 as i32,
+                1 as i32,
+                flags,
+            )?;
         }
 
         Ok(())
     }
 
-    fn get_pos(&self) -> (i32, i32) {
-        let m = self.manager.read();
+    async fn get_pos(&self) -> (i32, i32) {
+        let m = self.manager.read().await;
+        (m.x, m.y)
+    }
+    fn get_pos_blocking(&self) -> (i32, i32) {
+        let m = self.manager.blocking_read();
         (m.x, m.y)
     }
 
-    fn get_size(&self) -> (u32, u32) {
-        let m = self.manager.read();
+    async fn get_size(&self) -> (u32, u32) {
+        let m = self.manager.read().await;
         (m.width, m.height)
     }
 
-    fn set_size(&self, width: u32, height: u32) -> windows::core::Result<()> {
+    fn get_size_blocking(&self) -> (u32, u32) {
+        let m = self.manager.blocking_read();
+        (m.width, m.height)
+    }
+
+    async fn set_size(&self, width: u32, height: u32) -> anyhow::Result<()> {
         log::trace!("Set size {width} {height}");
-        let mut m = self.manager.write();
+        let mut m = self.manager.write().await;
         assert!(
             m.obs_display.is_some(),
             "Invalid state. The display should have been created and set, but it wasn't."
@@ -93,19 +116,20 @@ impl WindowPositionTrait for ObsDisplayRef {
             )?;
 
             let _ = RedrawWindow(Some(m.hwnd.0), None, None, RDW_ERASE | RDW_INVALIDATE);
-
-            obs_display_resize(pointer, width, height);
         }
 
+        run_with_obs!(self.runtime, (pointer), move || unsafe {
+            libobs::obs_display_resize(pointer, width, height);
+        })?;
         Ok(())
     }
 
-    fn set_scale(&self, scale: f32) {
+    async fn set_scale(&self, scale: f32) {
         log::trace!("Set scale {scale}");
-        self.manager.write().scale = scale;
+        self.manager.write().await.scale = scale;
     }
 
-    fn get_scale(&self) -> f32 {
-        self.manager.read().scale
+    async fn get_scale(&self) -> f32 {
+        self.manager.read().await.scale
     }
 }

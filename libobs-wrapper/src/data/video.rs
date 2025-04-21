@@ -3,7 +3,7 @@ use std::ptr;
 use display_info::DisplayInfo;
 use libobs::obs_video_info;
 
-use crate::{enums::{ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoFormat, ObsVideoRange, OsEnumType}, unsafe_send::WrappedObsVideoInfo, utils::ObsString};
+use crate::{enums::{ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoFormat, ObsVideoRange, OsEnumType}, unsafe_send::SendableComp, utils::ObsString};
 
 /// A wrapper for `obs_video_info`, which is used
 /// to pass information to libobs for the new OBS
@@ -11,7 +11,7 @@ use crate::{enums::{ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoForm
 /// video context.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObsVideoInfo {
-    ovi: WrappedObsVideoInfo,
+    ovi: SendableComp<obs_video_info>,
     // False positive. This is necessary to ensure
     // that the graphics module string in the
     // `obs_video_info` struct does not free.
@@ -28,7 +28,7 @@ impl ObsVideoInfo {
     /// structs is through `ObsVideoInfoBuilder`.
     pub fn new(ovi: obs_video_info, graphics_module: ObsString) -> Self {
         Self {
-            ovi: WrappedObsVideoInfo(ovi),
+            ovi: SendableComp(ovi),
             graphics_module,
         }
     }
@@ -139,7 +139,7 @@ impl ObsVideoInfoBuilder {
         drop(self);
 
         ObsVideoInfo {
-            ovi: WrappedObsVideoInfo(ovi),
+            ovi: SendableComp(ovi),
             graphics_module: graphics_mod_str,
         }
     }

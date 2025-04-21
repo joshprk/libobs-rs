@@ -1,23 +1,36 @@
 use libobs::obs_data_t;
 
-use crate::unsafe_send::Sendable;
+use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
 
 use super::ObsData;
 
 #[derive(Debug)]
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
-pub struct ImmutableObsData(Sendable<*mut obs_data_t>);
+pub struct ImmutableObsData {
+    ptr: Sendable<*mut obs_data_t>,
+    runtime: ObsRuntime
+}
 
 impl ImmutableObsData {
-    pub fn new() -> Self {
-        let ptr = unsafe { libobs::obs_data_create() };
+    pub async fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
+        let ptr = run_with_obs!(runtime, move || unsafe { libobs::obs_data_create() })?;
 
-        ImmutableObsData(Sendable(ptr))
+        Ok(ImmutableObsData {
+            ptr: Sendable(ptr),
+            runtime: runtime.clone()
+        })
+    }
+
+    pub async fn from_raw(data: *mut obs_data_t, runtime: ObsRuntime) -> Self {
+        ImmutableObsData {
+            ptr: Sendable(data),
+            runtime
+        }
     }
 
     pub fn as_ptr(&self) -> *mut obs_data_t {
-        self.0 .0
+        self.ptr.0
     }
 }
 
@@ -27,18 +40,13 @@ impl From<ObsData> for ImmutableObsData {
         let ptr = data.obs_data.0;
 
         data.obs_data.0 = std::ptr::null_mut();
-        ImmutableObsData(WrappedObsData(ptr))
+        ImmutableObsData {
+            ptr: Sendable(ptr),
+            runtime: data.runtime.clone()
+        }
     }
 }
 
-impl From<*mut obs_data_t> for ImmutableObsData {
-    fn from(data: *mut obs_data_t) -> Self {
-        ImmutableObsData(WrappedObsData(data))
-    }
-}
-
-impl Drop for ImmutableObsData {
-    fn drop(&mut self) {
-        unsafe { libobs::obs_data_release(self.0 .0) }
-    }
-}
+impl_obs_drop!(ImmutableObsData, (ptr), move || unsafe {
+    libobs::obs_data_release(ptr.0)
+});

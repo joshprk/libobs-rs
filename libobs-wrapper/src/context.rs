@@ -130,7 +130,7 @@ impl ObsContext {
     }
 
     pub async fn get_version(&self) -> Result<String, ObsError> {
-        let res = run_with_obs!(self.runtime, || {
+        let res = run_with_obs!(self.runtime, || unsafe {
             let version = libobs::obs_get_version_string();
             let version_cstr = CStr::from_ptr(version);
 
@@ -180,7 +180,8 @@ impl ObsContext {
         // and also because there is no need to free
         // anything tied to the OBS context.
         let vid_ptr = self.startup_info.read().await.obs_video_info.as_ptr();
-        let reset_video_status = run_with_obs!(self.runtime, || libobs::obs_reset_video(vid_ptr))?;
+        let reset_video_status =
+            run_with_obs!(self.runtime, || unsafe { libobs::obs_reset_video(vid_ptr) })?;
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
 
         let reset_video_status = match reset_video_status {
@@ -208,7 +209,7 @@ impl ObsContext {
                 .collect::<Vec<_>>();
 
             let vid_ptr = self.get_video_ptr().await.unwrap();
-            run_with_obs!(self.runtime, (vid_ptr), || {
+            run_with_obs!(self.runtime, (vid_ptr), || unsafe {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
                 }
@@ -221,12 +222,16 @@ impl ObsContext {
 
     pub async fn get_video_ptr(&self) -> Result<*mut video_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self.runtime, || libobs::obs_get_video())?)
+        Ok(run_with_obs!(self.runtime, || unsafe {
+            libobs::obs_get_video()
+        })?)
     }
 
     pub async fn get_audio_ptr(&self) -> Result<*mut audio_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self.runtime, || libobs::obs_get_audio())?)
+        Ok(run_with_obs!(self.runtime, || unsafe {
+            libobs::obs_get_audio()
+        })?)
     }
 
     pub async fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
@@ -246,6 +251,7 @@ impl ObsContext {
     /// Creates a new display and returns its ID.
     pub async fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
         let display = ObsDisplayRef::new(data, self.runtime.clone())
+            .await
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
         let id = display.id();
@@ -267,7 +273,8 @@ impl ObsContext {
 
     pub async fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
         self.outputs
-            .read().await
+            .read()
+            .await
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
@@ -276,7 +283,8 @@ impl ObsContext {
     pub async fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
         match self
             .outputs
-            .write().await
+            .write()
+            .await
             .iter_mut()
             .find(|x| x.name().to_string().as_str() == name)
         {
@@ -286,11 +294,8 @@ impl ObsContext {
     }
 
     pub async fn scene(&mut self, name: impl Into<ObsString>) -> Result<ObsSceneRef, ObsError> {
-        let scene = ObsSceneRef::new(
-            name.into(),
-            self.active_scene.clone(),
-            self.runtime.clone(),
-        ).await?;
+        let scene =
+            ObsSceneRef::new(name.into(), self.active_scene.clone(), self.runtime.clone()).await?;
 
         let tmp = scene.clone();
         self.scenes.write().await.push(scene);
@@ -300,7 +305,8 @@ impl ObsContext {
 
     pub async fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
         self.scenes
-            .read().await
+            .read()
+            .await
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
