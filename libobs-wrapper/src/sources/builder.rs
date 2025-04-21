@@ -9,11 +9,13 @@ use super::ObsSourceRef;
 pub const UPDATE_SOURCE_NAME: &'static str =
     "OBS_INTERNAL_UPDATE (if you see this, you've build a source wrong)";
 
+#[async_trait::async_trait(?Send)]
 pub trait ObsSourceBuilder: ObsObjectBuilder {
-    fn add_to_scene<'a>(self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
+    async fn add_to_scene<'a>(self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {
-        scene.add_source(self.build())
+        let s = self.build();
+        scene.add_source(s).await
     }
 }

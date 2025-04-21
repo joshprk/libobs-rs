@@ -1,5 +1,8 @@
 use crate::data::{ObsData, ObsObjectUpdater};
 
+use super::ObsError;
+
+#[async_trait::async_trait]
 pub trait ObsUpdatable {
     /// Updates the object with the current settings.
     /// Note that this example requires the `libobs-sources` crate.
@@ -24,6 +27,6 @@ pub trait ObsUpdatable {
     }
 
     // We don't really need a mut here, but we do it anyway to give the dev a *feeling* of changing something
-    fn update_raw(&mut self, data: ObsData);
-    fn reset_and_update_raw(&mut self, data: ObsData);
+    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError>;
+    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError>;
 }

@@ -1,18 +1,21 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-};
+use std::sync::Arc;
 
 use getters0::Getters;
 use libobs::{obs_scene_create, obs_scene_t, obs_set_output_source, obs_source_t};
+use tokio::sync::RwLock;
 
 use crate::{
-    context::ObsContextShutdownZST, sources::ObsSourceRef, unsafe_send::WrappedObsScene, utils::{ObsError, ObsString, SourceInfo}
+    run_with_obs,
+    runtime::ObsRuntime,
+    sources::ObsSourceRef,
+    unsafe_send::Sendable,
+    utils::{ObsError, ObsString, SourceInfo},
 };
 
 #[derive(Debug)]
 struct _SceneDropGuard {
-    scene: WrappedObsScene,
+    scene: Sendable<*mut obs_scene_t>,
+    runtime: ObsRuntime,
 }
 
 impl Drop for _SceneDropGuard {
@@ -27,98 +30,121 @@ impl Drop for _SceneDropGuard {
 #[skip_new]
 pub struct ObsSceneRef {
     #[skip_getter]
-    scene: Arc<WrappedObsScene>,
+    scene: Arc<Sendable<*mut obs_scene_t>>,
     name: ObsString,
     #[get_mut]
     pub(crate) sources: Arc<RwLock<Vec<ObsSourceRef>>>,
     #[skip_getter]
-    pub(crate) active_scene: Arc<RwLock<Option<WrappedObsScene>>>,
+    pub(crate) active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
 
     #[skip_getter]
     _guard: Arc<_SceneDropGuard>,
 
     #[skip_getter]
-    _shutdown: Arc<ObsContextShutdownZST>,
+    runtime: ObsRuntime,
 }
 
 impl ObsSceneRef {
-    pub(crate) fn new(name: ObsString, active_scene: Arc<RwLock<Option<WrappedObsScene>>>, shutdown: Arc<ObsContextShutdownZST>) -> Self {
-        let scene = unsafe { obs_scene_create(name.as_ptr()) };
+    pub(crate) async fn new(
+        name: ObsString,
+        active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
+        runtime: ObsRuntime,
+    ) -> Result<Self, ObsError> {
+        let name_ptr = name.as_ptr();
+        let scene = run_with_obs!(runtime, (name_ptr), move || obs_scene_create(name_ptr))?;
 
-        Self {
+        Ok(Self {
             name,
-            scene: Arc::new(WrappedObsScene(scene)),
+            scene: Arc::new(Sendable(scene)),
             sources: Arc::new(RwLock::new(vec![])),
             active_scene: active_scene.clone(),
             _guard: Arc::new(_SceneDropGuard {
-                scene: WrappedObsScene(scene),
+                scene: Sendable(scene),
+                runtime: runtime.clone(),
             }),
-            _shutdown: shutdown
-        }
+            runtime,
+        })
     }
 
-    pub fn add_and_set(&self, channel: u32) {
-        let mut s = self.active_scene.borrow_mut();
-        *s = Some(WrappedObsScene(self.as_ptr()));
+    pub async fn add_and_set(&self, channel: u32) -> Result<(), ObsError> {
+        let mut s = self.active_scene.write().await;
+        *s = Some(Sendable(self.as_ptr()));
 
-        unsafe {
-            obs_set_output_source(channel, self.get_scene_source_ptr());
-        }
+        let scene_source_ptr = self.get_scene_source_ptr().await?;
+        run_with_obs!(self.runtime, (scene_source_ptr), move || {
+            obs_set_output_source(channel, scene_source_ptr);
+        })
     }
 
-    pub fn get_scene_source_ptr(&self) -> *mut obs_source_t {
-        unsafe { libobs::obs_scene_get_source(self.scene.0) }
+    pub async fn get_scene_source_ptr(&self) -> Result<*mut obs_source_t, ObsError> {
+        let scene_ptr = self.scene.0;
+        run_with_obs!(self.runtime, (scene_ptr), move || {
+            libobs::obs_scene_get_source(scene_ptr)
+        })
     }
 
-    pub fn add_source(&mut self, info: SourceInfo) -> Result<ObsSourceRef, ObsError> {
-        let source = ObsSourceRef::new(info.id, info.name, info.settings, info.hotkey_data);
+    pub async fn add_source(&mut self, info: SourceInfo) -> Result<ObsSourceRef, ObsError> {
+        let source = ObsSourceRef::new(
+            info.id,
+            info.name,
+            info.settings,
+            info.hotkey_data,
+            self.runtime.clone(),
+        )
+        .await?;
 
-        return match source {
-            Ok(x) => {
-                unsafe {
-                    libobs::obs_scene_add(self.scene.0, x.source.0);
-                }
-                let tmp = x.clone();
-                self.sources.borrow_mut().push(x);
-                Ok(tmp)
-            }
-            Err(x) => Err(x),
-        };
+        let scene_ptr = self.scene.0;
+        let source_ptr = source.source.0;
+        run_with_obs!(self.runtime, (scene_ptr, source_ptr), move || {
+            libobs::obs_scene_add(scene_ptr, source_ptr);
+        })?;
+
+        self.sources.write().await.push(source.clone());
+        Ok(source)
     }
 
-    pub fn get_source_by_index(&self, index: usize) -> Option<ObsSourceRef> {
-        self.sources.borrow().get(index).map(|x| x.clone())
+    pub async fn get_source_by_index(&self, index: usize) -> Option<ObsSourceRef> {
+        self.sources.read().await.get(index).map(|x| x.clone())
     }
 
-    pub fn get_source_mut(&self, name: &str) -> Option<ObsSourceRef> {
+    pub async fn get_source_mut(&self, name: &str) -> Option<ObsSourceRef> {
         self.sources
-        .borrow()
+            .read()
+            .await
             .iter()
             .find(|x| x.name() == name)
             .map(|x| x.clone())
     }
 
-    pub fn remove_source(&mut self, name: ObsString) -> Result<(), ObsError> {
+    pub async fn remove_source(&mut self, name: ObsString) -> Result<(), ObsError> {
         // Find the source by name
-        let index =if let Some(index) = self.sources.borrow().iter().position(|x| x.name == name) {
-            unsafe {
+        let index = if let Some(index) = self
+            .sources
+            .read()
+            .await
+            .iter()
+            .position(|x| x.name == name)
+        {
+            let name_ptr = name.as_ptr();
+            let scene_ptr = self.scene.0;
+            run_with_obs!(self.runtime, (name_ptr, scene_ptr), move || {
                 // Find the scene item for this source
-                let scene_item = libobs::obs_scene_find_source(self.scene.0, name.as_ptr());
+                let scene_item = libobs::obs_scene_find_source(scene_ptr, name_ptr);
                 if !scene_item.is_null() {
                     // Remove the scene item
                     libobs::obs_sceneitem_remove(scene_item);
                     // Release the scene item reference
                     libobs::obs_sceneitem_release(scene_item);
                 }
-            }
-            
+            })?;
+
             index
         } else {
-            return Err(ObsError::SourceNotFound)
+            return Err(ObsError::SourceNotFound);
         };
 
         // Remove from our sources list
-        self.sources.borrow_mut().remove(index);
+        self.sources.write().await.remove(index);
         Ok(())
     }
 

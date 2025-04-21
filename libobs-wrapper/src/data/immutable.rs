@@ -1,19 +1,19 @@
 use libobs::obs_data_t;
 
-use crate::unsafe_send::WrappedObsData;
+use crate::unsafe_send::Sendable;
 
 use super::ObsData;
 
 #[derive(Debug)]
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
-pub struct ImmutableObsData(WrappedObsData);
+pub struct ImmutableObsData(Sendable<*mut obs_data_t>);
 
 impl ImmutableObsData {
     pub fn new() -> Self {
         let ptr = unsafe { libobs::obs_data_create() };
 
-        ImmutableObsData(WrappedObsData(ptr))
+        ImmutableObsData(Sendable(ptr))
     }
 
     pub fn as_ptr(&self) -> *mut obs_data_t {

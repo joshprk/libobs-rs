@@ -62,7 +62,6 @@ pub struct ObsContext {
     #[skip_getter]
     pub(crate) _obs_modules: Arc<ObsModules>,
 
-    #[skip_getter]
     /// This struct must be the last element which makes sure
     /// that everything else has been freed already before the runtime
     /// shuts down
@@ -131,11 +130,11 @@ impl ObsContext {
     }
 
     pub async fn get_version(&self) -> Result<String, ObsError> {
-        let res = run_with_obs!(self, || {
+        let res = run_with_obs!(self.runtime, || {
             let version = libobs::obs_get_version_string();
             let version_cstr = CStr::from_ptr(version);
 
-            Ok(version_cstr.to_string_lossy().into_owned())
+            version_cstr.to_string_lossy().into_owned()
         })?;
 
         Ok(res)
@@ -181,7 +180,7 @@ impl ObsContext {
         // and also because there is no need to free
         // anything tied to the OBS context.
         let vid_ptr = self.startup_info.read().await.obs_video_info.as_ptr();
-        let reset_video_status = run_with_obs!(self, || Ok(libobs::obs_reset_video(vid_ptr)))?;
+        let reset_video_status = run_with_obs!(self.runtime, || libobs::obs_reset_video(vid_ptr))?;
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
 
         let reset_video_status = match reset_video_status {
@@ -209,12 +208,10 @@ impl ObsContext {
                 .collect::<Vec<_>>();
 
             let vid_ptr = self.get_video_ptr().await.unwrap();
-            run_with_obs!(self, (vid_ptr), || {
+            run_with_obs!(self.runtime, (vid_ptr), || {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
                 }
-
-                Ok(())
             })?;
 
             self.startup_info.write().await.obs_video_info = ovi;
@@ -224,12 +221,12 @@ impl ObsContext {
 
     pub async fn get_video_ptr(&self) -> Result<*mut video_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self, || { Ok(Sendable(libobs::obs_get_video())) })?.0)
+        Ok(run_with_obs!(self.runtime, || libobs::obs_get_video())?)
     }
 
     pub async fn get_audio_ptr(&self) -> Result<*mut audio_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self, || { Ok(Sendable(libobs::obs_get_audio())) })?.0)
+        Ok(run_with_obs!(self.runtime, || libobs::obs_get_audio())?)
     }
 
     pub async fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
@@ -283,22 +280,22 @@ impl ObsContext {
             .iter_mut()
             .find(|x| x.name().to_string().as_str() == name)
         {
-            Some(output) => output.update_settings(settings),
+            Some(output) => output.update_settings(settings).await,
             None => Err(ObsError::OutputNotFound),
         }
     }
 
-    pub async fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
+    pub async fn scene(&mut self, name: impl Into<ObsString>) -> Result<ObsSceneRef, ObsError> {
         let scene = ObsSceneRef::new(
             name.into(),
             self.active_scene.clone(),
             self.runtime.clone(),
-        );
+        ).await?;
 
         let tmp = scene.clone();
         self.scenes.write().await.push(scene);
 
-        tmp
+        Ok(tmp)
     }
 
     pub async fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {

@@ -17,60 +17,7 @@ use crate::{
     context::{ObsContext, OBS_THREAD_ID},
     utils::StartupInfo,
 };
-
-#[macro_export]
-macro_rules! run_with_obs {
-    ($self:ident, $operation:expr) => {
-        {
-            $self.runtime.run_with_obs_result(move || {
-                let e = unsafe { $operation };
-                return e()
-            }).await
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        }
-    };
-    ($self:ident, ($($var:ident),* $(,)*), $operation:expr) => {
-        {
-            $(let $var = crate::unsafe_send::Sendable($var.clone());)*
-            $self.runtime.run_with_obs_result(move || {
-                $(let $var = $var.clone();)*
-                let e = unsafe {
-                    $(let $var = $var.0;)*
-                    $operation
-                };
-                return e()
-            }).await
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! run_with_obs_blocking {
-    ($self:ident, $operation:expr) => {
-        {
-            $self.runtime.run_with_obs_result_blocking(move || {
-                let e = unsafe { $operation };
-                return e()
-            })
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        }
-    };
-    ($self:ident, ($($var:ident),* $(,)*), $operation:expr) => {
-        {
-            $(let $var = crate::unsafe_send::Sendable($var.clone());)*
-            $self.runtime.run_with_obs_result_blocking(move || {
-                $(let $var = $var.clone();)*
-                let e = unsafe {
-                    $(let $var = $var.0;)*
-                    $operation
-                };
-                return e()
-            })
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        }
-    };
-}
+use crate::impl_obs_drop;
 
 // Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -231,7 +178,7 @@ impl ObsRuntime {
     {
         self.run_with_obs_result(move || {
             operation();
-            Ok(())
+            Result::<(), anyhow::Error>::Ok(())
         })
         .await;
 
@@ -243,14 +190,14 @@ impl ObsRuntime {
     /// This allows you to execute operations on the OBS thread and get a value back
     pub fn run_with_obs_result_blocking<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
-        F: FnOnce() -> anyhow::Result<T> + Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
     {
         let (tx, rx) = oneshot::channel();
 
         // Create a wrapper closure that boxes the result as Any
         let wrapper = move || -> anyhow::Result<Box<dyn std::any::Any + Send>> {
-            let result = operation()?;
+            let result = operation();
             Ok(Box::new(result))
         };
 
@@ -274,14 +221,14 @@ impl ObsRuntime {
     /// This allows you to execute operations on the OBS thread and get a value back
     pub async fn run_with_obs_result<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
-        F: FnOnce() -> anyhow::Result<T> + Send + 'static,
+        F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
     {
         let (tx, rx) = oneshot::channel();
 
         // Create a wrapper closure that boxes the result as Any
         let wrapper = move || -> anyhow::Result<Box<dyn std::any::Any + Send>> {
-            let result = operation()?;
+            let result = operation();
             Ok(Box::new(result))
         };
 
@@ -437,59 +384,41 @@ impl ObsRuntime {
     }
 }
 
-impl Drop for ObsRuntime {
-    fn drop(&mut self) {
-        let res = run_with_obs_blocking!(self, || {
-            // Clean up sources
-            for i in 0..libobs::MAX_CHANNELS {
-                unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
-            }
+impl_obs_drop!(ObsRuntime, move || {
+    // Clean up sources
+    for i in 0..libobs::MAX_CHANNELS {
+        unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
+    }
 
-            unsafe { libobs::obs_shutdown() }
+    unsafe { libobs::obs_shutdown() }
 
-            let r = LOGGER.lock();
-            match r {
-                Ok(mut logger) => {
-                    logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
-                    let allocs = unsafe { libobs::bnum_allocs() };
+    let r = LOGGER.lock();
+    match r {
+        Ok(mut logger) => {
+            logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
+            let allocs = unsafe { libobs::bnum_allocs() };
 
-                    // Increasing this to 1 because of whats described below
-                    let level = if allocs > 1 {
-                        ObsLogLevel::Error
-                    } else {
-                        ObsLogLevel::Info
-                    };
-                    // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
-                    // even when obs_remove_data_path is called. This is a bug in OBS.
-                    logger.log(level, format!("Number of memory leaks: {}", allocs))
-                }
-                Err(_) => {
-                    println!("OBS context shutdown. (but couldn't lock logger)");
-                }
-            }
-
-            unsafe {
-                // Clean up log and crash handler
-                libobs::base_set_crash_handler(None, std::ptr::null_mut());
-                libobs::base_set_log_handler(None, std::ptr::null_mut());
-            }
-
-            let mut mutex_value = OBS_THREAD_ID.blocking_lock();
-            *mutex_value = None;
-
-            Ok(())
-        });
-        if let Err(err) = res {
-            log::error!("Failed to shutdown OBS context: {:?}", err);
+            // Increasing this to 1 because of whats described below
+            let level = if allocs > 1 {
+                ObsLogLevel::Error
+            } else {
+                ObsLogLevel::Info
+            };
+            // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
+            // even when obs_remove_data_path is called. This is a bug in OBS.
+            logger.log(level, format!("Number of memory leaks: {}", allocs))
         }
-
-        let e = self.command_sender.send(ObsCommand::Terminate);
-
-        if let Err(err) = e {
-            log::error!(
-                "Failed to send termination command to OBS thread: {:?}",
-                err
-            );
+        Err(_) => {
+            println!("OBS context shutdown. (but couldn't lock logger)");
         }
     }
-}
+
+    unsafe {
+        // Clean up log and crash handler
+        libobs::base_set_crash_handler(None, std::ptr::null_mut());
+        libobs::base_set_log_handler(None, std::ptr::null_mut());
+    }
+
+    let mut mutex_value = OBS_THREAD_ID.blocking_lock();
+    *mutex_value = None;
+});

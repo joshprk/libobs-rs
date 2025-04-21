@@ -16,3 +16,6 @@ pub mod runtime;
 
 pub mod utils;
 pub mod enums;
+
+// Add the macros module to the public exports
+mod macros;

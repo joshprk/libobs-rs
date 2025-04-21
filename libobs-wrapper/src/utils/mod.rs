@@ -13,7 +13,7 @@ use libobs::obs_module_failure_info;
 pub use obs_string::*;
 pub use path::*;
 
-use crate::{enums::ObsLogLevel, logger::internal_log_global};
+use crate::{enums::ObsLogLevel, impl_obs_drop, logger::internal_log_global};
 
 #[derive(Debug)]
 pub struct ObsModules {
@@ -83,13 +83,9 @@ impl ObsModules {
     }
 }
 
-impl Drop for ObsModules {
-    fn drop(&mut self) {
-        unsafe {
-            libobs::obs_remove_data_path(self.paths.libobs_data_path().as_ptr());
-        }
-    }
-}
+impl_obs_drop!(ObsModules, (paths), move || {
+    libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
+});
 
 pub const ENCODER_HIDE_FLAGS: u32 =
     libobs::OBS_ENCODER_CAP_DEPRECATED | libobs::OBS_ENCODER_CAP_INTERNAL;

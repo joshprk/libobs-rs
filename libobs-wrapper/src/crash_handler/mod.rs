@@ -10,12 +10,12 @@ pub trait ObsCrashHandler: Send {
 }
 
 pub struct ConsoleCrashHandler {
-    _priavte: (),
+    _private: (),
 }
 
 impl ConsoleCrashHandler {
     pub fn new() -> Self {
-        Self { _priavte: () }
+        Self { _private: () }
     }
 }
 impl ObsCrashHandler for ConsoleCrashHandler {
