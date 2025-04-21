@@ -1,8 +1,8 @@
 mod error;
 mod info;
+pub(crate) mod initialization;
 mod obs_string;
 mod path;
-pub(crate) mod initialization;
 pub mod traits;
 
 use std::ffi::CStr;
@@ -13,7 +13,10 @@ use libobs::obs_module_failure_info;
 pub use obs_string::*;
 pub use path::*;
 
-use crate::{enums::ObsLogLevel, impl_obs_drop, logger::internal_log_global};
+use crate::{
+    enums::ObsLogLevel, logger::internal_log_global, run_with_obs_blocking,
+    runtime::ObsRuntime,
+};
 
 #[derive(Debug)]
 pub struct ObsModules {
@@ -21,6 +24,7 @@ pub struct ObsModules {
 
     /// A pointer to the module failure info structure.
     info: Option<obs_module_failure_info>,
+    pub(crate) runtime: Option<ObsRuntime>,
 }
 
 impl ObsModules {
@@ -36,6 +40,7 @@ impl ObsModules {
         Self {
             paths: paths.clone(),
             info: None,
+            runtime: None,
         }
     }
 
@@ -83,9 +88,22 @@ impl ObsModules {
     }
 }
 
-impl_obs_drop!(ObsModules, (paths), move || {
-    libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
-});
+impl Drop for ObsModules {
+    fn drop(&mut self) {
+        let paths = self.paths.clone();
+        let runtime = self.runtime.take().unwrap();
+
+        let r = run_with_obs_blocking!(runtime, move || unsafe {
+            libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
+        });
+
+        if std::thread::panicking() {
+            return;
+        }
+
+        r.unwrap();
+    }
+}
 
 pub const ENCODER_HIDE_FLAGS: u32 =
     libobs::OBS_ENCODER_CAP_DEPRECATED | libobs::OBS_ENCODER_CAP_INTERNAL;

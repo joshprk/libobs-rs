@@ -42,7 +42,7 @@ macro_rules! run_with_obs {
 #[macro_export]
 macro_rules! run_with_obs_blocking {
     ($self:expr, $operation:expr) => {
-        $crate::run_with_obs_impl!($self, run_with_obs_result_blocking, $operation)
+        $crate::run_with_obs_impl!($self, run_with_obs_result_blocking, (), $operation)
         .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
         .map(|x| x.0)
     };
@@ -55,17 +55,27 @@ macro_rules! run_with_obs_blocking {
 
 #[macro_export]
 macro_rules! impl_obs_drop {
-    ($struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
-        crate::impl_obs_drop!($struct_name, self.runtime, ($($var),*), $operation);
-    };
     ($struct_name: ident, $operation:expr) => {
-        crate::impl_obs_drop!($struct_name, self.runtime, (), $operation);
+        crate::impl_obs_drop!($struct_name, (), $operation);
     };
-    ($struct_name: ident, $self:expr, ($($var:ident),* $(,)*), $operation:expr) => {
+    ($struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
         impl Drop for $struct_name {
             fn drop(&mut self) {
                 $(let $var = self.$var.clone();)*
-                let r = crate::run_with_obs_blocking!($self, ($($var),*), $operation);
+                let r = crate::run_with_obs_blocking!(self.runtime, ($($var),*), $operation);
+                if std::thread::panicking() {
+                    return;
+                }
+
+                r.unwrap();
+            }
+        }
+    };
+    (is_runtime, $struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
+        impl Drop for $struct_name {
+            fn drop(&mut self) {
+                $(let $var = self.$var.clone();)*
+                let r = crate::run_with_obs_blocking!(self, ($($var),*), $operation);
                 if std::thread::panicking() {
                     return;
                 }

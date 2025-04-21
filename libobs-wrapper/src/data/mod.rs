@@ -68,7 +68,7 @@ impl ObsData {
         let value_ptr = value.as_ptr();
         let data_ptr = self.obs_data.0;
 
-        run_with_obs!(self.runtime, (key_ptr, value_ptr), move || unsafe {
+        run_with_obs!(self.runtime, (data_ptr, key_ptr, value_ptr), move || unsafe {
             obs_data_set_string(data_ptr, key_ptr, value_ptr)
         })?;
 
@@ -181,7 +181,7 @@ impl_obs_drop!(ObsData, (obs_data), move || unsafe {
 });
 
 impl ObsData {
-    async fn clone(&self) -> anyhow::Result<Self> {
+    pub async fn clone(&self) -> anyhow::Result<Self> {
         let json = self.get_json().await?;
 
         Self::from_json(json.as_str(), self.runtime.clone()).await

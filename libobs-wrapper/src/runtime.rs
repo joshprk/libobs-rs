@@ -157,13 +157,16 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (m, info) = init_rx.await??;
+        let (mut m, info) = init_rx.await??;
 
+        let runtime = Self {
+            handle: Arc::new(Mutex::new(Some(handle))),
+            command_sender: Arc::new(command_sender),
+        };
+
+        m.0.runtime = Some(runtime.clone());
         Ok((
-            Self {
-                handle: Arc::new(Mutex::new(Some(handle))),
-                command_sender: Arc::new(command_sender),
-            },
+            runtime,
             m.0,
             info,
         ))
@@ -180,7 +183,7 @@ impl ObsRuntime {
             operation();
             Result::<(), anyhow::Error>::Ok(())
         })
-        .await;
+        .await??;
 
         Ok(())
     }
@@ -384,7 +387,7 @@ impl ObsRuntime {
     }
 }
 
-impl_obs_drop!(ObsRuntime, move || {
+impl_obs_drop!(is_runtime, ObsRuntime, (), move || {
     // Clean up sources
     for i in 0..libobs::MAX_CHANNELS {
         unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };

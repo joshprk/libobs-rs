@@ -236,13 +236,19 @@ impl ObsOutputRef {
             mixer_idx,
             info.hotkey_data,
             self.runtime.clone(),
-        ).await?;
+        )
+        .await?;
 
         let encoder_ptr = audio_enc.encoder.0;
-        run_with_obs!(self.runtime, (encoder_ptr), move || unsafe {
-            obs_encoder_set_audio(audio_enc.encoder.0, handler);
-            obs_output_set_audio_encoder(self.output.0, audio_enc.encoder.0, mixer_idx);
-        })?;
+        let output_ptr = self.output.0;
+        run_with_obs!(
+            self.runtime,
+            (handler, encoder_ptr, output_ptr),
+            move || unsafe {
+                obs_encoder_set_audio(encoder_ptr, handler);
+                obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
+            }
+        )?;
 
         let x = Arc::new(audio_enc);
         self.audio_encoders.write().await.push(x.clone());
@@ -260,7 +266,7 @@ impl ObsOutputRef {
 
         let encoder_ptr = encoder.encoder.0;
         let output_ptr = self.output.0;
-        run_with_obs!(self.runtime, (encoder_ptr), move || unsafe {
+        run_with_obs!(self.runtime, (output_ptr, encoder_ptr), move || unsafe {
             obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
         })?;
 

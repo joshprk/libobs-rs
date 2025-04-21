@@ -12,7 +12,6 @@ use crate::{
     utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
 };
 use anyhow::Result;
-use futures::future::join_all;
 use getters0::Getters;
 use libobs::{audio_output, obs_scene_t, video_output};
 use tokio::sync::{Mutex, RwLock};
@@ -159,7 +158,7 @@ impl ObsContext {
     /// Note that you cannot reset the graphics module
     /// without destroying the entire OBS context. Trying
     /// so will result in an error.
-    pub async fn reset_video(&mut self, mut ovi: ObsVideoInfo) -> Result<(), ObsError> {
+    pub async fn reset_video(&mut self, ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
         if self
@@ -179,9 +178,14 @@ impl ObsContext {
         // ObsContext struct is not created yet,
         // and also because there is no need to free
         // anything tied to the OBS context.
-        let vid_ptr = self.startup_info.read().await.obs_video_info.as_ptr();
-        let reset_video_status =
-            run_with_obs!(self.runtime, || unsafe { libobs::obs_reset_video(vid_ptr) })?;
+        let mut vid = self.startup_info.write().await;
+        let vid_ptr = vid.obs_video_info.as_ptr().clone();
+
+        let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
+            libobs::obs_reset_video(vid_ptr)
+        })?;
+
+        drop(vid);
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
 
         let reset_video_status = match reset_video_status {
@@ -192,24 +196,16 @@ impl ObsContext {
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
-            let outputs = self
-                .outputs
-                .read()
-                .await
-                .clone()
-                .into_iter()
-                .map(|x| x.get_video_encoders())
-                .collect::<Vec<_>>();
+            let outputs = self.outputs.read().await.clone();
+            let mut video_encoders = vec![];
 
-            let video_encoders = join_all(outputs)
-                .await
-                .into_iter()
-                .map(|e| e.into_iter().map(|e| Sendable(e.as_ptr())))
-                .flatten()
-                .collect::<Vec<_>>();
+            for output in outputs.iter() {
+                let encoders = output.get_video_encoders().await;
+                video_encoders.extend(encoders.into_iter().map(|e| Sendable(e.as_ptr())));
+            }
 
             let vid_ptr = self.get_video_ptr().await.unwrap();
-            run_with_obs!(self.runtime, (vid_ptr), || unsafe {
+            run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
                 }
@@ -232,6 +228,10 @@ impl ObsContext {
         Ok(run_with_obs!(self.runtime, || unsafe {
             libobs::obs_get_audio()
         })?)
+    }
+
+    pub async fn data(&self) -> Result<ObsData, ObsError> {
+        ObsData::new(self.runtime.clone()).await
     }
 
     pub async fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {

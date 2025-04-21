@@ -2,11 +2,7 @@ use libobs::{audio_output, obs_audio_encoder_create, obs_encoder_release, obs_en
 use std::{borrow::Borrow, ptr};
 
 use crate::{
-    data::ObsData,
-    run_with_obs,
-    runtime::ObsRuntime,
-    unsafe_send::Sendable,
-    utils::{ObsError, ObsString},
+    data::ObsData, impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}
 };
 
 #[derive(Debug)]
@@ -74,8 +70,6 @@ impl ObsAudioEncoder {
     }
 }
 
-impl Drop for ObsAudioEncoder {
-    fn drop(&mut self) {
-        unsafe { obs_encoder_release(self.encoder.0) }
-    }
-}
+impl_obs_drop!(ObsAudioEncoder, (encoder), move || unsafe {
+    obs_encoder_release(encoder.0)
+});

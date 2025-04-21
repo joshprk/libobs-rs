@@ -5,11 +5,7 @@ use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
 use tokio::sync::RwLock;
 
 use crate::{
-    run_with_obs,
-    runtime::ObsRuntime,
-    sources::ObsSourceRef,
-    unsafe_send::Sendable,
-    utils::{ObsError, ObsString, SourceInfo},
+    impl_obs_drop, run_with_obs, runtime::ObsRuntime, sources::ObsSourceRef, unsafe_send::Sendable, utils::{ObsError, ObsString, SourceInfo}
 };
 
 #[derive(Debug)]
@@ -18,13 +14,9 @@ struct _SceneDropGuard {
     runtime: ObsRuntime,
 }
 
-impl Drop for _SceneDropGuard {
-    fn drop(&mut self) {
-        unsafe {
-            libobs::obs_scene_release(self.scene.0);
-        }
-    }
-}
+impl_obs_drop!(_SceneDropGuard, (scene), move || unsafe {
+    libobs::obs_scene_release(scene.0);
+});
 
 #[derive(Debug, Clone, Getters)]
 #[skip_new]
