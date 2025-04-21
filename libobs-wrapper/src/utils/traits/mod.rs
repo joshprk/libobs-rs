@@ -5,20 +5,7 @@ use super::ObsError;
 #[async_trait::async_trait]
 pub trait ObsUpdatable {
     /// Updates the object with the current settings.
-    /// Note that this example requires the `libobs-sources` crate.
-    /// ## Example usage
-    /// ```rust
-    /// use libobs_wrapper::data::ObsObjectUpdater;
-    /// let source = WindowCaptureSourceBuilder::new("test_capture")
-    ///     .set_window(&window)
-    ///     .add_to_scene(scene)
-    ///     .unwrap();
-    ///
-    /// // Do other stuff with source
-    ///
-    /// // Update the source with the corresponding updater like so
-    /// source.create_updater::<WindowCaptureSourceUpdater>();
-    /// ```
+    /// For examples please take a look at the [Github repository](https://github.com/joshprk/libobs-rs/blob/main/examples).
     fn create_updater<'a, T: ObsObjectUpdater<'a, ToUpdate = Self>>(&'a mut self) -> T
     where
         Self: Sized,

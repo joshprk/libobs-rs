@@ -40,6 +40,7 @@ macro_rules! run_with_obs {
 }
 
 #[macro_export]
+/// This function can only be called OUTSIDE of the OBS thread.
 macro_rules! run_with_obs_blocking {
     ($self:expr, $operation:expr) => {
         $crate::run_with_obs_impl!($self, run_with_obs_result_blocking, (), $operation)
@@ -62,7 +63,10 @@ macro_rules! impl_obs_drop {
         impl Drop for $struct_name {
             fn drop(&mut self) {
                 $(let $var = self.$var.clone();)*
-                let r = crate::run_with_obs_blocking!(self.runtime, ($($var),*), $operation);
+                let r = futures::executor::block_on(async {
+                    return crate::run_with_obs!(self.runtime, ($($var),*), $operation)
+                });
+
                 if std::thread::panicking() {
                     return;
                 }

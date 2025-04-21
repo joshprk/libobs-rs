@@ -28,6 +28,7 @@ pub struct ObsData {
     pub(crate) runtime: ObsRuntime,
 }
 
+//TODO: Support bulk updating so something like `.set_string(...).await?.set_string(...).await?` is avoided and replaced with something like `.set_string(...).set_int(...).await?`
 impl ObsData {
     /// Creates a new empty `ObsData` wrapper for the
     /// libobs `obs_data` data structure.

@@ -17,7 +17,6 @@ use crate::{
     context::{ObsContext, OBS_THREAD_ID},
     utils::StartupInfo,
 };
-use crate::impl_obs_drop;
 
 // Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -147,6 +146,8 @@ impl ObsRuntime {
                             ObsCommand::Terminate => break,
                         }
                     }
+
+                    Self::shutdown_inner();
                 }
                 Err(err) => {
                     log::error!("Failed to initialize OBS context: {:?}", err);
@@ -165,11 +166,7 @@ impl ObsRuntime {
         };
 
         m.0.runtime = Some(runtime.clone());
-        Ok((
-            runtime,
-            m.0,
-            info,
-        ))
+        Ok((runtime, m.0, info))
     }
 
     /// Run a function with the ObsContext
@@ -191,6 +188,10 @@ impl ObsRuntime {
     /// Run a function with the ObsContext and get a result
     ///
     /// This allows you to execute operations on the OBS thread and get a value back
+    /// # Panics
+    ///
+    /// This function panics if called within an asynchronous execution
+    /// context.
     pub fn run_with_obs_result_blocking<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
         F: FnOnce() -> T + Send + 'static,
@@ -385,43 +386,43 @@ impl ObsRuntime {
 
         Ok((info, obs_modules))
     }
+
+    fn shutdown_inner() {
+        // Clean up sources
+        for i in 0..libobs::MAX_CHANNELS {
+            unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
+        }
+
+        unsafe { libobs::obs_shutdown() }
+
+        let r = LOGGER.lock();
+        match r {
+            Ok(mut logger) => {
+                logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
+                let allocs = unsafe { libobs::bnum_allocs() };
+
+                // Increasing this to 1 because of whats described below
+                let level = if allocs > 1 {
+                    ObsLogLevel::Error
+                } else {
+                    ObsLogLevel::Info
+                };
+                // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
+                // even when obs_remove_data_path is called. This is a bug in OBS.
+                logger.log(level, format!("Number of memory leaks: {}", allocs))
+            }
+            Err(_) => {
+                println!("OBS context shutdown. (but couldn't lock logger)");
+            }
+        }
+
+        unsafe {
+            // Clean up log and crash handler
+            libobs::base_set_crash_handler(None, std::ptr::null_mut());
+            libobs::base_set_log_handler(None, std::ptr::null_mut());
+        }
+
+        let mut mutex_value = OBS_THREAD_ID.blocking_lock();
+        *mutex_value = None;
+    }
 }
-
-impl_obs_drop!(is_runtime, ObsRuntime, (), move || {
-    // Clean up sources
-    for i in 0..libobs::MAX_CHANNELS {
-        unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
-    }
-
-    unsafe { libobs::obs_shutdown() }
-
-    let r = LOGGER.lock();
-    match r {
-        Ok(mut logger) => {
-            logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
-            let allocs = unsafe { libobs::bnum_allocs() };
-
-            // Increasing this to 1 because of whats described below
-            let level = if allocs > 1 {
-                ObsLogLevel::Error
-            } else {
-                ObsLogLevel::Info
-            };
-            // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
-            // even when obs_remove_data_path is called. This is a bug in OBS.
-            logger.log(level, format!("Number of memory leaks: {}", allocs))
-        }
-        Err(_) => {
-            println!("OBS context shutdown. (but couldn't lock logger)");
-        }
-    }
-
-    unsafe {
-        // Clean up log and crash handler
-        libobs::base_set_crash_handler(None, std::ptr::null_mut());
-        libobs::base_set_log_handler(None, std::ptr::null_mut());
-    }
-
-    let mut mutex_value = OBS_THREAD_ID.blocking_lock();
-    *mutex_value = None;
-});

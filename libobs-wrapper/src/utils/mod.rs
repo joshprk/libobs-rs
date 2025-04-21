@@ -14,8 +14,7 @@ pub use obs_string::*;
 pub use path::*;
 
 use crate::{
-    enums::ObsLogLevel, logger::internal_log_global, run_with_obs_blocking,
-    runtime::ObsRuntime,
+    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, run_with_obs_blocking, runtime::ObsRuntime
 };
 
 #[derive(Debug)]
@@ -93,8 +92,10 @@ impl Drop for ObsModules {
         let paths = self.paths.clone();
         let runtime = self.runtime.take().unwrap();
 
-        let r = run_with_obs_blocking!(runtime, move || unsafe {
-            libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
+        let r = futures::executor::block_on(async {
+            return run_with_obs!(runtime, move || unsafe {
+                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
+            })
         });
 
         if std::thread::panicking() {
