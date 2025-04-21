@@ -24,6 +24,7 @@ libobs-source-macro = { path = "../libobs-source-macro", version = "1.0.0" }
 anyhow = "1.0.97"
 paste = "1.0.15"
 duplicate = "2.0.0"
+async-trait = "0.1.88"
 
 [features]
 default = ["window-list"]

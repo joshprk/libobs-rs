@@ -15,7 +15,7 @@ pub trait ObsSourceBuilder: ObsObjectBuilder {
     where
         Self: Sized,
     {
-        let s = self.build();
+        let s = self.build().await?;
         scene.add_source(s).await
     }
 }

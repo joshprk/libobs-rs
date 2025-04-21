@@ -1,4 +1,4 @@
-use std::ffi::{CStr, CString};
+use std::{ffi::{CStr, CString}, sync::Arc};
 
 use anyhow::bail;
 use libobs::{
@@ -17,18 +17,26 @@ pub mod output;
 pub mod properties;
 pub mod video;
 pub use lib_support::*;
+mod updater;
+pub use updater::*;
+
+#[derive(Debug)]
+pub(crate) struct _DropGuard {
+    obs_data: Sendable<*mut obs_data>,
+    pub(crate) runtime: ObsRuntime,
+}
 
 /// Contains `obs_data` and its related strings. Note that
 /// this struct prevents string pointers from being freed
 /// by keeping them owned.
+/// Update: The strings are actually copied by obs itself, we don't need to store them
 #[derive(Debug)]
 pub struct ObsData {
     obs_data: Sendable<*mut obs_data>,
-    strings: Vec<ObsString>,
     pub(crate) runtime: ObsRuntime,
+    pub(crate) _drop_guard: Arc<_DropGuard>
 }
 
-//TODO: Support bulk updating so something like `.set_string(...).await?.set_string(...).await?` is avoided and replaced with something like `.set_string(...).set_int(...).await?`
 impl ObsData {
     /// Creates a new empty `ObsData` wrapper for the
     /// libobs `obs_data` data structure.
@@ -40,13 +48,23 @@ impl ObsData {
     /// using `obs_data` directly from libobs.
     pub async fn new(runtime: ObsRuntime) -> Result<Self, ObsError> {
         let obs_data = run_with_obs!(runtime, move || unsafe { obs_data_create() })?;
-        let strings = Vec::new();
 
         Ok(ObsData {
             obs_data: Sendable(obs_data),
-            strings,
-            runtime,
+            runtime: runtime.clone(),
+            _drop_guard: Arc::new(_DropGuard {
+                obs_data: Sendable(obs_data),
+                runtime,
+            }),
         })
+    }
+
+    pub fn bulk_update(& mut self) -> ObsDataUpdater {
+        ObsDataUpdater {
+            changes: Vec::new(),
+            obs_data: self.obs_data.clone(),
+            _drop_guard: self._drop_guard.clone(),
+        }
     }
 
     /// Returns a pointer to the raw `obs_data`
@@ -73,9 +91,6 @@ impl ObsData {
             obs_data_set_string(data_ptr, key_ptr, value_ptr)
         })?;
 
-        self.strings.push(key);
-        self.strings.push(value);
-
         Ok(self)
     }
 
@@ -95,8 +110,6 @@ impl ObsData {
             obs_data_set_int(data_ptr, key_ptr, value.into())
         })?;
 
-        self.strings.push(key);
-
         Ok(self)
     }
 
@@ -114,8 +127,6 @@ impl ObsData {
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
             obs_data_set_bool(data_ptr, key_ptr, value.into())
         })?;
-
-        self.strings.push(key);
 
         Ok(self)
     }
@@ -136,14 +147,11 @@ impl ObsData {
             obs_data_set_double(data_ptr, key_ptr, value.into())
         })?;
 
-        self.strings.push(key);
-
         Ok(self)
     }
 
     pub async fn from_json(json: &str, runtime: ObsRuntime) -> anyhow::Result<Self> {
         let cstr = CString::new(json)?;
-        let strings = Vec::new();
 
         let cstr_ptr = cstr.as_ptr();
 
@@ -157,8 +165,11 @@ impl ObsData {
 
         Ok(ObsData {
             obs_data: Sendable(result),
-            strings,
-            runtime,
+            runtime: runtime.clone(),
+            _drop_guard: Arc::new(_DropGuard {
+                obs_data: Sendable(result),
+                runtime,
+            }),
         })
     }
 
@@ -177,7 +188,7 @@ impl ObsData {
     }
 }
 
-impl_obs_drop!(ObsData, (obs_data), move || unsafe {
+impl_obs_drop!(_DropGuard, (obs_data), move || unsafe {
     obs_data_release(obs_data.0)
 });
 

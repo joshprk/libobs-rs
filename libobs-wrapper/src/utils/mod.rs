@@ -14,7 +14,7 @@ pub use obs_string::*;
 pub use path::*;
 
 use crate::{
-    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, run_with_obs_blocking, runtime::ObsRuntime
+    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, runtime::ObsRuntime
 };
 
 #[derive(Debug)]

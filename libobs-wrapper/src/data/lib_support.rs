@@ -4,57 +4,49 @@ use crate::{
     data::ObsData, runtime::ObsRuntime, utils::{traits::ObsUpdatable, ObjectInfo, ObsError, ObsString}
 };
 
+use super::updater::ObsDataUpdater;
+
 pub trait StringEnum {
     fn to_str(&self) -> &str;
 }
 
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 pub trait ObsObjectBuilder {
-    fn new(name: impl Into<ObsString>) -> Self;
+    async fn new(name: impl Into<ObsString>, runtime: ObsRuntime) -> Result<Self, ObsError>
+    where
+        Self: Sized;
 
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
     /// Adds the obs source to the output on the given channel
-    fn build(mut self) -> ObjectInfo
+    async fn build(self) -> Result<ObjectInfo, ObsError>
     where
-        Self: Sized,
-    {
-        let settings = self.get_settings_mut().take();
-        let hotkeys = self.get_hotkeys_mut().take();
+        Self: Sized;
 
-        ObjectInfo::new(Self::get_id(), self.get_name(), settings, hotkeys)
-    }
+    fn get_settings(&self) -> &ObsData;
+    fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
-    fn get_settings(&self) -> &Option<ObsData>;
-    fn get_settings_mut(&mut self) -> &mut Option<ObsData>;
-
-    fn get_hotkeys(&self) -> &Option<ObsData>;
-    fn get_hotkeys_mut(&mut self) -> &mut Option<ObsData>;
-
-    async fn get_or_create_settings(&mut self, runtime: ObsRuntime) -> Result<&mut ObsData, ObsError> {
-        let sett = self.get_settings_mut();
-        if sett.is_none() {
-            *sett = Some(ObsData::new(runtime).await?);
-        }
-
-        Ok(sett.as_mut().unwrap())
-    }
+    fn get_hotkeys(&self) -> &ObsData;
+    fn get_hotkeys_updater(&mut self) -> &mut ObsDataUpdater;
 
     /// Returns the ID of the source.
     fn get_id() -> ObsString;
 }
 
+#[async_trait::async_trait(?Send)]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
-    fn create_update(updatable: &'a mut Self::ToUpdate) -> Self;
+    async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
+    where
+        Self: Sized;
 
     fn get_settings(&self) -> &ObsData;
-    fn get_settings_mut(&mut self) -> &mut ObsData;
+    fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
-    fn update(self);
+    async fn update(self) -> Result<(), ObsError>;
 
     /// Returns the ID of the object
     fn get_id() -> ObsString;

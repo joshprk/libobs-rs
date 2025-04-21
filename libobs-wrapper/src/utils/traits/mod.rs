@@ -1,17 +1,20 @@
-use crate::data::{ObsData, ObsObjectUpdater};
+use crate::{data::{ObsData, ObsObjectUpdater}, runtime::ObsRuntime};
 
 use super::ObsError;
 
-#[async_trait::async_trait]
+#[async_trait::async_trait(?Send)]
 pub trait ObsUpdatable {
     /// Updates the object with the current settings.
     /// For examples please take a look at the [Github repository](https://github.com/joshprk/libobs-rs/blob/main/examples).
-    fn create_updater<'a, T: ObsObjectUpdater<'a, ToUpdate = Self>>(&'a mut self) -> T
+    async fn create_updater<'a, T: ObsObjectUpdater<'a, ToUpdate = Self>>(&'a mut self) -> Result<T, ObsError>
     where
         Self: Sized,
     {
-        T::create_update(self)
+        let runtime = self.runtime();
+        T::create_update(runtime, self).await
     }
+
+    fn runtime(&self) -> ObsRuntime;
 
     // We don't really need a mut here, but we do it anyway to give the dev a *feeling* of changing something
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError>;

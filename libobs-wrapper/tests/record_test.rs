@@ -32,9 +32,13 @@ pub async fn record_test() {
     // Create the video source using game capture
     let mut video_source_data = context.data().await.unwrap();
     video_source_data
-        .set_string("capture_mode", "window").await.unwrap()
-        .set_string("window", "").await.unwrap()
-        .set_bool("capture_cursor", true).await.unwrap();
+        .bulk_update()
+        .set_string("capture_mode", "window")
+        .set_string("window", "")
+        .set_bool("capture_cursor", true)
+        .update()
+        .await
+        .unwrap();
 
     let video_source_info = SourceInfo::new(
         "game_capture",
@@ -51,7 +55,10 @@ pub async fn record_test() {
 
     // Set up output to ./recording.mp4
     let mut output_settings = context.data().await.unwrap();
-    output_settings.set_string("path", ObsPath::from_relative("recording.mp4").build()).await.unwrap();
+    output_settings
+        .set_string("path", ObsPath::from_relative("recording.mp4").build())
+        .await
+        .unwrap();
 
     let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
 
@@ -60,13 +67,15 @@ pub async fn record_test() {
     // Register the video encoder
     let mut video_settings = context.data().await.unwrap();
     video_settings
-        .set_int("bf", 2).await.unwrap()
-        .set_bool("psycho_aq", true).await.unwrap()
-        .set_bool("lookahead", true).await.unwrap()
-        .set_string("profile", "high").await.unwrap()
-        .set_string("preset", "hq").await.unwrap()
-        .set_string("rate_control", "cbr").await.unwrap()
-        .set_int("bitrate", 10000).await.unwrap();
+    .bulk_update()
+        .set_int("bf", 2)
+        .set_bool("psycho_aq", true)
+        .set_bool("lookahead", true)
+        .set_string("profile", "high")
+        .set_string("preset", "hq")
+        .set_string("rate_control", "cbr")
+        .set_int("bitrate", 10000)
+        .update().await.unwrap();
 
     let video_info = VideoEncoderInfo::new(
         context.get_best_video_encoder().await.unwrap(),
@@ -76,7 +85,10 @@ pub async fn record_test() {
     );
 
     let video_handler = context.get_video_ptr().await.unwrap();
-    output.video_encoder(video_info, video_handler).await.unwrap();
+    output
+        .video_encoder(video_info, video_handler)
+        .await
+        .unwrap();
 
     // Register the audio encoder
     let mut audio_settings = context.data().await.unwrap();
@@ -86,7 +98,10 @@ pub async fn record_test() {
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = context.get_audio_ptr().await.unwrap();
-    output.audio_encoder(audio_info, 0, audio_handler).await.unwrap();
+    output
+        .audio_encoder(audio_info, 0, audio_handler)
+        .await
+        .unwrap();
 
     output.start().await.unwrap();
 

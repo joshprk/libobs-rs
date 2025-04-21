@@ -1,12 +1,13 @@
+use async_trait::async_trait;
 ///! Monitor capture source for Windows using libobs-rs
 /// ! This source captures the entire monitor and is used for screen recording.
 /// Note: This does not update the capture method directly, instead the capture method gets
 /// stored in the struct. The capture method is being set to WGC at first, then the source is created and then the capture method is updated to the desired method.
-
 use display_info::DisplayInfo;
 use libobs_source_macro::obs_object_impl;
 use libobs_wrapper::{
     data::{ObsObjectBuilder, ObsObjectUpdater},
+    scenes::ObsSceneRef,
     sources::{ObsSourceBuilder, ObsSourceRef},
     utils::ObsError,
 };
@@ -48,10 +49,11 @@ impl MonitorCaptureSource {
     }
 }
 
-impl <'a> MonitorCaptureSourceUpdater<'a> {
+impl<'a> MonitorCaptureSourceUpdater<'a> {
     pub fn set_capture_method(mut self, method: ObsDisplayCaptureMethod) -> Self {
-        self.get_settings_mut()
-            .set_int("method", method.to_i32().unwrap() as i64);
+        self.get_settings_updater()
+            .set_int_ref("method", method.to_i32().unwrap() as i64);
+
         self
     }
 }
@@ -65,29 +67,34 @@ impl MonitorCaptureSourceBuilder {
         self
     }
 }
-
+#[async_trait(?Send)]
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
-    fn add_to_scene<'a>(
+    async fn add_to_scene<'a>(
         mut self,
-        scene: &'a mut libobs_wrapper::scenes::ObsSceneRef,
+        scene: &'a mut ObsSceneRef,
     ) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {
         // Because of a black screen bug, we need to set the method to WGC first and then update
-        self.get_or_create_settings().set_int(
+        self.get_settings_updater().set_int_ref(
             "method",
             ObsDisplayCaptureMethod::MethodWgc.to_i32().unwrap() as i64,
         );
 
         let method_to_set = self.capture_method.clone();
-        let mut res = scene.add_source(self.build())?;
+        let runtime = self.runtime.clone();
+
+        let mut res = scene.add_source(self.build().await?).await?;
 
         if let Some(method) = method_to_set {
-            MonitorCaptureSourceUpdater::create_update(&mut res)
+            MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
+                .await?
                 .set_capture_method(method)
-                .update();
+                .update()
+                .await?;
         }
+
         Ok(res)
     }
 }
