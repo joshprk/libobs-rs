@@ -1,13 +1,15 @@
 use libobs::{gs_init_data, gs_window};
 use num_traits::ToPrimitive;
 
+use crate::unsafe_send::Sendable;
+
 use super::{GsColorFormat, GsZstencilFormat};
 
 
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub(super) parent_window: windows::Win32::Foundation::HWND,
+    pub(super) parent_window: Sendable<windows::Win32::Foundation::HWND>,
     pub(super) x: u32,
     pub(super) y: u32,
     pub(super) width: u32,
@@ -26,7 +28,7 @@ impl ObsDisplayCreationData {
         use windows::Win32::Foundation::HWND;
 
         Self {
-            parent_window: HWND(parent_window as *mut c_void),
+            parent_window: Sendable(HWND(parent_window as *mut c_void)),
             format: GsColorFormat::BGRA,
             zsformat: GsZstencilFormat::ZSNone,
             x,

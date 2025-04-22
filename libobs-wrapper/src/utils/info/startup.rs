@@ -15,7 +15,7 @@ pub struct StartupInfo {
     pub(crate) obs_video_info: ObsVideoInfo,
     pub(crate) obs_audio_info: ObsAudioInfo,
     // Option because logger is taken when creating
-    pub(crate) logger: Option<Box<dyn ObsLogger>>,
+    pub(crate) logger: Option<Box<dyn ObsLogger + Sync + Send>>,
 }
 
 impl StartupInfo {
@@ -33,7 +33,7 @@ impl StartupInfo {
         self
     }
 
-    pub fn set_logger(mut self, logger: Box<dyn ObsLogger>) -> Self {
+    pub fn set_logger(mut self, logger: Box<dyn ObsLogger + Sync + Send>) -> Self {
         self.logger = Some(logger);
         self
     }

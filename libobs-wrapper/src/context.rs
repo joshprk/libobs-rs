@@ -1,17 +1,8 @@
 use std::{collections::HashMap, ffi::CStr, pin::Pin, sync::Arc, thread::ThreadId};
 
 use crate::{
-    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
-    display::{ObsDisplayCreationData, ObsDisplayRef},
-    enums::{ObsLogLevel, ObsResetVideoStatus},
-    logger::LOGGER,
-    run_with_obs,
-    runtime::{ObsRuntime, ObsRuntimeReturn},
-    scenes::ObsSceneRef,
-    unsafe_send::Sendable,
-    utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo},
+    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData}, display::{ObsDisplayCreationData, ObsDisplayRef}, enums::{ObsLogLevel, ObsResetVideoStatus}, logger::LOGGER, run_with_obs, runtime::{ObsRuntime, ObsRuntimeReturn}, scenes::ObsSceneRef, sources::ObsSourceBuilder, unsafe_send::Sendable, utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo}
 };
-use anyhow::Result;
 use getters0::Getters;
 use libobs::{audio_output, obs_scene_t, video_output};
 use tokio::sync::{Mutex, RwLock};
@@ -310,5 +301,12 @@ impl ObsContext {
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
+    }
+
+    pub async fn source_builder<T: ObsSourceBuilder>(
+        &self,
+        name: impl Into<ObsString>,
+    ) -> Result<T, ObsError> {
+        T::new(name.into(), self.runtime.clone()).await
     }
 }

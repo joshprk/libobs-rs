@@ -1,10 +1,19 @@
-use std::{cmp, io::{stdout, Write}, path::PathBuf, process::Command, time::Duration};
+use std::{
+    cmp,
+    io::{stdout, Write},
+    path::PathBuf,
+    process::Command,
+    time::Duration,
+};
 
+use crate::common::{initialize_obs, test_video};
 use libobs_sources::windows::{WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
-use libobs_wrapper::{data::ObsObjectBuilder, sources::ObsSourceBuilder, utils::{traits::ObsUpdatable, ObsPath}};
 use libobs_wrapper::data::ObsObjectUpdater;
-use crate::common::{initialize_obs, test_video};
+use libobs_wrapper::{
+    sources::ObsSourceBuilder,
+    utils::{traits::ObsUpdatable, ObsPath},
+};
 
 fn find_notepad() -> Option<WindowInfo> {
     let windows =
@@ -35,32 +44,38 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-    let mut context = initialize_obs(rec_file);
-    let mut scene = context.scene("main");
-    scene.add_and_set(0);
+    let (mut context, mut output) = initialize_obs(rec_file).await;
+    let mut scene = context.scene("main").await.unwrap();
+    scene.add_and_set(0).await.unwrap();
 
     let source_name = "test_capture";
-    WindowCaptureSourceBuilder::new(source_name)
+    let mut source = context
+        .source_builder::<WindowCaptureSourceBuilder>(source_name)
+        .await
+        .unwrap()
         .set_window(&window)
         .add_to_scene(&mut scene)
+        .await
         .unwrap();
 
-    let mut output = context.outputs().borrow()[0].clone();
-    output.start().unwrap();
+    output.start().await.unwrap();
     println!("Recording started");
 
-    let windows =
-        WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap()
+    let windows = WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)
+        .unwrap()
         .into_iter()
         .filter(|e| e.obs_id.to_lowercase().contains("code"))
         .collect::<Vec<_>>();
     for i in 0..cmp::min(5, windows.len()) {
-        let mut source = context.scenes_mut().borrow_mut().get_mut(0).unwrap().get_source_by_index(0).unwrap();
         let w = windows.get(i).unwrap();
         println!("Setting to {:?}", w.obs_id);
-        source.create_updater::<WindowCaptureSourceUpdater>()
+
+        source
+            .create_updater::<WindowCaptureSourceUpdater>()
+            .await.unwrap()
             .set_window(w)
-            .update();
+            .update()
+            .await.unwrap();
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
@@ -68,7 +83,7 @@ pub async fn test_window_capture() {
     }
     println!("Recording stop");
 
-    output.stop().unwrap();
+    output.stop().await.unwrap();
 
     test_video(&path_out, 1.0).await.unwrap();
 }

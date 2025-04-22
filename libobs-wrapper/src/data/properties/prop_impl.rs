@@ -3,7 +3,8 @@ use crate::{
 };
 
 use super::{get_properties_inner, ObsProperty, ObsPropertyObject, ObsPropertyObjectPrivate};
-#[async_trait::async_trait(?Send)]
+
+#[async_trait::async_trait]
 impl ObsPropertyObject for ObsSourceRef {
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError> {
         let properties_raw = self.get_properties_raw().await?;
@@ -11,7 +12,7 @@ impl ObsPropertyObject for ObsSourceRef {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl ObsPropertyObjectPrivate for ObsSourceRef {
     async fn get_properties_raw(
         &self,
@@ -41,8 +42,7 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
     }
 }
 
-
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl ObsPropertyObject for ObsOutputRef {
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError> {
         let properties_raw = self.get_properties_raw().await?;
@@ -50,7 +50,7 @@ impl ObsPropertyObject for ObsOutputRef {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl ObsPropertyObjectPrivate for ObsOutputRef {
     async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let output_ptr = self.output.clone();

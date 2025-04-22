@@ -139,7 +139,7 @@ pub struct DisplayWindowManager {
 }
 
 impl DisplayWindowManager {
-    pub fn new(parent: HWND, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
+    pub fn new(parent: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
         let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));
@@ -147,7 +147,7 @@ impl DisplayWindowManager {
 
         let parent = Mutex::new(Sendable(parent));
         let message_thread = std::thread::spawn(move || {
-            let parent = parent.lock().unwrap().0;
+            let parent = parent.lock().unwrap().0.clone();
             // We have to have the whole window creation stuff here as well so the message loop functions
             let create = move || {
                 log::trace!("Registering class...");
@@ -201,7 +201,7 @@ impl DisplayWindowManager {
 
                 unsafe {
                     log::trace!("Setting parent...");
-                    SetParent(window, Some(parent))?;
+                    SetParent(window, Some(parent.0))?;
                     log::trace!("Setting styles...");
                     let mut style = GetWindowLongPtrW(window, GWL_STYLE);
                     //TODO Check casts here

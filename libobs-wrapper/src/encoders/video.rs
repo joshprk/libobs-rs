@@ -80,6 +80,24 @@ impl ObsVideoEncoder {
     }
 }
 
+#[async_trait::async_trait]
+impl ObsUpdatable for ObsVideoEncoder {
+    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        // Video encoders don't have a direct update method
+        // Store the new settings for later use
+        self.settings = Some(data);
+        Ok(())
+    }
+
+    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        self.update_raw(data).await
+    }
+
+    fn runtime(&self) -> ObsRuntime {
+        self.runtime.clone()
+    }
+}
+
 impl_obs_drop!(ObsVideoEncoder, (encoder), move || unsafe {
     obs_encoder_release(encoder.0)
 });

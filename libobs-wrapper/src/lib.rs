@@ -1,4 +1,4 @@
-mod unsafe_send;
+pub mod unsafe_send;
 pub mod crash_handler;
 pub mod data;
 pub mod sources;

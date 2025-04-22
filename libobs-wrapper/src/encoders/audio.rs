@@ -70,6 +70,24 @@ impl ObsAudioEncoder {
     }
 }
 
+#[async_trait::async_trait]
+impl ObsUpdatable for ObsAudioEncoder {
+    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        // Audio encoders don't have a direct update method
+        // Store the new settings for later use
+        self.settings = Some(data);
+        Ok(())
+    }
+
+    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        self.update_raw(data).await
+    }
+
+    fn runtime(&self) -> ObsRuntime {
+        self.runtime.clone()
+    }
+}
+
 impl_obs_drop!(ObsAudioEncoder, (encoder), move || unsafe {
     obs_encoder_release(encoder.0)
 });

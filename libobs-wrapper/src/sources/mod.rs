@@ -95,7 +95,7 @@ impl ObsSourceRef {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl ObsUpdatable for ObsSourceRef {
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();

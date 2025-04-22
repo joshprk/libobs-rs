@@ -340,6 +340,24 @@ impl ObsOutputRef {
     }
 }
 
+#[async_trait::async_trait]
+impl ObsUpdatable for ObsOutputRef {
+    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        let output_ptr = self.output.clone();
+        run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            obs_output_update(output_ptr.0, data.as_ptr());
+        })
+    }
+
+    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        self.update_raw(data).await
+    }
+    
+    fn runtime(&self) -> ObsRuntime {
+        self.runtime.clone()
+    }
+}
+
 extern "C" fn signal_handler(_data: *mut std::ffi::c_void, cd: *mut calldata_t) {
     unsafe {
         let mut output = ptr::null_mut();

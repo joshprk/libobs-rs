@@ -46,8 +46,8 @@ pub enum ObsProperty {
     ColorAlpha(ObsColorAlphaProperty),
 }
 
-#[async_trait::async_trait(?Send)]
-pub trait ObsPropertyObjectPrivate {
+#[async_trait::async_trait]
+pub trait ObsPropertyObjectPrivate: ObsPropertyObject {
     async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
     async fn get_properties_by_id_raw(id: ObsString, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
@@ -89,8 +89,8 @@ async fn get_properties_inner(
 }
 
 /// This trait is implemented for all obs objects that can have properties
-#[async_trait::async_trait(?Send)]
-pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
+#[async_trait::async_trait]
+pub trait ObsPropertyObject {
     /// Returns the properties of the object
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError>;
     async fn get_properties_by_id(id: ObsString, runtime: ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
