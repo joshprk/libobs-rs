@@ -50,7 +50,7 @@ pub async fn test_window_capture() {
 
     let source_name = "test_capture";
     let mut source = context
-        .source_builder::<WindowCaptureSourceBuilder>(source_name)
+        .source_builder::<WindowCaptureSourceBuilder, _>(source_name)
         .await
         .unwrap()
         .set_window(&window)

@@ -31,7 +31,7 @@ pub async fn monitor_test() {
     println!("Using monitor {:?}", monitor);
 
     let mut capture_source = context
-        .source_builder::<MonitorCaptureSourceBuilder>("monitor_capture")
+        .source_builder::<MonitorCaptureSourceBuilder, _>("monitor_capture")
         .await
         .unwrap()
         .set_monitor(&monitor)
