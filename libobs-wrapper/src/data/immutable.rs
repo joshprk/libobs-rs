@@ -29,19 +29,19 @@ impl ImmutableObsData {
         })
     }
 
-    pub async fn from_raw(data: *mut obs_data_t, runtime: ObsRuntime) -> Self {
+    pub async fn from_raw(data: Sendable<*mut obs_data_t>, runtime: ObsRuntime) -> Self {
         ImmutableObsData {
-            ptr: Sendable(data),
+            ptr: data.clone(),
             runtime: runtime.clone(),
             _drop_guard: Arc::new(_ObsDataDropGuard {
-                obs_data: Sendable(data),
+                obs_data: data.clone(),
                 runtime,
             }),
         }
     }
 
-    pub fn as_ptr(&self) -> *mut obs_data_t {
-        self.ptr.0
+    pub fn as_ptr(&self) -> Sendable<*mut obs_data_t> {
+        self.ptr.clone()
     }
 }
 

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Progress } from '@heroui/react';
 import "./index.css"
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import Preview from './Preview';
 
 function App() {
   const [downloadStatus, setDownloadStatus] = useState("")
@@ -57,10 +58,26 @@ function App() {
       <h1>libobs - Example</h1>
       {!done &&
         <div className="flex gap-5 flex-col justify-center w-full items-center">
-          <Progress aria-label="Loading..." className="max-w-md" value={downloadProgress * 100} label={downloadStatus} showValueLabel />
-          <Progress aria-label="Loading..." className="max-w-md" value={extractionProgress * 100} label={extractionStatus} showValueLabel />
+          <Progress
+            aria-label="Loading..." className="max-w-md truncate"
+            value={downloadProgress * 100}
+            label={downloadStatus}
+            showValueLabel
+            disableAnimation
+          />
+          <Progress
+            aria-label="Loading..." className="max-w-md truncate"
+            value={extractionProgress * 100}
+            label={extractionStatus}
+            classNames={{
+              indicator: "transition-transform duration-0"
+            }}
+            showValueLabel
+            disableAnimation
+          />
         </div>
       }
+      {done && <Preview />}
       {/**TODO Add preview example here */}
 
     </main>

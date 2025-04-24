@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
     for encoder in context.get_available_video_encoders().await? {
         r.run_with_obs(|| {
             let encoder_name: ObsString = encoder.into();
-            let properties = unsafe { obs_get_encoder_properties(encoder_name.as_ptr()) };
+            let properties = unsafe { obs_get_encoder_properties(encoder_name.as_ptr().0) };
 
             if properties.is_null() {
                 println!(

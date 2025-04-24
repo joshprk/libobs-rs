@@ -31,7 +31,7 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
         runtime: ObsRuntime
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let id: ObsString = id.into();
-        let id_ptr = Sendable(id.as_ptr());
+        let id_ptr = id.as_ptr();
         runtime
             .run_with_obs_result(move || unsafe {
                 let id_ptr = id_ptr;
@@ -67,7 +67,7 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
 
     async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let id: ObsString = id.into();
-        let id_ptr = Sendable(id.as_ptr());
+        let id_ptr = id.as_ptr();
         runtime
             .run_with_obs_result(move || unsafe {
                 let id_ptr = id_ptr;

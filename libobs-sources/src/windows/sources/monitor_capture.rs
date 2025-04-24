@@ -1,5 +1,3 @@
-use std::io::Write;
-
 use async_trait::async_trait;
 ///! Monitor capture source for Windows using libobs-rs
 /// ! This source captures the entire monitor and is used for screen recording.
@@ -8,10 +6,7 @@ use async_trait::async_trait;
 use display_info::DisplayInfo;
 use libobs_source_macro::obs_object_impl;
 use libobs_wrapper::{
-    data::{ObsObjectBuilder, ObsObjectUpdater},
-    scenes::ObsSceneRef,
-    sources::{ObsSourceBuilder, ObsSourceRef},
-    utils::ObsError,
+    data::{ObsObjectBuilder, ObsObjectUpdater}, scenes::ObsSceneRef, sources::{ObsSourceBuilder, ObsSourceRef}, unsafe_send::Sendable, utils::ObsError
 };
 use num_traits::ToPrimitive;
 
@@ -42,12 +37,12 @@ define_object_manager!(
 #[obs_object_impl]
 impl MonitorCaptureSource {
     /// Gets all available monitors
-    pub fn get_monitors() -> anyhow::Result<Vec<DisplayInfo>> {
-        Ok(DisplayInfo::all()?)
+    pub fn get_monitors() -> anyhow::Result<Vec<Sendable<DisplayInfo>>> {
+        Ok(DisplayInfo::all()?.into_iter().map(|e| Sendable(e)).collect())
     }
 
-    pub fn set_monitor(self, monitor: &DisplayInfo) -> Self {
-        self.set_monitor_id_raw(monitor.name.as_str())
+    pub fn set_monitor(self, monitor: &Sendable<DisplayInfo>) -> Self {
+        self.set_monitor_id_raw(monitor.0.name.as_str())
     }
 }
 
@@ -91,8 +86,6 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
         let mut res = scene.add_source(b).await?;
 
         if let Some(method) = method_to_set {
-            println!("Updating capture method to {:?}", method);
-            std::io::stdout().flush().unwrap();
             MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
                 .await?
                 .set_capture_method(method)

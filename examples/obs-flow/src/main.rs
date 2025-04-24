@@ -4,7 +4,7 @@ use std::{thread::sleep, time::Duration};
 
 use libobs_sources::{windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod}, ObsSourceBuilder};
 use libobs_wrapper::{
-    bootstrap::ObsBootstrap, context::ObsContext, data::properties::{types::ObsListItemValue, ObsProperty, ObsPropertyObject}, sources::ObsSourceRef, utils::{
+    context::ObsContext, data::properties::{types::ObsListItemValue, ObsProperty, ObsPropertyObject}, sources::ObsSourceRef, utils::{
         AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo,
     }
 };
@@ -18,7 +18,6 @@ async fn main() -> anyhow::Result<()> {
     let mut context = match context {
         libobs_wrapper::context::ObsContextReturn::Done(c) => c,
         libobs_wrapper::context::ObsContextReturn::Restart => {
-            ObsContext::spawn_updater().await?;
             return Ok(());
         }
     };

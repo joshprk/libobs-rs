@@ -6,7 +6,10 @@ param (
     [string[]]$arguments = @(),
 
     [Parameter(Mandatory = $true)]
-    [int]$processPid
+    [int]$processPid,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$restart = $false
 )
 
 Write-Host "Waiting for process with PID $processPid to exit..."
@@ -77,6 +80,11 @@ if (Test-Path $obsNewDir -PathType Container) {
 }
 else {
     Write-Host "Warning: obs_new directory not found in $binaryDirectory"
+}
+
+if (-not $restart) {
+    Write-Host "No binary specified, exiting."
+    exit 0
 }
 
 # Restart the binary with given arguments

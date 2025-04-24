@@ -7,14 +7,14 @@ use std::{fmt::Debug, thread::JoinHandle};
 use std::{ptr, thread};
 use tokio::sync::{oneshot, Mutex};
 
+use crate::bootstrap::bootstrap;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
 use crate::utils::initialization::load_debug_privilege;
 use crate::utils::{ObsBootstrapError, ObsError, ObsModules, ObsString};
 use crate::{
-    bootstrap::ObsBootstrap,
-    context::{ObsContext, OBS_THREAD_ID},
+    context::OBS_THREAD_ID,
     utils::StartupInfo,
 };
 
@@ -64,7 +64,7 @@ impl ObsRuntime {
             use futures_util::{pin_mut, StreamExt};
 
             log::trace!("Starting bootstrapper");
-            let stream = ObsContext::bootstrap(&options.bootstrapper_options)
+            let stream = bootstrap(&options.bootstrapper_options)
                 .await
                 .map_err(|e| {
                     ObsError::BootstrapperFailure(ObsBootstrapError::GeneralError(e.to_string()))
@@ -332,7 +332,7 @@ impl ObsRuntime {
         // unnecessary to support other languages.
         let locale_str = ObsString::new("en-US");
         let startup_status =
-            unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
+            unsafe { libobs::obs_startup(locale_str.as_ptr().0, ptr::null(), ptr::null_mut()) };
 
         let version = unsafe { libobs::obs_get_version_string() };
         let version_cstr = unsafe { CStr::from_ptr(version) };
@@ -355,7 +355,7 @@ impl ObsRuntime {
         //
         // https://docs.obsproject.com/frontends
         unsafe {
-            libobs::obs_reset_audio2(info.obs_audio_info.as_ptr());
+            libobs::obs_reset_audio2(info.obs_audio_info.as_ptr().0);
         }
 
         // Resets the video context. Note that this

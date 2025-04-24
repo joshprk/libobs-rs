@@ -1,7 +1,6 @@
 use std::sync::{Arc, RwLock};
 
 use libobs_sources::windows::MonitorCaptureSourceBuilder;
-use libobs_wrapper::bootstrap::ObsBootstrap;
 use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
 use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait};
@@ -142,7 +141,6 @@ async fn main() -> anyhow::Result<()> {
     let mut context = match context {
         ObsContextReturn::Done(c) => c,
         ObsContextReturn::Restart => {
-            ObsContext::spawn_updater().await?;
             return Ok(());
         }
     };

@@ -49,10 +49,10 @@ impl ObsSourceRef {
             None => ImmutableObsData::new(&runtime).await?,
         };
 
-        let hotkey_data_ptr = Sendable(hotkey_data.as_ptr());
-        let settings_ptr = Sendable(settings.as_ptr());
-        let id_ptr = Sendable(id.as_ptr());
-        let name_ptr = Sendable(name.as_ptr());
+        let hotkey_data_ptr = hotkey_data.as_ptr();
+        let settings_ptr = settings.as_ptr();
+        let id_ptr = id.as_ptr();
+        let name_ptr = name.as_ptr();
 
         let source = run_with_obs!(
             runtime,
@@ -108,14 +108,14 @@ impl ObsUpdatable for ObsSourceRef {
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_update(source_ptr, data.as_ptr());
+            obs_source_update(source_ptr, data.as_ptr().0);
         })
     }
 
     async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_reset_settings(source_ptr, data.as_ptr());
+            obs_source_reset_settings(source_ptr, data.as_ptr().0);
         })
     }
 

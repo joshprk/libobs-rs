@@ -192,10 +192,10 @@ impl ObsContext {
 
             for output in outputs.iter() {
                 let encoders = output.get_video_encoders().await;
-                video_encoders.extend(encoders.into_iter().map(|e| Sendable(e.as_ptr())));
+                video_encoders.extend(encoders.into_iter().map(|e| e.as_ptr()));
             }
 
-            let vid_ptr = Sendable(self.get_video_ptr().await?);
+            let vid_ptr = self.get_video_ptr().await?;
             run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
@@ -207,18 +207,18 @@ impl ObsContext {
         }
     }
 
-    pub async fn get_video_ptr(&self) -> Result<*mut video_output, ObsError> {
+    pub async fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self.runtime, || unsafe {
+        run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_video())
-        })?.0)
+        })
     }
 
-    pub async fn get_audio_ptr(&self) -> Result<*mut audio_output, ObsError> {
+    pub async fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(run_with_obs!(self.runtime, || unsafe {
+        run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_audio())
-        })?.0)
+        })
     }
 
     pub async fn data(&self) -> Result<ObsData, ObsError> {
@@ -240,14 +240,16 @@ impl ObsContext {
     }
 
     /// Creates a new display and returns its ID.
-    pub async fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
+    pub async fn display(&mut self, data: ObsDisplayCreationData) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
         let display = ObsDisplayRef::new(data, self.runtime.clone())
             .await
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
+        let display_clone = display.clone();
+
         let id = display.id();
         self.displays.write().await.insert(id, Arc::new(display));
-        Ok(id)
+        Ok(display_clone)
     }
 
     pub async fn remove_display(&mut self, display: &ObsDisplayRef) {

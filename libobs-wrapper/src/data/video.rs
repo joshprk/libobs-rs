@@ -122,7 +122,7 @@ impl ObsVideoInfoBuilder {
 
         let ovi = obs_video_info {
             adapter: self.adapter,
-            graphics_module: graphics_mod_str.as_ptr(),
+            graphics_module: graphics_mod_str.as_ptr().0,
             fps_num: self.fps_num,
             fps_den: self.fps_den,
             base_width: self.base_width,

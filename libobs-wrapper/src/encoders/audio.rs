@@ -32,18 +32,18 @@ impl ObsAudioEncoder {
         let id = id.into();
         let name = name.into();
 
-        let settings_ptr = Sendable(match settings.borrow() {
+        let settings_ptr = match settings.borrow() {
             Some(x) => x.as_ptr(),
-            None => ptr::null_mut(),
-        });
+            None => Sendable(ptr::null_mut()),
+        };
 
-        let hotkey_data_ptr = Sendable(match hotkey_data.borrow() {
+        let hotkey_data_ptr = match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
-            None => ptr::null_mut(),
-        });
+            None => Sendable(ptr::null_mut()),
+        };
 
-        let id_ptr = Sendable(id.as_ptr());
-        let name_ptr = Sendable(name.as_ptr());
+        let id_ptr = id.as_ptr();
+        let name_ptr = name.as_ptr();
 
         let encoder = run_with_obs!(
             runtime,

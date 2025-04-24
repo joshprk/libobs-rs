@@ -68,8 +68,8 @@ impl ObsData {
 
     /// Returns a pointer to the raw `obs_data`
     /// represented by `ObsData`.
-    pub fn as_ptr(&self) -> *mut obs_data {
-        self.obs_data.0
+    pub fn as_ptr(&self) -> Sendable<*mut obs_data> {
+        self.obs_data.clone()
     }
 
     /// Sets a string in `obs_data` and stores it so
@@ -82,9 +82,9 @@ impl ObsData {
         let key = key.into();
         let value = value.into();
 
-        let key_ptr = Sendable(key.as_ptr());
-        let value_ptr = Sendable(value.as_ptr());
-        let data_ptr = Sendable(self.obs_data.0);
+        let key_ptr = key.as_ptr();
+        let value_ptr = value.as_ptr();
+        let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (data_ptr, key_ptr, value_ptr), move || unsafe {
             obs_data_set_string(data_ptr, key_ptr, value_ptr)
@@ -102,7 +102,7 @@ impl ObsData {
     ) -> Result<&mut Self, ObsError> {
         let key = key.into();
 
-        let key_ptr = Sendable(key.as_ptr());
+        let key_ptr = key.as_ptr();
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
@@ -121,7 +121,7 @@ impl ObsData {
     ) -> Result<&mut Self, ObsError> {
         let key = key.into();
 
-        let key_ptr = Sendable(key.as_ptr());
+        let key_ptr = key.as_ptr();
         let data_ptr = self.obs_data.clone();
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
             obs_data_set_bool(data_ptr, key_ptr, value.into());
@@ -139,7 +139,7 @@ impl ObsData {
     ) -> Result<&mut Self, ObsError> {
         let key = key.into();
 
-        let key_ptr = Sendable(key.as_ptr());
+        let key_ptr = key.as_ptr();
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
@@ -153,7 +153,6 @@ impl ObsData {
         let cstr = CString::new(json)?;
 
         let cstr_ptr = Sendable(cstr.as_ptr());
-
         let result = run_with_obs!(runtime, (cstr_ptr), move || unsafe {
             Sendable(libobs::obs_data_create_from_json(cstr_ptr))
         })?;

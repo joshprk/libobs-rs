@@ -29,10 +29,10 @@ pub struct ObsModules {
 impl ObsModules {
     pub fn add_paths(paths: &StartupPaths) -> Self {
         unsafe {
-            libobs::obs_add_data_path(paths.libobs_data_path().as_ptr());
+            libobs::obs_add_data_path(paths.libobs_data_path().as_ptr().0);
             libobs::obs_add_module_path(
-                paths.plugin_bin_path().as_ptr(),
-                paths.plugin_data_path().as_ptr(),
+                paths.plugin_bin_path().as_ptr().0,
+                paths.plugin_data_path().as_ptr().0,
             );
         }
 
@@ -94,7 +94,7 @@ impl Drop for ObsModules {
 
         let r = futures::executor::block_on(async {
             return run_with_obs!(runtime, move || unsafe {
-                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr());
+                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
             })
         });
 

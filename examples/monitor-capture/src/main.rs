@@ -2,7 +2,6 @@ use std::thread;
 use std::time::Duration;
 
 use libobs_sources::windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater};
-use libobs_wrapper::bootstrap::ObsBootstrap;
 use libobs_wrapper::context::{ObsContext, ObsContextReturn};
 use libobs_wrapper::data::ObsObjectUpdater;
 use libobs_wrapper::encoders::ObsContextEncoders;
@@ -18,7 +17,6 @@ pub async fn main() -> anyhow::Result<()> {
     let context = match context {
         ObsContextReturn::Done(c) => Some(c),
         ObsContextReturn::Restart => {
-            ObsContext::spawn_updater().await?;
             None
         }
     };

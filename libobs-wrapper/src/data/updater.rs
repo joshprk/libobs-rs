@@ -74,16 +74,16 @@ impl ObsDataUpdater {
             for change in changes {
                 match change {
                     ObsDataChange::String(key, value) => {
-                        obs_data_set_string(obs_data, key.as_ptr(), value.as_ptr())
+                        obs_data_set_string(obs_data, key.as_ptr().0, value.as_ptr().0)
                     }
                     ObsDataChange::Int(key, value) => {
-                        obs_data_set_int(obs_data, key.as_ptr(), value.into())
+                        obs_data_set_int(obs_data, key.as_ptr().0, value.into())
                     }
                     ObsDataChange::Bool(key, value) => {
-                        obs_data_set_bool(obs_data, key.as_ptr(), value.into())
+                        obs_data_set_bool(obs_data, key.as_ptr().0, value.into())
                     }
                     ObsDataChange::Double(key, value) => {
-                        obs_data_set_double(obs_data, key.as_ptr(), value)
+                        obs_data_set_double(obs_data, key.as_ptr().0, value)
                     }
                 };
             }

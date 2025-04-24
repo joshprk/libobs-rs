@@ -33,18 +33,18 @@ impl ObsVideoEncoder {
         let id = id.into();
         let name = name.into();
 
-        let settings_ptr = Sendable(match &settings {
+        let settings_ptr = match &settings {
             Some(x) => x.as_ptr(),
-            None => ptr::null_mut(),
-        });
+            None => Sendable(ptr::null_mut()),
+        };
 
-        let hotkey_data_ptr = Sendable(match &hotkey_data {
+        let hotkey_data_ptr = match &hotkey_data {
             Some(x) => x.as_ptr(),
-            None => ptr::null_mut(),
-        });
+            None => Sendable(ptr::null_mut()),
+        };
 
-        let id_ptr = Sendable(id.as_ptr());
-        let name_ptr = Sendable(name.as_ptr());
+        let id_ptr = id.as_ptr();
+        let name_ptr = name.as_ptr();
         let encoder = run_with_obs!(
             runtime,
             (id_ptr, name_ptr, hotkey_data_ptr, settings_ptr),
@@ -68,13 +68,13 @@ impl ObsVideoEncoder {
         })
     }
 
-    pub fn as_ptr(&self) -> *mut obs_encoder {
-        self.encoder.0
+    pub fn as_ptr(&self) -> Sendable<*mut obs_encoder> {
+        self.encoder.clone()
     }
 
     /// This is only needed once for global video context
     pub async fn set_video_context(&mut self, handler: Sendable<*mut video_output>) -> Result<(), ObsError> {
-        let self_ptr = Sendable(self.as_ptr());
+        let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
             Sendable(obs_encoder_set_video(self_ptr, handler));
         })

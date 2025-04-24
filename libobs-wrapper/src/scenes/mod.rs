@@ -42,7 +42,7 @@ impl ObsSceneRef {
         active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
         runtime: ObsRuntime,
     ) -> Result<Self, ObsError> {
-        let name_ptr = Sendable(name.as_ptr());
+        let name_ptr = name.as_ptr();
         let scene = run_with_obs!(runtime, (name_ptr), move || unsafe {
             Sendable(libobs::obs_scene_create(name_ptr))
         })?;
@@ -62,7 +62,7 @@ impl ObsSceneRef {
 
     pub async fn add_and_set(&self, channel: u32) -> Result<(), ObsError> {
         let mut s = self.active_scene.write().await;
-        *s = Some(Sendable(self.as_ptr()));
+        *s = Some(self.as_ptr());
 
         let scene_source_ptr = self.get_scene_source_ptr().await?;
         run_with_obs!(self.runtime, (scene_source_ptr), move || unsafe {
@@ -133,7 +133,7 @@ impl ObsSceneRef {
         Ok(())
     }
 
-    pub fn as_ptr(&self) -> *mut obs_scene_t {
-        self.scene.0
+    pub fn as_ptr(&self) -> Sendable<*mut obs_scene_t> {
+        Sendable(self.scene.0)
     }
 }
