@@ -170,7 +170,7 @@ impl ObsContext {
         // and also because there is no need to free
         // anything tied to the OBS context.
         let mut vid = self.startup_info.write().await;
-        let vid_ptr = vid.obs_video_info.as_ptr().clone();
+        let vid_ptr = Sendable(vid.obs_video_info.as_ptr());
 
         let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
             libobs::obs_reset_video(vid_ptr)
@@ -195,7 +195,7 @@ impl ObsContext {
                 video_encoders.extend(encoders.into_iter().map(|e| Sendable(e.as_ptr())));
             }
 
-            let vid_ptr = self.get_video_ptr().await.unwrap();
+            let vid_ptr = Sendable(self.get_video_ptr().await?);
             run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
@@ -210,15 +210,15 @@ impl ObsContext {
     pub async fn get_video_ptr(&self) -> Result<*mut video_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         Ok(run_with_obs!(self.runtime, || unsafe {
-            libobs::obs_get_video()
-        })?)
+            Sendable(libobs::obs_get_video())
+        })?.0)
     }
 
     pub async fn get_audio_ptr(&self) -> Result<*mut audio_output, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         Ok(run_with_obs!(self.runtime, || unsafe {
-            libobs::obs_get_audio()
-        })?)
+            Sendable(libobs::obs_get_audio())
+        })?.0)
     }
 
     pub async fn data(&self) -> Result<ObsData, ObsError> {
@@ -284,7 +284,7 @@ impl ObsContext {
         }
     }
 
-    pub async fn scene(&mut self, name: impl Into<ObsString>) -> Result<ObsSceneRef, ObsError> {
+    pub async fn scene<T: Into<ObsString> + Send + Sync>(&mut self, name: T) -> Result<ObsSceneRef, ObsError> {
         let scene =
             ObsSceneRef::new(name.into(), self.active_scene.clone(), self.runtime.clone()).await?;
 
@@ -303,9 +303,9 @@ impl ObsContext {
             .map(|e| e.clone())
     }
 
-    pub async fn source_builder<T: ObsSourceBuilder>(
+    pub async fn source_builder<T: ObsSourceBuilder, K: Into<ObsString> + Send + Sync>(
         &self,
-        name: impl Into<ObsString>,
+        name: K,
     ) -> Result<T, ObsError> {
         T::new(name.into(), self.runtime.clone()).await
     }

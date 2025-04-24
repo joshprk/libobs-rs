@@ -33,7 +33,7 @@ pub async fn main() -> anyhow::Result<()> {
     let monitors = MonitorCaptureSourceBuilder::get_monitors()?;
 
     let mut monitor_capture = context
-        .source_builder::<MonitorCaptureSourceBuilder>("Monitor Capture")
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")
         .await?
         .set_monitor(&monitors[0])
         .add_to_scene(&mut scene)
@@ -103,5 +103,6 @@ pub async fn main() -> anyhow::Result<()> {
 
     // Success!
     output.stop().await?;
+
     Ok(())
 }

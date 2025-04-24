@@ -12,9 +12,9 @@ pub trait StringEnum {
 
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 pub trait ObsObjectBuilder {
-    async fn new(name: impl Into<ObsString>, runtime: ObsRuntime) -> Result<Self, ObsError>
+    async fn new<T: Into<ObsString> + Send + Sync>(name: T, runtime: ObsRuntime) -> Result<Self, ObsError>
     where
         Self: Sized;
 
@@ -36,7 +36,7 @@ pub trait ObsObjectBuilder {
     fn get_id() -> ObsString;
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
     async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>

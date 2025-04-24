@@ -24,7 +24,7 @@ impl ReplayBufferOutput for ObsOutputRef {
         let output_ptr = self.output.clone();
 
         let path = run_with_obs!(self.runtime, (output_ptr), move || {
-            let ph = unsafe { obs_output_get_proc_handler(output_ptr.0) };
+            let ph = unsafe { obs_output_get_proc_handler(output_ptr) };
             if ph.is_null() {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get proc handler.".to_string(),

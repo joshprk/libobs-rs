@@ -1,31 +1,42 @@
+use std::sync::Arc;
+
 use libobs::obs_data_t;
 
 use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
 
-use super::ObsData;
+use super::{ObsData, _ObsDataDropGuard};
 
 #[derive(Debug)]
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
 pub struct ImmutableObsData {
     ptr: Sendable<*mut obs_data_t>,
-    runtime: ObsRuntime
+    runtime: ObsRuntime,
+    _drop_guard: Arc<_ObsDataDropGuard>,
 }
 
 impl ImmutableObsData {
     pub async fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
-        let ptr = run_with_obs!(runtime, move || unsafe { libobs::obs_data_create() })?;
+        let ptr = run_with_obs!(runtime, move || unsafe { Sendable(libobs::obs_data_create()) })?;
 
         Ok(ImmutableObsData {
-            ptr: Sendable(ptr),
-            runtime: runtime.clone()
+            ptr: ptr.clone(),
+            runtime: runtime.clone(),
+            _drop_guard: Arc::new(_ObsDataDropGuard {
+                obs_data: ptr,
+                runtime: runtime.clone(),
+            }),
         })
     }
 
     pub async fn from_raw(data: *mut obs_data_t, runtime: ObsRuntime) -> Self {
         ImmutableObsData {
             ptr: Sendable(data),
-            runtime
+            runtime: runtime.clone(),
+            _drop_guard: Arc::new(_ObsDataDropGuard {
+                obs_data: Sendable(data),
+                runtime,
+            }),
         }
     }
 
@@ -42,11 +53,12 @@ impl From<ObsData> for ImmutableObsData {
         data.obs_data.0 = std::ptr::null_mut();
         ImmutableObsData {
             ptr: Sendable(ptr),
-            runtime: data.runtime.clone()
+            runtime: data.runtime.clone(),
+            _drop_guard: data._drop_guard
         }
     }
 }
 
 impl_obs_drop!(ImmutableObsData, (ptr), move || unsafe {
-    libobs::obs_data_release(ptr.0)
+    libobs::obs_data_release(ptr)
 });

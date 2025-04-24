@@ -54,7 +54,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
             updatable: &'a mut #updatable_type2
         }
 
-        #[async_trait::async_trait(?Send)]
+        #[async_trait::async_trait]
         impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
             type ToUpdate = #updatable_type;
 
@@ -203,9 +203,9 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
             runtime: libobs_wrapper::runtime::ObsRuntime
         }
 
-        #[async_trait::async_trait(?Send)]
+        #[async_trait::async_trait]
         impl libobs_wrapper::data::ObsObjectBuilder for #builder_name {
-            async fn new(name: impl Into<libobs_wrapper::utils::ObsString>, runtime: libobs_wrapper::runtime::ObsRuntime) -> Result<Self, libobs_wrapper::utils::ObsError> {
+            async fn new<T: Into<libobs_wrapper::utils::ObsString> + Send + Sync>(name: T, runtime: libobs_wrapper::runtime::ObsRuntime) -> Result<Self, libobs_wrapper::utils::ObsError> {
                 let mut hotkeys = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
                 let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
 

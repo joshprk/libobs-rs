@@ -3,7 +3,6 @@ use crate::{
 };
 
 use super::{get_properties_inner, ObsProperty, ObsPropertyObject, ObsPropertyObjectPrivate};
-
 #[async_trait::async_trait]
 impl ObsPropertyObject for ObsSourceRef {
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError> {
@@ -27,10 +26,11 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
             .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
-    async fn get_properties_by_id_raw(
-        id: ObsString,
+    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+        id: T,
         runtime: ObsRuntime
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+        let id: ObsString = id.into();
         let id_ptr = Sendable(id.as_ptr());
         runtime
             .run_with_obs_result(move || unsafe {
@@ -41,6 +41,7 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
 }
+
 
 #[async_trait::async_trait]
 impl ObsPropertyObject for ObsOutputRef {
@@ -64,7 +65,8 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
 
-    async fn get_properties_by_id_raw(id: ObsString, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+        let id: ObsString = id.into();
         let id_ptr = Sendable(id.as_ptr());
         runtime
             .run_with_obs_result(move || unsafe {

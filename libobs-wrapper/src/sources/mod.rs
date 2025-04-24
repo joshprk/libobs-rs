@@ -2,8 +2,7 @@ mod builder;
 pub use builder::*;
 
 use libobs::{
-    obs_source_create, obs_source_release, obs_source_reset_settings, obs_source_t,
-    obs_source_update,
+    obs_scene_item, obs_source_create, obs_source_release, obs_source_reset_settings, obs_source_t, obs_source_update
 };
 
 use crate::{
@@ -23,15 +22,16 @@ pub struct ObsSourceRef {
     pub(crate) name: ObsString,
     pub(crate) settings: Arc<ImmutableObsData>,
     pub(crate) hotkey_data: Arc<ImmutableObsData>,
+    pub(crate) scene_item: Option<Sendable<*mut obs_scene_item>>,
 
     _guard: Arc<_ObsSourceGuard>,
     pub(crate) runtime: ObsRuntime,
 }
 
 impl ObsSourceRef {
-    pub async fn new(
-        id: impl Into<ObsString>,
-        name: impl Into<ObsString>,
+    pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
+        id: T,
+        name: K,
         mut settings: Option<ObsData>,
         mut hotkey_data: Option<ObsData>,
         runtime: ObsRuntime,
@@ -49,31 +49,39 @@ impl ObsSourceRef {
             None => ImmutableObsData::new(&runtime).await?,
         };
 
-        let hotkey_data_ptr = hotkey_data.as_ptr();
-        let settings_ptr = settings.as_ptr();
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let hotkey_data_ptr = Sendable(hotkey_data.as_ptr());
+        let settings_ptr = Sendable(settings.as_ptr());
+        let id_ptr = Sendable(id.as_ptr());
+        let name_ptr = Sendable(name.as_ptr());
 
         let source = run_with_obs!(
             runtime,
             (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
-            move || unsafe { obs_source_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr) }
+            move || unsafe {
+                Sendable(obs_source_create(
+                    id_ptr,
+                    name_ptr,
+                    settings_ptr,
+                    hotkey_data_ptr,
+                ))
+            }
         )?;
 
-        if source == ptr::null_mut() {
+        if source.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
-            source: Sendable(source),
+            source: source.clone(),
             id,
             name,
             settings: Arc::new(settings),
             hotkey_data: Arc::new(hotkey_data),
             _guard: Arc::new(_ObsSourceGuard {
-                source: Sendable(source),
+                source,
                 runtime: runtime.clone(),
             }),
+            scene_item: None,
             runtime,
         })
     }
@@ -100,14 +108,14 @@ impl ObsUpdatable for ObsSourceRef {
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_update(source_ptr.0, data.as_ptr())
+            obs_source_update(source_ptr, data.as_ptr());
         })
     }
 
     async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_reset_settings(source_ptr.0, data.as_ptr());
+            obs_source_reset_settings(source_ptr, data.as_ptr());
         })
     }
 
@@ -123,5 +131,5 @@ struct _ObsSourceGuard {
 }
 
 impl_obs_drop!(_ObsSourceGuard, (source), move || unsafe {
-    obs_source_release(source.0);
+    obs_source_release(source);
 });

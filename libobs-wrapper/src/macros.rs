@@ -1,23 +1,18 @@
 #[macro_export]
 macro_rules! run_with_obs_impl {
     ($self:expr, $function:ident, $operation:expr) => {
-        {
-            $self.$function(move || {
-                let e = { $operation };
-                return crate::unsafe_send::Sendable(e())
-            })
-        }
+        $crate::run_with_obs_impl!($self, $function, (), $operation)
     };
     ($self:expr, $function:ident, ($($var:ident),* $(,)*), $operation:expr) => {
         {
-            $(let $var = crate::unsafe_send::Sendable($var.clone());)*
+            $(let $var = $var.clone();)*
             $self.$function(move || {
-                $(let $var = $var.clone();)*
+                $(let $var = $var;)*
                 let e = {
                     $(let $var = $var.0;)*
                     $operation
                 };
-                return crate::unsafe_send::Sendable(e())
+                return e()
             })
         }
     };
@@ -29,13 +24,11 @@ macro_rules! run_with_obs {
         $crate::run_with_obs_impl!($self, run_with_obs_result, $operation)
         .await
             .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-            .map(|x| x.0)
     };
     ($self:expr, ($($var:ident),* $(,)*), $operation:expr) => {
         $crate::run_with_obs_impl!($self, run_with_obs_result, ($($var),*), $operation)
         .await
             .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-            .map(|x| x.0)
     };
 }
 
@@ -45,12 +38,10 @@ macro_rules! run_with_obs_blocking {
     ($self:expr, $operation:expr) => {
         $crate::run_with_obs_impl!($self, run_with_obs_result_blocking, (), $operation)
         .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        .map(|x| x.0)
     };
     ($self:expr, ($($var:ident),* $(,)*), $operation:expr) => {
         $crate::run_with_obs_impl!($self, run_with_obs_result_blocking, ($($var),*), $operation)
         .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
-        .map(|x| x.0)
     };
 }
 

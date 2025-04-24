@@ -1,19 +1,14 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use libobs_sources::windows::MonitorCaptureSourceBuilder;
 use libobs_wrapper::bootstrap::ObsBootstrap;
 use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
-use libobs_wrapper::data::{ObsData, ObsObjectBuilder};
 use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::unsafe_send::Sendable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
-use tokio::sync::RwLock;
 use tokio::task;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -23,11 +18,11 @@ use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
 struct App {
-    window: Arc<RwLock<Option<Window>>>,
+    window: Arc<RwLock<Option<Sendable<Window>>>>,
     // Notice: Refs should never be stored in a struct, it could cause memory leaks or crashes, thats why
     // we are using a boolean here and fetching the display afterwards
     display_id: Arc<RwLock<Option<usize>>>,
-    context: Arc<RwLock<ObsContext>>,
+    context: Arc<tokio::sync::RwLock<ObsContext>>,
 }
 
 impl ApplicationHandler for App {
@@ -55,32 +50,49 @@ impl ApplicationHandler for App {
         let ctx = self.context.clone();
         task::spawn(async move {
             let hwnd = hwnd;
+            let data = ObsDisplayCreationData::new(
+                hwnd.0.get(),
+                0,
+                0,
+                width,
+                height,
+            );
 
             let display_id = ctx
                 .write()
                 .await
-                .display(ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height))
+                .display(data)
                 .await
                 .unwrap();
 
-            w.write().await.replace(window);
-            display.write().await.replace(display_id);
+            w.write().unwrap().replace(Sendable(window));
+            display.write().unwrap().replace(display_id);
         });
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let window = self.window.read().unwrap();
+        if window.is_none() {
+            return;
+        }
+
+        let window = window.as_ref().unwrap();
         match event {
             WindowEvent::CloseRequested => {
                 println!("The close button was pressed; stopping");
                 println!("Stopping output...");
-                if let Some(display_id) = self.display_id {
-                    self.context.borrow_mut().remove_display_by_id(display_id);
+                if let Some(display_id) = *self.display_id.read().unwrap() {
+                    let ctx = self.context.clone();
+
+                    task::spawn(async move {
+                        ctx.write().await.remove_display_by_id(display_id).await;
+                    });
                 }
 
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                self.window.as_ref().unwrap().request_redraw();
+                window.0.request_redraw();
             }
             WindowEvent::Resized(size) => {
                 let width = size.width;
@@ -92,19 +104,27 @@ impl ApplicationHandler for App {
                     // Keeping the aspect ratio of 16 / 9
                     let _ = self
                         .window
+                        .read()
+                        .unwrap()
                         .as_ref()
                         .unwrap()
+                        .0
                         .request_inner_size(LogicalSize::new(width, height));
                 }
 
-                if let Some(display_id) = self.display_id {
-                    let display = self
-                        .context
-                        .borrow_mut()
-                        .get_display_by_id(display_id)
-                        .unwrap();
-                    // A real application would probably want to check the aspect ratio of the output
-                    display.set_size(width, height).unwrap();
+                if let Some(display_id) = *self.display_id.read().unwrap() {
+                    let ctx = self.context.clone();
+                    task::spawn(async move {
+                        let display = ctx
+                            .write()
+                            .await
+                            .get_display_by_id(display_id)
+                            .await
+                            .unwrap();
+
+                        // A real application would probably want to check the aspect ratio of the output
+                        display.set_size(width, height).await.unwrap();
+                    });
                 }
             }
             _ => (),
@@ -119,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
     let info = StartupInfo::new().set_video_info(ObsVideoInfo::default());
 
     let context = ObsContext::new(info).await?;
-    let context = match context {
+    let mut context = match context {
         ObsContextReturn::Done(c) => c,
         ObsContextReturn::Restart => {
             ObsContext::spawn_updater().await?;
@@ -181,7 +201,7 @@ async fn main() -> anyhow::Result<()> {
     let mut scene = context.scene("Main Scene").await?;
 
     context
-        .source_builder::<MonitorCaptureSourceBuilder>("Monitor Capture")
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")
         .await?
         .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[1])
         .add_to_scene(&mut scene)
@@ -191,9 +211,9 @@ async fn main() -> anyhow::Result<()> {
 
     let event_loop = EventLoop::new()?;
     let mut app = App {
-        window: None,
-        display_id: None,
-        context: context.clone(),
+        window: Arc::new(RwLock::new(None)),
+        display_id: Arc::new(RwLock::new(None)),
+        context: Arc::new(tokio::sync::RwLock::new(context)),
     };
 
     event_loop.run_app(&mut app)?;

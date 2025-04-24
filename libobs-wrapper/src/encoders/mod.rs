@@ -16,7 +16,7 @@ mod enums;
 pub mod video;
 pub use enums::*;
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait ObsContextEncoders {
     async fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError>;
     async fn get_best_audio_encoder(&self) -> Result<ObsAudioEncoderType, ObsError>;
@@ -56,7 +56,7 @@ async fn get_encoders_raw(
     })
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl ObsContextEncoders for ObsContext {
     async fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError> {
         Ok(self

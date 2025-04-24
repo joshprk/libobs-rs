@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use async_trait::async_trait;
 ///! Monitor capture source for Windows using libobs-rs
 /// ! This source captures the entire monitor and is used for screen recording.
@@ -67,7 +69,7 @@ impl MonitorCaptureSourceBuilder {
         self
     }
 }
-#[async_trait(?Send)]
+#[async_trait]
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
     async fn add_to_scene<'a>(
         mut self,
@@ -85,9 +87,12 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
         let method_to_set = self.capture_method.clone();
         let runtime = self.runtime.clone();
 
-        let mut res = scene.add_source(self.build().await?).await?;
+        let b = self.build().await?;
+        let mut res = scene.add_source(b).await?;
 
         if let Some(method) = method_to_set {
+            println!("Updating capture method to {:?}", method);
+            std::io::stdout().flush().unwrap();
             MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
                 .await?
                 .set_capture_method(method)

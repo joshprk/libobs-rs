@@ -10,7 +10,7 @@ use windows::Win32::{
 
 use crate::{display::ObsDisplayRef, run_with_obs};
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait WindowPositionTrait {
     async fn set_render_at_bottom(&self, render_at_bottom: bool);
     async fn get_render_at_bottom(&self) -> bool;
@@ -27,7 +27,7 @@ pub trait WindowPositionTrait {
     async fn get_scale(&self) -> f32;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl WindowPositionTrait for ObsDisplayRef {
     async fn set_render_at_bottom(&self, render_at_bottom: bool) {
         log::trace!("Set render bottom");
@@ -103,7 +103,7 @@ impl WindowPositionTrait for ObsDisplayRef {
         m.width = width;
         m.height = height;
 
-        let pointer = m.obs_display.as_ref().unwrap().0;
+        let pointer = m.obs_display.as_ref().unwrap().clone();
         unsafe {
             SetWindowPos(
                 m.hwnd.0,

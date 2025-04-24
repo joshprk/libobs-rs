@@ -37,7 +37,7 @@ struct _ObsDropGuard {
 }
 
 impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
-    let handler = obs_output_get_signal_handler(output.0);
+    let handler = obs_output_get_signal_handler(output);
     let signal = ObsString::new("stop");
     signal_handler_disconnect(
         handler,
@@ -46,7 +46,7 @@ impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
         ptr::null_mut(),
     );
 
-    obs_output_release(output.0);
+    obs_output_release(output);
 });
 
 #[derive(Debug, Getters, Clone)]
@@ -157,9 +157,9 @@ impl ObsOutputRef {
         )
         .await?;
 
-        let encoder_ptr = video_enc.encoder.0;
-        let output_ptr = self.output.0;
-        let handler = handler;
+        let encoder_ptr = video_enc.encoder.clone();
+        let output_ptr = self.output.clone();
+        let handler = Sendable(handler);
 
         run_with_obs!(
             self.runtime,
@@ -182,10 +182,10 @@ impl ObsOutputRef {
         }
 
         let output = self.output.clone();
-        let encoder_ptr = encoder.as_ptr();
+        let encoder_ptr = Sendable(encoder.as_ptr());
 
         run_with_obs!(self.runtime, (output, encoder_ptr), move || unsafe {
-            obs_output_set_video_encoder(output.0, encoder_ptr);
+            obs_output_set_video_encoder(output, encoder_ptr);
         })?;
 
         if !self
@@ -206,14 +206,14 @@ impl ObsOutputRef {
     pub async fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
         let output = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
-            obs_output_active(output.0)
+            obs_output_active(output)
         })?;
 
         if !output_active {
-            let settings_ptr = settings.as_ptr();
+            let settings_ptr = Sendable(settings.as_ptr());
 
             run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
-                obs_output_update(output.0, settings_ptr)
+                obs_output_update(output, settings_ptr)
             })?;
 
             self.settings.write().await.replace(settings);
@@ -239,8 +239,10 @@ impl ObsOutputRef {
         )
         .await?;
 
-        let encoder_ptr = audio_enc.encoder.0;
-        let output_ptr = self.output.0;
+        let encoder_ptr = audio_enc.encoder.clone();
+        let output_ptr = self.output.clone();
+        let handler = Sendable(handler);
+
         run_with_obs!(
             self.runtime,
             (handler, encoder_ptr, output_ptr),
@@ -264,8 +266,8 @@ impl ObsOutputRef {
             return Err(ObsError::NullPointer);
         }
 
-        let encoder_ptr = encoder.encoder.0;
-        let output_ptr = self.output.0;
+        let encoder_ptr = encoder.encoder.clone();
+        let output_ptr = self.output.clone();
         run_with_obs!(self.runtime, (output_ptr, encoder_ptr), move || unsafe {
             obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
         })?;
@@ -285,7 +287,7 @@ impl ObsOutputRef {
     }
 
     pub async fn start(&self) -> Result<(), ObsError> {
-        let output_ptr = self.output.0;
+        let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
         })?;
@@ -300,10 +302,10 @@ impl ObsOutputRef {
             }
 
             let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                obs_output_get_last_error(output_ptr)
+                Sendable(obs_output_get_last_error(output_ptr))
             })?;
 
-            let c_str = unsafe { CStr::from_ptr(err) };
+            let c_str = unsafe { CStr::from_ptr(err.0) };
             let err_str = c_str.to_str().ok().map(|x| x.to_string());
 
             return Err(ObsError::OutputStartFailure(err_str));
@@ -313,7 +315,7 @@ impl ObsOutputRef {
     }
 
     pub async fn stop(&mut self) -> Result<(), ObsError> {
-        let output_ptr = self.output.0;
+        let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
         })?;
@@ -337,24 +339,6 @@ impl ObsOutputRef {
         return Err(ObsError::OutputStopFailure(Some(
             "Output is not active.".to_string(),
         )));
-    }
-}
-
-#[async_trait::async_trait]
-impl ObsUpdatable for ObsOutputRef {
-    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        let output_ptr = self.output.clone();
-        run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            obs_output_update(output_ptr.0, data.as_ptr());
-        })
-    }
-
-    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        self.update_raw(data).await
-    }
-    
-    fn runtime(&self) -> ObsRuntime {
-        self.runtime.clone()
     }
 }
 

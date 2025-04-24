@@ -1,7 +1,7 @@
 use libobs::{
     obs_encoder, obs_encoder_release, obs_encoder_set_video, obs_video_encoder_create, video_output,
 };
-use std::{borrow::Borrow, ptr};
+use std::ptr;
 
 use crate::{
     data::ObsData,
@@ -23,9 +23,9 @@ pub struct ObsVideoEncoder {
 }
 
 impl ObsVideoEncoder {
-    pub async fn new(
-        id: impl Into<ObsString>,
-        name: impl Into<ObsString>,
+    pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
+        id: T,
+        name: K,
         settings: Option<ObsData>,
         hotkey_data: Option<ObsData>,
         runtime: ObsRuntime,
@@ -33,32 +33,33 @@ impl ObsVideoEncoder {
         let id = id.into();
         let name = name.into();
 
-        let settings_ptr = match settings.borrow() {
+        let settings_ptr = Sendable(match &settings {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
-        };
+        });
 
-        let hotkey_data_ptr = match hotkey_data.borrow() {
+        let hotkey_data_ptr = Sendable(match &hotkey_data {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
-        };
+        });
 
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let id_ptr = Sendable(id.as_ptr());
+        let name_ptr = Sendable(name.as_ptr());
         let encoder = run_with_obs!(
             runtime,
             (id_ptr, name_ptr, hotkey_data_ptr, settings_ptr),
             move || unsafe {
-                obs_video_encoder_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr)
+                let ptr = obs_video_encoder_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr);
+                Sendable(ptr)
             }
         )?;
 
-        if encoder == ptr::null_mut() {
+        if encoder.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
-            encoder: Sendable(encoder),
+            encoder,
             id,
             name,
             settings,
@@ -72,32 +73,14 @@ impl ObsVideoEncoder {
     }
 
     /// This is only needed once for global video context
-    pub async fn set_video_context(&mut self, handler: *mut video_output) -> Result<(), ObsError> {
-        let self_ptr = self.as_ptr();
+    pub async fn set_video_context(&mut self, handler: Sendable<*mut video_output>) -> Result<(), ObsError> {
+        let self_ptr = Sendable(self.as_ptr());
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
-            obs_encoder_set_video(self_ptr, handler)
+            Sendable(obs_encoder_set_video(self_ptr, handler));
         })
     }
 }
 
-#[async_trait::async_trait]
-impl ObsUpdatable for ObsVideoEncoder {
-    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        // Video encoders don't have a direct update method
-        // Store the new settings for later use
-        self.settings = Some(data);
-        Ok(())
-    }
-
-    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        self.update_raw(data).await
-    }
-
-    fn runtime(&self) -> ObsRuntime {
-        self.runtime.clone()
-    }
-}
-
 impl_obs_drop!(ObsVideoEncoder, (encoder), move || unsafe {
-    obs_encoder_release(encoder.0)
+    obs_encoder_release(encoder);
 });

@@ -21,7 +21,7 @@ use libobs::{
     gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
-use crate::{impl_obs_drop, runtime::ObsRuntime, unsafe_send::Sendable};
+use crate::{runtime::ObsRuntime, unsafe_send::Sendable};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -104,38 +104,37 @@ impl ObsDisplayRef {
         let mut manager =
             DisplayWindowManager::new(parent_window.clone(), x as i32, y as i32, width, height)?;
 
-        let child_handle = manager.get_child_handle();
-        let init_data = data.build(gs_window {
-            hwnd: child_handle.0,
-        });
+        let child_handle = Sendable(manager.get_child_handle());
+        let init_data = Sendable(data.build(gs_window {
+            hwnd: child_handle.0.0,
+        }));
 
         log::trace!("Creating obs display...");
         let display = run_with_obs!(runtime, (init_data), move || unsafe {
-            libobs::obs_display_create(&init_data, background_color)
+            Sendable(libobs::obs_display_create(&init_data, background_color))
         })?;
 
-        if display.is_null() {
+        if display.0.is_null() {
             bail!("OBS failed to create display");
         }
 
-        manager.obs_display = Some(Sendable(display));
+        manager.obs_display = Some(display.clone());
         let mut instance = Box::pin(Self {
-            display: Sendable(display),
+            display: display.clone(),
             manager: Arc::new(RwLock::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
             _guard: Arc::new(RwLock::new(_DisplayDropGuard {
-                display: Sendable(display),
+                display,
                 self_ptr: None,
                 runtime: runtime.clone(),
             })),
             _fixed_in_heap: PhantomPinned,
-            runtime
+            runtime: runtime.clone(),
         });
 
-        let instance_ptr =
-            unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void };
+        let instance_ptr = Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
 
-        instance._guard.write().await.self_ptr = Some(Sendable(instance_ptr));
+        instance._guard.write().await.self_ptr = Some(instance_ptr.clone());
 
         log::trace!(
             "Adding draw callback with display {:?} and draw callback params at {:?} (pos is {:?})...",
@@ -143,13 +142,14 @@ impl ObsDisplayRef {
             instance_ptr,
             instance.get_pos().await
         );
-        unsafe {
+        let display_ptr = instance.display.clone();
+        run_with_obs!(runtime, (display_ptr, instance_ptr), move || unsafe {
             libobs::obs_display_add_draw_callback(
-                instance.display.0,
+                display_ptr,
                 Some(render_display),
                 instance_ptr,
             );
-        }
+        })?;
 
         Ok(instance)
     }
@@ -163,18 +163,37 @@ impl ObsDisplayRef {
 struct _DisplayDropGuard {
     display: Sendable<*mut libobs::obs_display_t>,
     self_ptr: Option<Sendable<*mut c_void>>,
-    runtime: ObsRuntime
+    runtime: ObsRuntime,
 }
 
-impl_obs_drop!(_DisplayDropGuard, (display, self_ptr), move || unsafe {
-    if let Some(ptr) = &self_ptr {
-        log::trace!("Destroying display with callback at {:?}...", ptr.0);
-        libobs::obs_display_remove_draw_callback(
-            display.0,
-            Some(render_display),
-            ptr.0,
-        );
-    }
+impl Drop for _DisplayDropGuard {
+    fn drop(&mut self) {
+        let display = self.display.clone();
+        let self_ptr = self.self_ptr.clone();
+        let r = self.runtime.clone();
+        let r = futures::executor::block_on(async {
+            r.run_with_obs(move || unsafe {
+                let display = display;
+                let self_ptr = self_ptr;
 
-    libobs::obs_display_destroy(display.0);
-});
+                if let Some(ptr) = &self_ptr {
+                    log::trace!("Destroying display with callback at {:?}...", ptr.0);
+                    libobs::obs_display_remove_draw_callback(
+                        display.0,
+                        Some(render_display),
+                        ptr.0,
+                    );
+                }
+
+                libobs::obs_display_destroy(display.0);
+            })
+            .await
+        });
+
+        if std::thread::panicking() {
+            return;
+        }
+
+        r.unwrap();
+    }
+}

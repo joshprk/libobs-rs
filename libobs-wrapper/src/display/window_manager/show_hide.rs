@@ -5,14 +5,14 @@ use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOWNA};
 
 use crate::display::ObsDisplayRef;
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait ShowHideTrait {
     async fn show(&mut self);
     async fn hide(&mut self);
     async fn is_visible(&self) -> bool;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl ShowHideTrait for ObsDisplayRef {
     async fn show(&mut self) {
         log::trace!("show");

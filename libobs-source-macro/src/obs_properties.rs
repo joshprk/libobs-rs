@@ -94,7 +94,7 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
             "string" => {
                 quote! {
                     #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
+                    pub fn #set_field<T: Into<libobs_wrapper::utils::ObsString> + Sync + Send>(mut self, #field_name: T) -> Self {
                         #settings_getter
                             .set_string_ref(#obs_settings_key, #field_name);
                         self

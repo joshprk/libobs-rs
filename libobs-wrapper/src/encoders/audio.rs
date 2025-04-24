@@ -2,7 +2,11 @@ use libobs::{audio_output, obs_audio_encoder_create, obs_encoder_release, obs_en
 use std::{borrow::Borrow, ptr};
 
 use crate::{
-    data::ObsData, impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}
+    data::ObsData,
+    impl_obs_drop, run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{ObsError, ObsString},
 };
 
 #[derive(Debug)]
@@ -17,9 +21,9 @@ pub struct ObsAudioEncoder {
 }
 
 impl ObsAudioEncoder {
-    pub async fn new(
-        id: impl Into<ObsString>,
-        name: impl Into<ObsString>,
+    pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
+        id: T,
+        name: K,
         settings: Option<ObsData>,
         mixer_idx: usize,
         hotkey_data: Option<ObsData>,
@@ -28,33 +32,34 @@ impl ObsAudioEncoder {
         let id = id.into();
         let name = name.into();
 
-        let settings_ptr = match settings.borrow() {
+        let settings_ptr = Sendable(match settings.borrow() {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
-        };
+        });
 
-        let hotkey_data_ptr = match hotkey_data.borrow() {
+        let hotkey_data_ptr = Sendable(match hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
             None => ptr::null_mut(),
-        };
+        });
 
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let id_ptr = Sendable(id.as_ptr());
+        let name_ptr = Sendable(name.as_ptr());
 
         let encoder = run_with_obs!(
             runtime,
             (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
             move || unsafe {
-                obs_audio_encoder_create(id_ptr, name_ptr, settings_ptr, mixer_idx, hotkey_data_ptr)
+                let ptr = obs_audio_encoder_create(id_ptr, name_ptr, settings_ptr, mixer_idx, hotkey_data_ptr);
+                Sendable(ptr)
             }
         )?;
 
-        if encoder == ptr::null_mut() {
+        if encoder.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
         }
 
         Ok(Self {
-            encoder: Sendable(encoder),
+            encoder,
             id,
             name,
             settings,
@@ -64,30 +69,18 @@ impl ObsAudioEncoder {
     }
 
     /// This is only needed once for global audio context
-    pub fn set_audio_context(&mut self, handler: *mut audio_output) -> Result<(), ObsError> {
-        unsafe { obs_encoder_set_audio(self.encoder.0, handler) }
-        Ok(())
-    }
-}
+    pub async fn set_audio_context(
+        &mut self,
+        handler: Sendable<*mut audio_output>,
+    ) -> Result<(), ObsError> {
+        let encoder_ptr = self.encoder.clone();
 
-#[async_trait::async_trait]
-impl ObsUpdatable for ObsAudioEncoder {
-    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        // Audio encoders don't have a direct update method
-        // Store the new settings for later use
-        self.settings = Some(data);
-        Ok(())
-    }
-
-    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
-        self.update_raw(data).await
-    }
-
-    fn runtime(&self) -> ObsRuntime {
-        self.runtime.clone()
+        run_with_obs!(self.runtime, (handler, encoder_ptr), move || unsafe {
+            obs_encoder_set_audio(encoder_ptr, handler)
+        })
     }
 }
 
 impl_obs_drop!(ObsAudioEncoder, (encoder), move || unsafe {
-    obs_encoder_release(encoder.0)
+    obs_encoder_release(encoder)
 });

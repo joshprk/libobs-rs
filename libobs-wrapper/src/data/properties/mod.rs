@@ -47,17 +47,17 @@ pub enum ObsProperty {
 }
 
 #[async_trait::async_trait]
-pub trait ObsPropertyObjectPrivate: ObsPropertyObject {
+pub trait ObsPropertyObjectPrivate {
     async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
-    async fn get_properties_by_id_raw(id: ObsString, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
 
 async fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
 ) -> Result<Vec<ObsProperty>, ObsError> {
-    let properties_raw = properties_raw.0;
-    if properties_raw.is_null() {
+    let properties_raw = properties_raw.clone();
+    if properties_raw.0.is_null() {
         return Ok(vec![]);
     }
 
@@ -90,11 +90,11 @@ async fn get_properties_inner(
 
 /// This trait is implemented for all obs objects that can have properties
 #[async_trait::async_trait]
-pub trait ObsPropertyObject {
+pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError>;
-    async fn get_properties_by_id(id: ObsString, runtime: ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
+    async fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
         let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone()).await?;
-        get_properties_inner(properties_raw, runtime).await
+        get_properties_inner(properties_raw, runtime.clone()).await
     }
 }
