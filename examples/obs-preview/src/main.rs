@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use libobs_sources::windows::MonitorCaptureSourceBuilder;
 use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
-use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait};
+use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait, ObsDisplayRef};
 use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::unsafe_send::Sendable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
@@ -20,7 +20,7 @@ struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
     // Notice: Refs should never be stored in a struct, it could cause memory leaks or crashes, thats why
     // we are using a boolean here and fetching the display afterwards
-    display_id: Arc<RwLock<Option<usize>>>,
+    display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
     context: Arc<tokio::sync::RwLock<ObsContext>>,
 }
 
@@ -45,7 +45,7 @@ impl ApplicationHandler for App {
 
         let hwnd = Sendable(hwnd);
         let w = self.window.clone();
-        let display = self.display_id.clone();
+        let display = self.display.clone();
         let ctx = self.context.clone();
         task::spawn(async move {
             let hwnd = hwnd;
@@ -57,7 +57,7 @@ impl ApplicationHandler for App {
                 height,
             );
 
-            let display_id = ctx
+            let display = ctx
                 .write()
                 .await
                 .display(data)
@@ -65,7 +65,7 @@ impl ApplicationHandler for App {
                 .unwrap();
 
             w.write().unwrap().replace(Sendable(window));
-            display.write().unwrap().replace(display_id);
+            display.write().unwrap().replace(display);
         });
     }
 
@@ -80,11 +80,11 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => {
                 println!("The close button was pressed; stopping");
                 println!("Stopping output...");
-                if let Some(display_id) = *self.display_id.read().unwrap() {
+                if let Some(display) = *self.display.read().unwrap() {
                     let ctx = self.context.clone();
 
                     task::spawn(async move {
-                        ctx.write().await.remove_display_by_id(display_id).await;
+                        ctx.write().await.remove_display(&display).await;
                     });
                 }
 
@@ -111,15 +111,10 @@ impl ApplicationHandler for App {
                         .request_inner_size(LogicalSize::new(width, height));
                 }
 
-                if let Some(display_id) = *self.display_id.read().unwrap() {
+                if let Some(display) = *self.display.write().unwrap() {
                     let ctx = self.context.clone();
                     task::spawn(async move {
-                        let display = ctx
-                            .write()
-                            .await
-                            .get_display_by_id(display_id)
-                            .await
-                            .unwrap();
+                       
 
                         // A real application would probably want to check the aspect ratio of the output
                         display.set_size(width, height).await.unwrap();
