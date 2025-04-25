@@ -1,55 +1,90 @@
-use std::{
-    pin::Pin,
-    sync::{atomic::AtomicBool, Arc, RwLock},
-};
+use std::{pin::Pin, sync::Arc};
 
 use bootstrap_status::ObsTauriStatusHandler;
 use lazy_static::lazy_static;
-use libobs_sources::{windows::MonitorCaptureSourceBuilder, ObsSourceBuilder};
-use libobs_wrapper::{
-    bootstrap::ObsBootstrapperOptions, context::{ObsContext, ObsContextReturn}, display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait}, encoders::{ObsContextEncoders, ObsVideoEncoderType}, utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo}
+use libobs_sources::{
+    windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater},
+    ObsObjectUpdater, ObsSourceBuilder,
 };
-use tauri::{AppHandle, Emitter, Manager};
+use libobs_wrapper::{
+    bootstrap::ObsBootstrapperOptions,
+    context::{ObsContext, ObsContextReturn},
+    display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait},
+    encoders::{ObsContextEncoders, ObsVideoEncoderType},
+    sources::ObsSourceRef,
+    utils::{traits::ObsUpdatable, AudioEncoderInfo, OutputInfo, VideoEncoderInfo},
+};
+use tauri::{async_runtime::RwLock, AppHandle, Emitter, Manager};
 mod bootstrap_status;
 
+pub struct CurrState {
+    pub monitor_index: usize,
+    pub is_bootstrapping: bool,
+    pub obs_context: Option<ObsContext>,
+    pub obs_source: Option<ObsSourceRef>,
+    pub obs_display: Option<Pin<Box<ObsDisplayRef>>>,
+}
+
+impl CurrState {
+    pub fn new() -> Self {
+        CurrState {
+            monitor_index: 1,
+            is_bootstrapping: false,
+            obs_context: None,
+            obs_source: None,
+            obs_display: None,
+        }
+    }
+}
+
 lazy_static! {
-    pub static ref IS_BOOTSTRAPPING: AtomicBool = AtomicBool::new(false);
-    pub static ref OBS_CONTEXT: Arc<RwLock<Option<ObsContext>>> = Arc::new(RwLock::new(None));
-    pub static ref OBS_DISPLAY: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>> =
-        Arc::new(RwLock::new(None));
+    pub static ref CURR_STATE: Arc<RwLock<CurrState>> = Arc::new(RwLock::new(CurrState::new()));
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 async fn add_preview(handle: AppHandle, x: u32, y: u32, width: u32, height: u32) -> String {
+    let state = CURR_STATE.read().await;
+    if state.obs_display.is_some() {
+        return "Display already exists".to_string();
+    }
+
+    if state.obs_context.is_none() {
+        return "OBS runtime is not initialized".to_string();
+    }
+
+    drop(state);
+    let mut state = CURR_STATE.write().await;
+
     // Get a clone of the runtime to avoid holding the lock across the await
-    let ctx = {
-        let ctx = OBS_CONTEXT.read().unwrap();
-        ctx.as_ref().map(|r| r.clone())
-    };
+    let ctx = { state.obs_context.as_ref().map(|r| r.clone()) };
 
     // Use the cloned runtime, which is now outside the lock scope
-    if let Some(mut ctx) = ctx {
-        if OBS_DISPLAY.read().unwrap().is_some() {
-            return "Display already exists".to_string();
-        }
-
+    let r = if let Some(mut ctx) = ctx {
         let window = handle.get_webview_window("main").unwrap();
         let handle = window.hwnd().unwrap().0 as isize;
 
         let opt = ObsDisplayCreationData::new(handle, x, y, width, height);
         let display = ctx.display(opt).await.unwrap();
-        OBS_DISPLAY.write().unwrap().replace(display);
 
+        state.obs_display = Some(display);
         format!("Display created at ({}, {}, {}, {})", x, y, width, height)
     } else {
         "OBS runtime is not initialized".to_string()
-    }
+    };
+
+    r
 }
 
 #[tauri::command]
 async fn resize_preview(x: u32, y: u32, width: u32, height: u32) -> String {
-    let display = OBS_DISPLAY.read().unwrap().as_ref().cloned();
+    let display = CURR_STATE
+        .read()
+        .await
+        .obs_display
+        .as_ref()
+        .map(|d| d.clone());
+
     if let Some(display) = display {
         display.set_size(width, height).await.unwrap();
         display.set_pos(x as i32, y as i32).await.unwrap();
@@ -62,33 +97,75 @@ async fn resize_preview(x: u32, y: u32, width: u32, height: u32) -> String {
 
 #[tauri::command]
 async fn close_preview() -> String {
-    let display = OBS_DISPLAY.write().unwrap().take();
-    let ctx = OBS_CONTEXT.read().unwrap().as_ref().cloned();
+    let state = CURR_STATE.read().await;
+    if state.obs_display.is_none() {
+        return "Display is not initialized".to_string();
+    }
+
+    drop(state);
+    let mut state = CURR_STATE.write().await;
+    let display = state.obs_display.take().unwrap();
+    let ctx = state.obs_context.clone();
+
     if ctx.is_none() {
         return "OBS runtime is not initialized".to_string();
     }
 
     let mut ctx = ctx.unwrap();
-    if let Some(display) = display {
-        ctx.remove_display(&display).await;
+    ctx.remove_display(&display).await;
 
-        OBS_DISPLAY.write().unwrap().take();
-        return "Display closed".to_string();
+    "Display closed".to_string()
+}
+
+#[tauri::command]
+async fn switch_monitor() -> String {
+    let state = CURR_STATE.read().await;
+    if state.obs_source.is_none() {
+        return "Source is not initialized".to_string();
     }
-    "Display is not initialized".to_string()
+
+    let ctx = state.obs_context.clone();
+    if ctx.is_none() {
+        return "OBS runtime is not initialized".to_string();
+    }
+
+    drop(state);
+    let mut state = CURR_STATE.write().await;
+    let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
+
+    state.monitor_index = (state.monitor_index + 1) % monitors.len();
+    let monitor = &monitors[state.monitor_index];
+
+    let mut source = state.obs_source.as_ref().unwrap().clone();
+    source
+        .create_updater::<MonitorCaptureSourceUpdater>()
+        .await
+        .unwrap()
+        .set_monitor(monitor)
+        .update()
+        .await
+        .unwrap();
+
+    format!("Monitor switched to {:?}", monitor)
 }
 
 #[tauri::command]
 async fn bootstrap(handle: AppHandle) -> String {
-    if OBS_CONTEXT.read().unwrap().is_some() {
+    let state = CURR_STATE.read().await;
+    if state.obs_context.is_some() {
         return "OBS is already running.".to_string();
     }
 
-    if IS_BOOTSTRAPPING.load(std::sync::atomic::Ordering::SeqCst) {
-        return "OBS is already starting.".to_string();
+    println!("Starting OBS bootstrapper");
+    drop(state);
+    let state = CURR_STATE.try_write();
+    if state.is_err() {
+        println!("Already bootstrapping");
+        return "Already bootstrapping".to_string();
     }
 
-    IS_BOOTSTRAPPING.store(true, std::sync::atomic::Ordering::SeqCst);
+    let mut state = state.unwrap();
+    println!("State locked");
     let mut options = ObsBootstrapperOptions::default();
 
     // Don't restart in debug mode to avoid issues with the tauri dev server
@@ -112,7 +189,10 @@ async fn bootstrap(handle: AppHandle) -> String {
         ObsContextReturn::Done(mut context) => {
             // Set up output to ./recording.mp4
             let mut output_settings = context.data().await.unwrap();
-            output_settings.set_string("path", "recording.mp4").await.unwrap();
+            output_settings
+                .set_string("path", "recording.mp4")
+                .await
+                .unwrap();
 
             let output_name = "output";
             let output_info =
@@ -169,11 +249,10 @@ async fn bootstrap(handle: AppHandle) -> String {
                 .await
                 .unwrap();
 
-            println!("Storing context");
             let mut scene = context.scene("Test Scene").await.unwrap();
-            scene.add_and_set(0).await.unwrap();
+            scene.set_to_channel(0).await.unwrap();
 
-            context
+            let source = context
                 .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor")
                 .await
                 .unwrap()
@@ -182,7 +261,8 @@ async fn bootstrap(handle: AppHandle) -> String {
                 .await
                 .unwrap();
 
-            OBS_CONTEXT.write().unwrap().replace(context);
+            state.obs_source = Some(source.clone());
+            state.obs_context = Some(context.clone());
         }
         ObsContextReturn::Restart => {
             println!("Restarting OBS context");
@@ -198,7 +278,6 @@ async fn bootstrap(handle: AppHandle) -> String {
     println!("Runtime done");
     handle.emit("bootstrap_done", ()).unwrap();
 
-    IS_BOOTSTRAPPING.store(false, std::sync::atomic::Ordering::SeqCst);
     "Done.".to_string()
 }
 
@@ -212,7 +291,8 @@ pub fn run() {
             add_preview,
             bootstrap,
             resize_preview,
-            close_preview
+            close_preview,
+            switch_monitor
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

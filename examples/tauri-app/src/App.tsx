@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Progress } from '@heroui/react';
 import "./index.css"
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import Preview from './Preview';
+import { LoadedPage } from './LoadedPage';
 
 function App() {
   const [downloadStatus, setDownloadStatus] = useState("")
@@ -33,6 +33,7 @@ function App() {
       setDone(true);
     }).then(e => unlistenDone = e)
 
+    console.log("Bootstrap started")
     // This should do proper error handling
     invoke("bootstrap")
       .then(e => {
@@ -77,7 +78,7 @@ function App() {
           />
         </div>
       }
-      {done && <Preview />}
+      {done && <LoadedPage />}
       {/**TODO Add preview example here */}
 
     </main>

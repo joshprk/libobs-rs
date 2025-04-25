@@ -6,7 +6,11 @@ use async_trait::async_trait;
 use display_info::DisplayInfo;
 use libobs_source_macro::obs_object_impl;
 use libobs_wrapper::{
-    data::{ObsObjectBuilder, ObsObjectUpdater}, scenes::ObsSceneRef, sources::{ObsSourceBuilder, ObsSourceRef}, unsafe_send::Sendable, utils::ObsError
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    scenes::ObsSceneRef,
+    sources::{ObsSourceBuilder, ObsSourceRef},
+    unsafe_send::Sendable,
+    utils::ObsError,
 };
 use num_traits::ToPrimitive;
 
@@ -38,7 +42,10 @@ define_object_manager!(
 impl MonitorCaptureSource {
     /// Gets all available monitors
     pub fn get_monitors() -> anyhow::Result<Vec<Sendable<DisplayInfo>>> {
-        Ok(DisplayInfo::all()?.into_iter().map(|e| Sendable(e)).collect())
+        Ok(DisplayInfo::all()?
+            .into_iter()
+            .map(|e| Sendable(e))
+            .collect())
     }
 
     pub fn set_monitor(self, monitor: &Sendable<DisplayInfo>) -> Self {
@@ -80,12 +87,13 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
         );
 
         let method_to_set = self.capture_method.clone();
-        let settings = self.settings.clone().await?;
+        let runtime = self.runtime.clone();
+
         let b = self.build().await?;
         let mut res = scene.add_source(b).await?;
 
         if let Some(method) = method_to_set {
-            MonitorCaptureSourceUpdater::create_update(&mut res, settings)
+            MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
                 .await?
                 .set_capture_method(method)
                 .update()

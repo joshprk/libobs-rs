@@ -15,10 +15,8 @@ pub trait ObsUpdatable {
     where
         Self: Sized + Send + Sync,
     {
-        let data = self.get_settings().await?;
-        let data = data.to_mutable().await?;
-
-        T::create_update(self, data).await
+        let runtime = self.runtime();
+        T::create_update(runtime, self).await
     }
 
     fn runtime(&self) -> ObsRuntime;

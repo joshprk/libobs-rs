@@ -2479,6 +2479,7 @@ dependencies = [
  "libobs-source-macro",
  "libobs-window-helper",
  "libobs-wrapper",
+ "log",
  "num-derive",
  "num-traits",
  "paste",

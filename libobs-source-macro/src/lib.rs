@@ -58,7 +58,9 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
             type ToUpdate = #updatable_type;
 
-            async fn create_update(updatable: &'a mut Self::ToUpdate, mut settings: libobs_wrapper::data::ObsData) -> Result<Self, libobs_wrapper::utils::ObsError> {
+            async fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
+                let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
+
                 Ok(Self {
                     #(#struct_initializers,)*
                     settings_updater: settings.bulk_update(),

@@ -38,7 +38,7 @@ pub trait ObsObjectBuilder {
 #[async_trait::async_trait]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
-    async fn create_update(updatable: &'a mut Self::ToUpdate, settings: ObsData) -> Result<Self, ObsError>
+    async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
     where
         Self: Sized;
 
