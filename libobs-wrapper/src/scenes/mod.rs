@@ -60,7 +60,12 @@ impl ObsSceneRef {
         })
     }
 
+    #[deprecated = "Use ObsSceneRef::set_to_channel instead"]
     pub async fn add_and_set(&self, channel: u32) -> Result<(), ObsError> {
+        self.set_to_channel(channel).await
+    }
+
+    pub async fn set_to_channel(&self, channel: u32) -> Result<(), ObsError> {
         let mut s = self.active_scene.write().await;
         *s = Some(self.as_ptr());
 

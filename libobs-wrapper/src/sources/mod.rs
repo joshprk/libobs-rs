@@ -2,7 +2,8 @@ mod builder;
 pub use builder::*;
 
 use libobs::{
-    obs_scene_item, obs_source_create, obs_source_release, obs_source_reset_settings, obs_source_t, obs_source_update
+    obs_scene_item, obs_source_create, obs_source_release, obs_source_reset_settings, obs_source_t,
+    obs_source_update,
 };
 
 use crate::{
@@ -106,9 +107,11 @@ impl ObsSourceRef {
 #[async_trait::async_trait]
 impl ObsUpdatable for ObsSourceRef {
     async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+        let data_ptr = data.as_ptr();
         let source_ptr = self.source.clone();
-        run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_update(source_ptr, data.as_ptr().0);
+        log::trace!("Updating source: {:?}", self.source);
+        run_with_obs!(self.runtime, (source_ptr, data_ptr), move || unsafe {
+            obs_source_update(source_ptr, data_ptr);
         })
     }
 
@@ -121,6 +124,17 @@ impl ObsUpdatable for ObsSourceRef {
 
     fn runtime(&self) -> ObsRuntime {
         self.runtime.clone()
+    }
+
+    async fn get_settings(&self) -> Result<ImmutableObsData, ObsError> {
+        log::trace!("Getting settings for source: {:?}", self.source);
+        let source_ptr = self.source.clone();
+        let res = run_with_obs!(self.runtime, (source_ptr), move || unsafe {
+            Sendable(libobs::obs_source_get_settings(source_ptr))
+        })?;
+
+        log::trace!("Got settings: {:?}", res);
+        Ok(ImmutableObsData::from_raw(res, self.runtime.clone()).await)
     }
 }
 

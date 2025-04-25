@@ -21,7 +21,6 @@ pub trait ObsObjectBuilder {
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
-    /// Adds the obs source to the output on the given channel
     async fn build(self) -> Result<ObjectInfo, ObsError>
     where
         Self: Sized;
@@ -39,7 +38,7 @@ pub trait ObsObjectBuilder {
 #[async_trait::async_trait]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
-    async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
+    async fn create_update(updatable: &'a mut Self::ToUpdate, settings: ObsData) -> Result<Self, ObsError>
     where
         Self: Sized;
 

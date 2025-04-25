@@ -89,7 +89,7 @@ impl ObsContext {
     ///
     /// If the `bootstrapper` feature is enabled, and ObsContextReturn::Restart is returned,
     /// the application must be restarted to apply the updates and initialization can not continue.
-    pub async fn new(info: StartupInfo) -> Result<ObsContextReturn, ObsError> {
+    pub async fn new(info: StartupInfo) -> Result<ObsContextReturn, ObsError>{
         // Spawning runtime, I'll keep this as function for now
         let runtime = ObsRuntime::startup(info).await?;
 

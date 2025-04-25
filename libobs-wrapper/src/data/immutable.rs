@@ -1,12 +1,14 @@
-use std::sync::Arc;
+use std::{ffi::CStr, sync::Arc};
 
 use libobs::obs_data_t;
 
-use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
+use crate::{
+    impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError,
+};
 
 use super::{ObsData, _ObsDataDropGuard};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 /// Immutable wrapper around obs_data_t to be prevent modification and to be used in creation of other objects.
 /// This should not be updated directly using the pointer, but instead through the corresponding update methods on the holder of this data.
 pub struct ImmutableObsData {
@@ -17,7 +19,9 @@ pub struct ImmutableObsData {
 
 impl ImmutableObsData {
     pub async fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
-        let ptr = run_with_obs!(runtime, move || unsafe { Sendable(libobs::obs_data_create()) })?;
+        let ptr = run_with_obs!(runtime, move || unsafe {
+            Sendable(libobs::obs_data_create())
+        })?;
 
         Ok(ImmutableObsData {
             ptr: ptr.clone(),
@@ -40,6 +44,19 @@ impl ImmutableObsData {
         }
     }
 
+    pub async fn to_mutable(&self) -> Result<ObsData, ObsError> {
+        let ptr = self.ptr.clone();
+        let json = run_with_obs!(self.runtime, (ptr), move || unsafe {
+            Sendable(libobs::obs_data_get_json(ptr))
+        })?;
+
+        let json = unsafe { CStr::from_ptr(json.0) }.to_str()
+            .map_err(|_| ObsError::JsonParseError)?
+            .to_string();
+
+        ObsData::from_json(json.as_ref(), self.runtime.clone()).await
+    }
+
     pub fn as_ptr(&self) -> Sendable<*mut obs_data_t> {
         self.ptr.clone()
     }
@@ -54,7 +71,7 @@ impl From<ObsData> for ImmutableObsData {
         ImmutableObsData {
             ptr: Sendable(ptr),
             runtime: data.runtime.clone(),
-            _drop_guard: data._drop_guard
+            _drop_guard: data._drop_guard,
         }
     }
 }

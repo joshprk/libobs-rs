@@ -58,9 +58,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
             type ToUpdate = #updatable_type;
 
-            async fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
-                let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
-
+            async fn create_update(updatable: &'a mut Self::ToUpdate, mut settings: libobs_wrapper::data::ObsData) -> Result<Self, libobs_wrapper::utils::ObsError> {
                 Ok(Self {
                     #(#struct_initializers,)*
                     settings_updater: settings.bulk_update(),
@@ -83,9 +81,21 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             async fn update(self) -> Result<(), libobs_wrapper::utils::ObsError> {
                 use libobs_wrapper::utils::traits::ObsUpdatable;
-                let #updater_name { settings, updatable, ..} = self;
+                let #updater_name {
+                    settings_updater,
+                    updatable,
+                    settings,
+                    ..
+                } = self;
 
-                updatable.update_raw(settings).await
+                log::trace!("Updating settings for {:?}", Self::get_id());
+                settings_updater.update().await?;
+
+                log::trace!("Updating raw settings for {:?}", Self::get_id());
+                let e = updatable.update_raw(settings).await;
+                log::trace!("Update done for {:?}", Self::get_id());
+
+                e
             }
         }
 

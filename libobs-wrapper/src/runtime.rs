@@ -245,10 +245,12 @@ impl ObsRuntime {
             .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
-        result
+        let res = result
             .downcast::<T>()
             .map(|boxed| *boxed)
-            .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))
+            .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))?;
+
+        Ok(res)
     }
 
     /// Shutdown the OBS runtime and terminate the thread

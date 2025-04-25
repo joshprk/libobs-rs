@@ -1,12 +1,18 @@
-use std::{ffi::{CStr, CString}, sync::Arc};
+use std::{
+    ffi::{CStr, CString},
+    sync::Arc,
+};
 
-use anyhow::bail;
 use libobs::{
-    obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double, obs_data_set_int, obs_data_set_string
+    obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double,
+    obs_data_set_int, obs_data_set_string,
 };
 
 use crate::{
-    impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}
+    impl_obs_drop, run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{ObsError, ObsString},
 };
 
 pub mod audio;
@@ -33,7 +39,7 @@ pub(crate) struct _ObsDataDropGuard {
 pub struct ObsData {
     obs_data: Sendable<*mut obs_data>,
     pub(crate) runtime: ObsRuntime,
-    pub(crate) _drop_guard: Arc<_ObsDataDropGuard>
+    pub(crate) _drop_guard: Arc<_ObsDataDropGuard>,
 }
 
 impl ObsData {
@@ -51,14 +57,11 @@ impl ObsData {
         Ok(ObsData {
             obs_data: obs_data.clone(),
             runtime: runtime.clone(),
-            _drop_guard: Arc::new(_ObsDataDropGuard {
-                obs_data,
-                runtime,
-            }),
+            _drop_guard: Arc::new(_ObsDataDropGuard { obs_data, runtime }),
         })
     }
 
-    pub fn bulk_update(& mut self) -> ObsDataUpdater {
+    pub fn bulk_update(&mut self) -> ObsDataUpdater {
         ObsDataUpdater {
             changes: Vec::new(),
             obs_data: self.obs_data.clone(),
@@ -86,9 +89,11 @@ impl ObsData {
         let value_ptr = value.as_ptr();
         let data_ptr = self.obs_data.clone();
 
-        run_with_obs!(self.runtime, (data_ptr, key_ptr, value_ptr), move || unsafe {
-            obs_data_set_string(data_ptr, key_ptr, value_ptr)
-        })?;
+        run_with_obs!(
+            self.runtime,
+            (data_ptr, key_ptr, value_ptr),
+            move || unsafe { obs_data_set_string(data_ptr, key_ptr, value_ptr) }
+        )?;
 
         Ok(self)
     }
@@ -149,8 +154,8 @@ impl ObsData {
         Ok(self)
     }
 
-    pub async fn from_json(json: &str, runtime: ObsRuntime) -> anyhow::Result<Self> {
-        let cstr = CString::new(json)?;
+    pub async fn from_json(json: &str, runtime: ObsRuntime) -> Result<Self, ObsError> {
+        let cstr = CString::new(json).map_err(|_| ObsError::JsonParseError)?;
 
         let cstr_ptr = Sendable(cstr.as_ptr());
         let result = run_with_obs!(runtime, (cstr_ptr), move || unsafe {
@@ -158,7 +163,7 @@ impl ObsData {
         })?;
 
         if result.0.is_null() {
-            bail!("Failed to set JSON in obs_data");
+            return Err(ObsError::JsonParseError);
         }
 
         Ok(ObsData {
@@ -171,18 +176,20 @@ impl ObsData {
         })
     }
 
-    pub async fn get_json(&self) -> anyhow::Result<String> {
+    pub async fn get_json(&self) -> Result<String, ObsError> {
         let data_ptr = self.obs_data.clone();
         let ptr = run_with_obs!(self.runtime, (data_ptr), move || unsafe {
             Sendable(libobs::obs_data_get_json(data_ptr))
         })?;
 
         if ptr.0.is_null() {
-            bail!("Failed to get JSON from obs_data");
+            return Err(ObsError::NullPointer);
         }
 
         let ptr = unsafe { CStr::from_ptr(ptr.0) };
-        Ok(ptr.to_str()?.to_string())
+        let ptr = ptr.to_str().map_err(|_| ObsError::JsonParseError)?;
+
+        Ok(ptr.to_string())
     }
 }
 
@@ -191,7 +198,7 @@ impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
 });
 
 impl ObsData {
-    pub async fn clone(&self) -> anyhow::Result<Self> {
+    pub async fn clone(&self) -> Result<Self, ObsError> {
         let json = self.get_json().await?;
 
         Self::from_json(json.as_str(), self.runtime.clone()).await

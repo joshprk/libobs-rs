@@ -38,7 +38,7 @@ pub async fn main() -> anyhow::Result<()> {
         .await?;
 
     // Register the source
-    scene.add_and_set(0).await?;
+    scene.set_to_channel(0).await?;
 
     // Set up output to ./recording.mp4
     let mut output_settings = context.data().await?;

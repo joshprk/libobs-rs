@@ -46,7 +46,7 @@ pub async fn test_window_capture() {
 
     let (mut context, mut output) = initialize_obs(rec_file).await;
     let mut scene = context.scene("main").await.unwrap();
-    scene.add_and_set(0).await.unwrap();
+    scene.set_to_channel(0).await.unwrap();
 
     let source_name = "test_capture";
     let mut source = context

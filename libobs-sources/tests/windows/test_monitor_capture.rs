@@ -39,7 +39,7 @@ pub async fn monitor_test() {
         .await
         .unwrap();
 
-    scene.add_and_set(0).await.unwrap();
+    scene.set_to_channel(0).await.unwrap();
     output.start().await.unwrap();
 
     println!("Recording started");

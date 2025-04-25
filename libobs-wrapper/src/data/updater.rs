@@ -34,6 +34,8 @@ impl ObsDataUpdater {
     pub fn set_string_ref(&mut self, key: impl Into<ObsString>, value: impl Into<ObsString>) {
         let key = key.into();
         let value = value.into();
+
+        log::trace!("Setting string: {:?} = {:?}", key, value);
         self.changes.push(ObsDataChange::String(key, value));
     }
 

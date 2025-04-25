@@ -80,13 +80,12 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
         );
 
         let method_to_set = self.capture_method.clone();
-        let runtime = self.runtime.clone();
-
+        let settings = self.settings.clone().await?;
         let b = self.build().await?;
         let mut res = scene.add_source(b).await?;
 
         if let Some(method) = method_to_set {
-            MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
+            MonitorCaptureSourceUpdater::create_update(&mut res, settings)
                 .await?
                 .set_capture_method(method)
                 .update()

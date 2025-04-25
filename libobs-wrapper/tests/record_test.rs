@@ -51,7 +51,7 @@ pub async fn record_test() {
 
     // Register the source and record
 
-    scene.add_and_set(0).await.unwrap();
+    scene.set_to_channel(0).await.unwrap();
 
     // Set up output to ./recording.mp4
     let mut output_settings = context.data().await.unwrap();
