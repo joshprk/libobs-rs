@@ -42,9 +42,18 @@ lazy_static! {
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+
+/// Creates an OBS preview display in the application window
+/// 
+/// This command initializes an OBS display that renders the current OBS scene.
+/// The display is positioned at (x,y) with dimensions (width,height) within the application window.
+/// 
+/// OBS displays are used to render preview output of scenes and sources within custom interfaces.
 #[tauri::command]
 async fn add_preview(handle: AppHandle, x: u32, y: u32, width: u32, height: u32) -> String {
+    // First check if we already have a display or if OBS isn't initialized
     let state = CURR_STATE.read().await;
+    
     if state.obs_display.is_some() {
         return "Display already exists".to_string();
     }
@@ -53,27 +62,43 @@ async fn add_preview(handle: AppHandle, x: u32, y: u32, width: u32, height: u32)
         return "OBS runtime is not initialized".to_string();
     }
 
+    // Release read lock before acquiring write lock to avoid deadlock
     drop(state);
     let mut state = CURR_STATE.write().await;
 
-    // Get a clone of the runtime to avoid holding the lock across the await
+    // Clone the context to avoid holding the lock during async operations
+    // This prevents potential deadlocks when awaiting OBS operations
     let ctx = { state.obs_context.as_ref().map(|r| r.clone()) };
 
-    // Use the cloned runtime, which is now outside the lock scope
-    let r = if let Some(mut ctx) = ctx {
+    // Create the OBS display using the cloned context
+    let result = if let Some(mut ctx) = ctx {
+        // Get the native window handle from Tauri's webview
+        // OBS displays need to be parented to a native window
         let window = handle.get_webview_window("main").unwrap();
-        let handle = window.hwnd().unwrap().0 as isize;
+        let native_handle = window.hwnd().unwrap().0 as isize;
 
-        let opt = ObsDisplayCreationData::new(handle, x, y, width, height);
-        let display = ctx.display(opt).await.unwrap();
-
-        state.obs_display = Some(display);
-        format!("Display created at ({}, {}, {}, {})", x, y, width, height)
+        // Create display configuration
+        // ObsDisplayCreationData contains parameters needed for OBS to create a display
+        // in a specified window area
+        let display_config = ObsDisplayCreationData::new(native_handle, x, y, width, height);
+        
+        // Request OBS to create a display with our configuration
+        // The display will render the current OBS scene graph at the specified position
+        match ctx.display(display_config).await {
+            Ok(display) => {
+                // Store the created display in our state
+                state.obs_display = Some(display);
+                format!("Display created at ({}, {}, {}, {})", x, y, width, height)
+            },
+            Err(e) => {
+                format!("Failed to create OBS display: {}", e)
+            }
+        }
     } else {
         "OBS runtime is not initialized".to_string()
     };
 
-    r
+    result
 }
 
 #[tauri::command]
