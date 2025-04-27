@@ -8,5 +8,5 @@ anyhow = "1.0.98"
 async-trait = "0.1.88"
 futures-util = "0.3.31"
 indicatif = "0.17.11"
-libobs-wrapper = { path = "../../libobs-wrapper" }
+libobs-wrapper = { path = "../../libobs-wrapper", features = [] }
 tokio = { version = "1.44.1", features = ["full"] }
