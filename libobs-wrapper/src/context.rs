@@ -1,11 +1,23 @@
 use std::{collections::HashMap, ffi::CStr, pin::Pin, sync::Arc, thread::ThreadId};
 
 use crate::{
-    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData}, display::{ObsDisplayCreationData, ObsDisplayRef}, enums::{ObsLogLevel, ObsResetVideoStatus}, logger::LOGGER, run_with_obs, runtime::{ObsRuntime, ObsRuntimeReturn}, scenes::ObsSceneRef, sources::ObsSourceBuilder, unsafe_send::Sendable, utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo}
+    data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
+    display::{ObsDisplayCreationData, ObsDisplayRef},
+    enums::{ObsLogLevel, ObsResetVideoStatus},
+    logger::LOGGER,
+    run_with_obs,
+    runtime::{ObsRuntime, ObsRuntimeReturn},
+    scenes::ObsSceneRef,
+    sources::ObsSourceBuilder,
+    unsafe_send::Sendable,
+    utils::{
+        ObsError, ObsModules, ObsString, OutputInfo, StartupInfo,
+    },
 };
+use crate::utils::async_sync::{Mutex, RwLock};
 use getters0::Getters;
 use libobs::{audio_output, obs_scene_t, video_output};
-use tokio::sync::{Mutex, RwLock};
+
 lazy_static::lazy_static! {
     pub(crate) static ref OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 }
@@ -89,7 +101,8 @@ impl ObsContext {
     ///
     /// If the `bootstrapper` feature is enabled, and ObsContextReturn::Restart is returned,
     /// the application must be restarted to apply the updates and initialization can not continue.
-    pub async fn new(info: StartupInfo) -> Result<ObsContextReturn, ObsError>{
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn new(info: StartupInfo) -> Result<ObsContextReturn, ObsError> {
         // Spawning runtime, I'll keep this as function for now
         let runtime = ObsRuntime::startup(info).await?;
 
@@ -119,13 +132,14 @@ impl ObsContext {
         return Ok(context);
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_version(&self) -> Result<String, ObsError> {
         let res = run_with_obs!(self.runtime, || unsafe {
             let version = libobs::obs_get_version_string();
             let version_cstr = CStr::from_ptr(version);
 
             version_cstr.to_string_lossy().into_owned()
-        })?;
+        }).await?;
 
         Ok(res)
     }
@@ -149,6 +163,7 @@ impl ObsContext {
     /// Note that you cannot reset the graphics module
     /// without destroying the entire OBS context. Trying
     /// so will result in an error.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn reset_video(&mut self, ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
@@ -174,7 +189,7 @@ impl ObsContext {
 
         let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
             libobs::obs_reset_video(vid_ptr)
-        })?;
+        }).await?;
 
         drop(vid);
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
@@ -200,31 +215,35 @@ impl ObsContext {
                 for encoder_ptr in video_encoders.into_iter() {
                     libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
                 }
-            })?;
+            }).await?;
 
             self.startup_info.write().await.obs_video_info = ovi;
             return Ok(());
         }
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_video())
-        })
+        }).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_audio())
-        })
+        }).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn data(&self) -> Result<ObsData, ObsError> {
         ObsData::new(self.runtime.clone()).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
         let output = ObsOutputRef::new(info, self.runtime.clone()).await;
 
@@ -240,7 +259,11 @@ impl ObsContext {
     }
 
     /// Creates a new display and returns its ID.
-    pub async fn display(&mut self, data: ObsDisplayCreationData) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
         let display = ObsDisplayRef::new(data, self.runtime.clone())
             .await
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
@@ -252,18 +275,22 @@ impl ObsContext {
         Ok(display_clone)
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn remove_display(&mut self, display: &ObsDisplayRef) {
         self.remove_display_by_id(display.id()).await;
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn remove_display_by_id(&mut self, id: usize) {
         self.displays.write().await.remove(&id);
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_display_by_id(&self, id: usize) -> Option<Arc<Pin<Box<ObsDisplayRef>>>> {
         self.displays.read().await.get(&id).cloned()
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
         self.outputs
             .read()
@@ -273,6 +300,7 @@ impl ObsContext {
             .map(|e| e.clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
         match self
             .outputs
@@ -286,7 +314,11 @@ impl ObsContext {
         }
     }
 
-    pub async fn scene<T: Into<ObsString> + Send + Sync>(&mut self, name: T) -> Result<ObsSceneRef, ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn scene<T: Into<ObsString> + Send + Sync>(
+        &mut self,
+        name: T,
+    ) -> Result<ObsSceneRef, ObsError> {
         let scene =
             ObsSceneRef::new(name.into(), self.active_scene.clone(), self.runtime.clone()).await?;
 
@@ -296,6 +328,7 @@ impl ObsContext {
         Ok(tmp)
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
         self.scenes
             .read()
@@ -305,6 +338,7 @@ impl ObsContext {
             .map(|e| e.clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn source_builder<T: ObsSourceBuilder, K: Into<ObsString> + Send + Sync>(
         &self,
         name: K,

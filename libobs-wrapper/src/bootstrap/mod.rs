@@ -77,6 +77,7 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
     Ok(obs_dll)
 }
 
+#[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
 pub(crate) async fn bootstrap(
     options: &options::ObsBootstrapperOptions,
 ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {

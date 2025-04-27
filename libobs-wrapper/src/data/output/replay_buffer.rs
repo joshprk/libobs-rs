@@ -13,13 +13,16 @@ use crate::{
 
 use super::ObsOutputRef;
 
-#[async_trait::async_trait]
+
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ReplayBufferOutput {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn save_buffer(&self) -> Result<Box<Path>, ObsError>;
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ReplayBufferOutput for ObsOutputRef {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn save_buffer(&self) -> Result<Box<Path>, ObsError> {
         let output_ptr = self.output.clone();
 
@@ -73,7 +76,7 @@ impl ReplayBufferOutput for ObsOutputRef {
             let path = unsafe { std::ffi::CStr::from_ptr(s) }.to_str().unwrap();
 
             Ok(PathBuf::from(path))
-        })??;
+        }).await??;
 
         Ok(path.into_boxed_path())
     }

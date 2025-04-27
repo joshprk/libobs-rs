@@ -23,6 +23,7 @@ pub struct ObsVideoEncoder {
 }
 
 impl ObsVideoEncoder {
+    #[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
     pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
         id: T,
         name: K,
@@ -52,7 +53,7 @@ impl ObsVideoEncoder {
                 let ptr = obs_video_encoder_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr);
                 Sendable(ptr)
             }
-        )?;
+        ).await?;
 
         if encoder.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
@@ -73,11 +74,12 @@ impl ObsVideoEncoder {
     }
 
     /// This is only needed once for global video context
+    #[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
     pub async fn set_video_context(&mut self, handler: Sendable<*mut video_output>) -> Result<(), ObsError> {
         let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
             Sendable(obs_encoder_set_video(self_ptr, handler));
-        })
+        }).await
     }
 }
 

@@ -46,12 +46,15 @@ pub enum ObsProperty {
     ColorAlpha(ObsColorAlphaProperty),
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ObsPropertyObjectPrivate {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
 
+#[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
 async fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
@@ -85,14 +88,17 @@ async fn get_properties_inner(
 
         unsafe { libobs::obs_properties_destroy(properties_raw) };
         result
-    })
+    }).await
 }
 
 /// This trait is implemented for all obs objects that can have properties
-#[async_trait::async_trait]
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError>;
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
         let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone()).await?;
         get_properties_inner(properties_raw, runtime.clone()).await

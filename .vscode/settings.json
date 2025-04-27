@@ -7,5 +7,6 @@
         "corecrt.h": "c",
         "vcruntime.h": "c"
     },
-    "rust-analyzer.cargo.targetDir": true
+    "rust-analyzer.cargo.targetDir": true,
+    "rust-analyzer.cargo.features": []
 }

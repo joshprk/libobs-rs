@@ -25,8 +25,8 @@ async fn main() -> anyhow::Result<()> {
     // Create a new main scene
     let mut scene = context.scene("MAIN").await?;
     // Set the scene as main channel for video and audio output
-    scene.add_and_set(0).await?;
-    scene.add_and_set(1).await?;
+    scene.set_to_channel(0).await?;
+    scene.set_to_channel(1).await?;
 
     // Add a ffmpeg_muxer output
     let mut output = context

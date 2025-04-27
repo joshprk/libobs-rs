@@ -12,8 +12,9 @@ pub trait StringEnum {
 
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
-#[async_trait::async_trait]
+#[cfg_attr(not(feature="blocking"), async_trait::async_trait)]
 pub trait ObsObjectBuilder {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn new<T: Into<ObsString> + Send + Sync>(name: T, runtime: ObsRuntime) -> Result<Self, ObsError>
     where
         Self: Sized;
@@ -21,6 +22,7 @@ pub trait ObsObjectBuilder {
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn build(self) -> Result<ObjectInfo, ObsError>
     where
         Self: Sized;
@@ -35,9 +37,10 @@ pub trait ObsObjectBuilder {
     fn get_id() -> ObsString;
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(not(feature="blocking"), async_trait::async_trait)]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
     where
         Self: Sized;
@@ -45,6 +48,7 @@ pub trait ObsObjectUpdater<'a> {
     fn get_settings(&self) -> &ObsData;
     fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn update(self) -> Result<(), ObsError>;
 
     /// Returns the ID of the object

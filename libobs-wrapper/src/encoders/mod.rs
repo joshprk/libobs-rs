@@ -1,6 +1,5 @@
 use std::{ffi::CStr, os::raw::c_char, str::FromStr};
 
-use async_trait::async_trait;
 use num_traits::ToPrimitive;
 
 use crate::{
@@ -16,14 +15,22 @@ mod enums;
 pub mod video;
 pub use enums::*;
 
-#[async_trait]
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ObsContextEncoders {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError>;
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_best_audio_encoder(&self) -> Result<ObsAudioEncoderType, ObsError>;
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderType>, ObsError>;
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderType>, ObsError>;
 }
 
+#[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
 async fn get_encoders_raw(
     encoder_type: ObsEncoderType,
     runtime: &ObsRuntime,
@@ -54,10 +61,12 @@ async fn get_encoders_raw(
         encoders.sort_unstable();
         encoders
     })
+    .await
 }
 
-#[async_trait]
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsContextEncoders for ObsContext {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError> {
         Ok(self
             .get_available_video_encoders()
@@ -67,6 +76,7 @@ impl ObsContextEncoders for ObsContext {
             .clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_best_audio_encoder(&self) -> Result<ObsAudioEncoderType, ObsError> {
         Ok(self
             .get_available_audio_encoders()
@@ -76,6 +86,7 @@ impl ObsContextEncoders for ObsContext {
             .clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderType>, ObsError> {
         Ok(get_encoders_raw(ObsEncoderType::Audio, &self.runtime)
             .await?
@@ -84,6 +95,7 @@ impl ObsContextEncoders for ObsContext {
             .collect::<Vec<_>>())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn get_available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderType>, ObsError> {
         Ok(get_encoders_raw(ObsEncoderType::Video, &self.runtime)
             .await?

@@ -2,10 +2,13 @@ use std::sync::Arc;
 
 use getters0::Getters;
 use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
-use tokio::sync::RwLock;
 
 use crate::{
-    impl_obs_drop, run_with_obs, runtime::ObsRuntime, sources::ObsSourceRef, unsafe_send::Sendable, utils::{ObsError, ObsString, SourceInfo}
+    impl_obs_drop, run_with_obs,
+    runtime::ObsRuntime,
+    sources::ObsSourceRef,
+    unsafe_send::Sendable,
+    utils::{async_sync::RwLock, ObsError, ObsString, SourceInfo},
 };
 
 #[derive(Debug)]
@@ -37,6 +40,7 @@ pub struct ObsSceneRef {
 }
 
 impl ObsSceneRef {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub(crate) async fn new(
         name: ObsString,
         active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
@@ -45,7 +49,7 @@ impl ObsSceneRef {
         let name_ptr = name.as_ptr();
         let scene = run_with_obs!(runtime, (name_ptr), move || unsafe {
             Sendable(libobs::obs_scene_create(name_ptr))
-        })?;
+        }).await?;
 
         Ok(Self {
             name,
@@ -61,10 +65,12 @@ impl ObsSceneRef {
     }
 
     #[deprecated = "Use ObsSceneRef::set_to_channel instead"]
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn add_and_set(&self, channel: u32) -> Result<(), ObsError> {
         self.set_to_channel(channel).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn set_to_channel(&self, channel: u32) -> Result<(), ObsError> {
         let mut s = self.active_scene.write().await;
         *s = Some(self.as_ptr());
@@ -72,16 +78,18 @@ impl ObsSceneRef {
         let scene_source_ptr = self.get_scene_source_ptr().await?;
         run_with_obs!(self.runtime, (scene_source_ptr), move || unsafe {
             obs_set_output_source(channel, scene_source_ptr);
-        })
+        }).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_scene_source_ptr(&self) -> Result<Sendable<*mut obs_source_t>, ObsError> {
         let scene_ptr = self.scene.clone();
         run_with_obs!(self.runtime, (scene_ptr), move || unsafe {
             Sendable(libobs::obs_scene_get_source(scene_ptr))
-        })
+        }).await
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn add_source(&mut self, info: SourceInfo) -> Result<ObsSourceRef, ObsError> {
         let mut source = ObsSourceRef::new(
             info.id,
@@ -97,7 +105,7 @@ impl ObsSceneRef {
 
         let ptr = run_with_obs!(self.runtime, (scene_ptr, source_ptr), move || unsafe {
             Sendable(libobs::obs_scene_add(scene_ptr, source_ptr))
-        })?;
+        }).await?;
 
         if ptr.0.is_null() {
             return Err(ObsError::NullPointer);
@@ -108,10 +116,12 @@ impl ObsSceneRef {
         Ok(source)
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_source_by_index(&self, index: usize) -> Option<ObsSourceRef> {
         self.sources.read().await.get(index).map(|x| x.clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_source_mut(&self, name: &str) -> Option<ObsSourceRef> {
         self.sources
             .read()
@@ -121,6 +131,7 @@ impl ObsSceneRef {
             .map(|x| x.clone())
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn remove_source(&mut self, source: &ObsSourceRef) -> Result<(), ObsError> {
         let scene_item_ptr = source.scene_item.clone();
         if scene_item_ptr.is_none() {
@@ -133,7 +144,7 @@ impl ObsSceneRef {
             libobs::obs_sceneitem_remove(scene_item_ptr);
             // Release the scene item reference
             libobs::obs_sceneitem_release(scene_item_ptr);
-        })?;
+        }).await?;
 
         Ok(())
     }

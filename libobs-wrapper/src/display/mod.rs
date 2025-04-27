@@ -7,7 +7,6 @@ mod window_manager;
 
 pub use creation_data::*;
 pub use enums::*;
-use tokio::sync::RwLock;
 pub use window_manager::*;
 
 use std::{
@@ -21,7 +20,12 @@ use libobs::{
     gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
-use crate::{runtime::ObsRuntime, unsafe_send::Sendable};
+use crate::{
+    run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{async_sync::RwLock, ObsError},
+};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -77,6 +81,7 @@ impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub(crate) async fn new(
         data: creation_data::ObsDisplayCreationData,
         runtime: ObsRuntime,
@@ -105,13 +110,13 @@ impl ObsDisplayRef {
 
         let child_handle = Sendable(manager.get_child_handle());
         let init_data = Sendable(data.build(gs_window {
-            hwnd: child_handle.0.0,
+            hwnd: child_handle.0 .0,
         }));
 
         log::trace!("Creating obs display...");
         let display = run_with_obs!(runtime, (init_data), move || unsafe {
             Sendable(libobs::obs_display_create(&init_data, background_color))
-        })?;
+        }).await?;
 
         if display.0.is_null() {
             bail!("OBS failed to create display");
@@ -131,24 +136,22 @@ impl ObsDisplayRef {
             runtime: runtime.clone(),
         });
 
-        let instance_ptr = Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
+        let instance_ptr =
+            Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
 
         instance._guard.write().await.self_ptr = Some(instance_ptr.clone());
 
+        let pos = instance.get_pos().await;
         log::trace!(
             "Adding draw callback with display {:?} and draw callback params at {:?} (pos is {:?})...",
             instance.display,
             instance_ptr,
-            instance.get_pos().await
+            pos
         );
         let display_ptr = instance.display.clone();
         run_with_obs!(runtime, (display_ptr, instance_ptr), move || unsafe {
-            libobs::obs_display_add_draw_callback(
-                display_ptr,
-                Some(render_display),
-                instance_ptr,
-            );
-        })?;
+            libobs::obs_display_add_draw_callback(display_ptr, Some(render_display), instance_ptr);
+        }).await?;
 
         Ok(instance)
     }
@@ -165,29 +168,35 @@ struct _DisplayDropGuard {
     runtime: ObsRuntime,
 }
 
+impl _DisplayDropGuard {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn inner_drop(
+        r: ObsRuntime,
+        display: Sendable<*mut libobs::obs_display_t>,
+        self_ptr: Option<Sendable<*mut c_void>>,
+    ) -> Result<(), ObsError> {
+        run_with_obs!(r, (display), move || unsafe {
+            if let Some(ptr) = &self_ptr {
+                log::trace!("Destroying display with callback at {:?}...", ptr.0);
+                libobs::obs_display_remove_draw_callback(display, Some(render_display), ptr.0);
+            }
+
+            libobs::obs_display_destroy(display);
+        }).await
+    }
+}
+
 impl Drop for _DisplayDropGuard {
     fn drop(&mut self) {
         let display = self.display.clone();
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();
+        #[cfg(not(feature = "blocking"))]
         let r = futures::executor::block_on(async {
-            r.run_with_obs(move || unsafe {
-                let display = display;
-                let self_ptr = self_ptr;
-
-                if let Some(ptr) = &self_ptr {
-                    log::trace!("Destroying display with callback at {:?}...", ptr.0);
-                    libobs::obs_display_remove_draw_callback(
-                        display.0,
-                        Some(render_display),
-                        ptr.0,
-                    );
-                }
-
-                libobs::obs_display_destroy(display.0);
-            })
-            .await
+            _DisplayDropGuard::inner_drop(r, display, self_ptr).await
         });
+        #[cfg(feature = "blocking")]
+        let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
 
         if std::thread::panicking() {
             return;

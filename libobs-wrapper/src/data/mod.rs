@@ -51,8 +51,9 @@ impl ObsData {
     /// `ObsString` types to prevent them from being
     /// dropped prematurely. This makes it safer than
     /// using `obs_data` directly from libobs.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn new(runtime: ObsRuntime) -> Result<Self, ObsError> {
-        let obs_data = run_with_obs!(runtime, move || unsafe { Sendable(obs_data_create()) })?;
+        let obs_data = run_with_obs!(runtime, move || unsafe { Sendable(obs_data_create()) }).await?;
 
         Ok(ObsData {
             obs_data: obs_data.clone(),
@@ -77,6 +78,7 @@ impl ObsData {
 
     /// Sets a string in `obs_data` and stores it so
     /// it in `ObsData` does not get freed.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn set_string<T: Into<ObsString> + Send + Sync, K: Into<ObsString> + Send + Sync>(
         &mut self,
         key: T,
@@ -93,13 +95,15 @@ impl ObsData {
             self.runtime,
             (data_ptr, key_ptr, value_ptr),
             move || unsafe { obs_data_set_string(data_ptr, key_ptr, value_ptr) }
-        )?;
+        )
+        .await?;
 
         Ok(self)
     }
 
     /// Sets an int in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn set_int<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -112,13 +116,14 @@ impl ObsData {
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
             obs_data_set_int(data_ptr, key_ptr, value.into());
-        })?;
+        }).await?;
 
         Ok(self)
     }
 
     /// Sets a bool in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn set_bool<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -130,13 +135,14 @@ impl ObsData {
         let data_ptr = self.obs_data.clone();
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
             obs_data_set_bool(data_ptr, key_ptr, value.into());
-        })?;
+        }).await?;
 
         Ok(self)
     }
 
     /// Sets a double in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn set_double<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -149,18 +155,19 @@ impl ObsData {
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
             obs_data_set_double(data_ptr, key_ptr, value.into());
-        })?;
+        }).await?;
 
         Ok(self)
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn from_json(json: &str, runtime: ObsRuntime) -> Result<Self, ObsError> {
         let cstr = CString::new(json).map_err(|_| ObsError::JsonParseError)?;
 
         let cstr_ptr = Sendable(cstr.as_ptr());
         let result = run_with_obs!(runtime, (cstr_ptr), move || unsafe {
             Sendable(libobs::obs_data_create_from_json(cstr_ptr))
-        })?;
+        }).await?;
 
         if result.0.is_null() {
             return Err(ObsError::JsonParseError);
@@ -176,11 +183,12 @@ impl ObsData {
         })
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn get_json(&self) -> Result<String, ObsError> {
         let data_ptr = self.obs_data.clone();
         let ptr = run_with_obs!(self.runtime, (data_ptr), move || unsafe {
             Sendable(libobs::obs_data_get_json(data_ptr))
-        })?;
+        }).await?;
 
         if ptr.0.is_null() {
             return Err(ObsError::NullPointer);
@@ -198,6 +206,7 @@ impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
 });
 
 impl ObsData {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn clone(&self) -> Result<Self, ObsError> {
         let json = self.get_json().await?;
 

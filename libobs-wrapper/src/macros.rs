@@ -21,14 +21,22 @@ macro_rules! run_with_obs_impl {
 #[macro_export]
 macro_rules! run_with_obs {
     ($self:expr, $operation:expr) => {
-        $crate::run_with_obs_impl!($self, run_with_obs_result, $operation)
-        .await
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
+        {
+            #[cfg(not(feature="blocking"))]
+            use futures_util::TryFutureExt;
+
+            $crate::run_with_obs_impl!($self, run_with_obs_result, $operation)
+                .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
+        }
     };
     ($self:expr, ($($var:ident),* $(,)*), $operation:expr) => {
-        $crate::run_with_obs_impl!($self, run_with_obs_result, ($($var),*), $operation)
-        .await
-            .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
+        {
+            #[cfg(not(feature="blocking"))]
+            use futures_util::TryFutureExt;
+
+            $crate::run_with_obs_impl!($self, run_with_obs_result, ($($var),*), $operation)
+                .map_err(|e| crate::utils::ObsError::InvocationError(e.to_string()))
+        }
     };
 }
 
@@ -54,10 +62,13 @@ macro_rules! impl_obs_drop {
         impl Drop for $struct_name {
             fn drop(&mut self) {
                 $(let $var = self.$var.clone();)*
+                #[cfg(not(feature="blocking"))]
                 let r = futures::executor::block_on(async {
-                    return crate::run_with_obs!(self.runtime, ($($var),*), $operation)
+                    return crate::run_with_obs!(self.runtime, ($($var),*), $operation).await
                 });
 
+                #[cfg(feature="blocking")]
+                let r = crate::run_with_obs!(self.runtime, ($($var),*), $operation);
                 if std::thread::panicking() {
                     return;
                 }

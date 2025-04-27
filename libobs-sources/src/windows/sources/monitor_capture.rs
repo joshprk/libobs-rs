@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 ///! Monitor capture source for Windows using libobs-rs
 /// ! This source captures the entire monitor and is used for screen recording.
 /// Note: This does not update the capture method directly, instead the capture method gets
@@ -71,8 +70,10 @@ impl MonitorCaptureSourceBuilder {
         self
     }
 }
-#[async_trait]
+
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn add_to_scene<'a>(
         mut self,
         scene: &'a mut ObsSceneRef,
