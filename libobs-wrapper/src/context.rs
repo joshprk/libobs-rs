@@ -33,7 +33,6 @@
 //! ```
 //!
 //! For more examples refer to the [examples](https://github.com/joshprk/libobs-rs/tree/main/examples) directory in the repository.
-//! ```
 
 use std::{collections::HashMap, ffi::CStr, pin::Pin, sync::Arc, thread::ThreadId};
 
