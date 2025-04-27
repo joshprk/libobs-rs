@@ -13,7 +13,7 @@ use libobs::{
 };
 use tokio::sync::RwLock;
 
-use crate::enums::ObsOutputSignal;
+use crate::enums::ObsOutputStopSignal;
 use crate::runtime::ObsRuntime;
 use crate::signals::{rec_output_signal, OUTPUT_SIGNALS};
 use crate::unsafe_send::Sendable;
@@ -324,11 +324,11 @@ impl ObsOutputRef {
                 obs_output_stop(output_ptr)
             })?;
 
-            let signal = rec_output_signal(&self)
+            let signal = rec_output_signal(&self).await
                 .map_err(|e| ObsError::OutputStopFailure(Some(e.to_string())))?;
 
             log::debug!("Signal: {:?}", signal);
-            if signal == ObsOutputSignal::Success {
+            if signal == ObsOutputStopSignal::Success {
                 return Ok(());
             }
 
@@ -371,7 +371,7 @@ extern "C" fn signal_handler(_data: *mut std::ffi::c_void, cd: *mut calldata_t) 
         let name = obs_output_get_name(output as *mut _);
         let name_str = CStr::from_ptr(name).to_string_lossy().to_string();
 
-        let signal = ObsOutputSignal::try_from(code as i32);
+        let signal = ObsOutputStopSignal::try_from(code as i32);
         if signal.is_err() {
             return;
         }

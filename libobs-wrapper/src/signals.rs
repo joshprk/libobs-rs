@@ -1,26 +1,23 @@
-
-use std::sync::{Mutex, RwLock};
-
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use crossbeam_channel::{unbounded, Receiver, Sender};
 use lazy_static::lazy_static;
+use tokio::sync::RwLock;
 
-use crate::{data::output::ObsOutputRef, enums::ObsOutputSignal};
+use crate::{data::output::ObsOutputRef, enums::ObsOutputStopSignal};
 
-pub type OutputSignalType = (String, ObsOutputSignal);
+pub type OutputSignalType = (String, ObsOutputStopSignal);
 lazy_static! {
     pub static ref OUTPUT_SIGNALS: RwLock<(Sender<OutputSignalType>, Receiver<OutputSignalType>)> =
         RwLock::new(unbounded());
+    static ref SIGNALS: RwLock<Vec<OutputSignalType>> = RwLock::new(vec![]);
 }
 
-static SIGNALS: Mutex<Vec<OutputSignalType>> = Mutex::new(vec![]);
+pub async fn rec_output_signal(output: &ObsOutputRef) -> Result<ObsOutputStopSignal> {
+    let receiver = &OUTPUT_SIGNALS.read().await.1;
+    let mut s = SIGNALS
+        .write()
+        .await;
 
-pub fn rec_output_signal(output: &ObsOutputRef) -> Result<ObsOutputSignal> {
-    let receiver = &OUTPUT_SIGNALS.read().unwrap().1;
-
-    let s = &mut SIGNALS
-        .lock()
-        .map_err(|e| anyhow!("Failed to lock SIGNALS: {}", e))?;
     while let Some(e) = receiver.try_recv().ok() {
         s.push(e);
     }

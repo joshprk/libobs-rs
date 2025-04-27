@@ -48,7 +48,6 @@ pub struct ObsDisplayRef {
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     let s = &*(data as *mut ObsDisplayRef);
 
-    let (x, y) = s.get_pos_blocking();
     let (width, height) = s.get_size_blocking();
 
     let mut ovi: obs_video_info = std::mem::zeroed();
@@ -65,7 +64,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
         -100.0f32,
         100.0f32,
     );
-    gs_set_viewport(x as i32, y as i32, width as i32, height as i32);
+    gs_set_viewport(0, 0, width as i32, height as i32);
     //draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
     obs_render_main_texture();

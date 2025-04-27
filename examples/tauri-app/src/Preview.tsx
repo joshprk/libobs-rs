@@ -5,21 +5,33 @@ export default function Preview() {
     const ref = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
+        let wasAdded = false;
+
         if (ref.current) {
             const bounding = ref.current.getBoundingClientRect();
+            let x = Math.round(bounding.x);
+            let y = Math.round(bounding.y);
+            let width = Math.round(bounding.width);
+            let height = Math.round(bounding.height);
             invoke("add_preview", {
-                x: bounding.x, y: bounding.y, width: bounding.width, height: bounding.height
+                x, y, width, height
             })
                 .then(e => {
+                    wasAdded = true;
                     console.log("Preview added: ", e)
                 })
         }
 
         const resizeHandler = () => {
-            if (ref.current) {
+            if (ref.current && wasAdded) {
                 const bounding = ref.current.getBoundingClientRect();
+                let x = Math.round(bounding.x);
+                let y = Math.round(bounding.y);
+                let width = Math.round(bounding.width);
+                let height = Math.round(bounding.height);
+                console.log(bounding.top)
                 invoke("resize_preview", {
-                    x: bounding.x, y: bounding.y, width: bounding.width, height: bounding.height
+                    x, y, width, height
                 })
                     .then(e => {
                         console.log("Preview updated: ", e)
@@ -28,15 +40,20 @@ export default function Preview() {
         }
 
         window.addEventListener("resize", resizeHandler);
+        window.addEventListener("scroll", resizeHandler);
 
         return () => {
+            if (!wasAdded) return;
+
             if (ref.current) {
+                console.log("Removing preview")
                 invoke("close_preview")
                     .then(e => {
                         console.log("Preview removed: ", e)
                     })
             }
             window.removeEventListener("resize", resizeHandler);
+            window.removeEventListener("scroll", resizeHandler);
         }
     }, [])
 

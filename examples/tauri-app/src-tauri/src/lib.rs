@@ -102,7 +102,7 @@ async fn add_preview(handle: AppHandle, x: u32, y: u32, width: u32, height: u32)
 }
 
 #[tauri::command]
-async fn resize_preview(x: u32, y: u32, width: u32, height: u32) -> String {
+async fn resize_preview(x: i32, y: i32, width: u32, height: u32) -> String {
     let display = CURR_STATE
         .read()
         .await
@@ -112,7 +112,7 @@ async fn resize_preview(x: u32, y: u32, width: u32, height: u32) -> String {
 
     if let Some(display) = display {
         display.set_size(width, height).await.unwrap();
-        display.set_pos(x as i32, y as i32).await.unwrap();
+        display.set_pos(x, y).await.unwrap();
 
         format!("Display resized to ({}, {}, {}, {})", x, y, width, height)
     } else {
