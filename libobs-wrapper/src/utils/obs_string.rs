@@ -1,3 +1,9 @@
+//! String handling utilities for OBS API integration
+//!
+//! This module provides safe string handling between Rust and the OBS C API.
+//! The core type `ObsString` wraps C-compatible strings in a memory-safe way,
+//! ensuring proper lifetime management and UTF-8 validation.
+
 use std::ffi::CString;
 use std::os::raw::c_char;
 
@@ -5,47 +11,101 @@ use crate::unsafe_send::Sendable;
 
 /// String wrapper for OBS function calls.
 ///
-/// This struct wraps `CString` internally with included helper
-/// functions. Note that any NUL byte is stripped before
-/// conversion to a `CString` to prevent panicking.
+/// `ObsString` provides safe interaction with OBS C API functions that require 
+/// C-style strings. It wraps `CString` internally with convenient helper functions
+/// for converting between Rust strings and C-compatible strings.
+///
+/// # Safety
+///
+/// - Any NUL byte in input strings is stripped during conversion to prevent panicking
+/// - Memory is properly managed to prevent use-after-free and memory leaks
+/// - Automatically handles conversion between Rust's UTF-8 strings and C's NUL-terminated strings
+///
+/// # Examples
+///
+/// ```
+/// use libobs_wrapper::utils::ObsString;
+///
+/// // Create an ObsString from a Rust string
+/// let obs_string = ObsString::new("Hello, OBS!");
+///
+/// // Use in OBS API calls
+/// unsafe {
+///     let ptr = obs_string.as_ptr();
+///     // Pass ptr.0 to OBS functions
+/// }
+/// ```
 #[derive(Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ObsString {
+    /// The underlying C string representation
     c_string: CString,
 }
 
 impl ObsString {
-    /// Creates a new `ObsString` wrapper for C-type
-    /// strings used by libobs. Note that all NUL
-    /// bytes are removed before conversion to a
-    /// `ObsString` as C-type strings do not allow
-    /// premature NUL bytes.
+    /// Creates a new `ObsString` from a string slice.
     ///
-    /// These are CString wrappers internally, with
-    /// included helper functions to reduce repetitive
-    /// code and ensure safety.
-    pub fn new(value: &str) -> Self {
-        Self::from(value)
+    /// Any NUL bytes in the input are automatically stripped to prevent
+    /// panicking when converting to a C string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let obs_string = ObsString::new("source_name");
+    /// ```
+    pub fn new<S: AsRef<str>>(s: S) -> Self {
+        let s = s.as_ref().replace("\0", "");
+        Self {
+            c_string: CString::new(s).unwrap(),
+        }
     }
 
-    /// Returns a safe pointer to a C-type string
-    /// used by libobs. This pointer will be valid
-    /// for as long as this ObsString exists.
+    /// Returns a pointer to the underlying C string along with sendable wrapper.
     ///
-    /// Note that this pointer is read-only--writing
-    /// to it is undefined behavior.
+    /// The returned pointer is suitable for passing to OBS C API functions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let obs_string = ObsString::new("source_name");
+    /// let ptr = obs_string.as_ptr();
+    ///
+    /// // Use ptr.0 in OBS API calls
+    /// ```
     pub fn as_ptr(&self) -> Sendable<*const c_char> {
         Sendable(self.c_string.as_ptr())
     }
 }
 
 impl ToString for ObsString {
+    /// Converts the `ObsString` back to a Rust `String`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let obs_string = ObsString::new("Hello");
+    /// assert_eq!(obs_string.to_string(), "Hello");
+    /// ```
     fn to_string(&self) -> String {
-        // We can use the lossy method here since the c_string is guaranteed to be UTF-8.
-        self.c_string.to_string_lossy().to_string()
+        self.c_string.to_string_lossy().into_owned()
     }
 }
 
 impl From<&str> for ObsString {
+    /// Creates an `ObsString` from a string slice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let obs_string: ObsString = "Hello".into();
+    /// ```
     fn from(value: &str) -> Self {
         let value = value.replace("\0", "");
         Self {
@@ -55,21 +115,37 @@ impl From<&str> for ObsString {
 }
 
 impl From<Vec<u8>> for ObsString {
-    fn from(value: Vec<u8>) -> Self {
-        let mut value = value
-            .into_iter()
-            .filter(|x| *x != b'\0')
-            .collect::<Vec<u8>>();
-
-        value.push(b'\0');
-
+    /// Creates an `ObsString` from a vector of bytes.
+    ///
+    /// Any NUL bytes in the input are automatically filtered out.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let bytes = b"Hello".to_vec();
+    /// let obs_string: ObsString = bytes.into();
+    /// ```
+    fn from(mut value: Vec<u8>) -> Self {
+        value.retain(|&c| c != 0);
         Self {
-            c_string: CString::from_vec_with_nul(value).unwrap(),
+            c_string: CString::new(value).unwrap(),
         }
     }
 }
 
 impl From<String> for ObsString {
+    /// Creates an `ObsString` from a `String`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::utils::ObsString;
+    ///
+    /// let s = String::from("Hello");
+    /// let obs_string: ObsString = s.into();
+    /// ```
     fn from(value: String) -> Self {
         let value = value.replace("\0", "");
         Self {

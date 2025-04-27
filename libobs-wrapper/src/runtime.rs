@@ -1,4 +1,39 @@
-//! This runtime creates a thread to manage OBS, so it can be used across threads
+//! Runtime management for safe OBS API access across threads
+//!
+//! This module provides the core thread management functionality for the libobs-wrapper.
+//! It ensures that OBS API calls are always executed on the same thread, as required by
+//! the OBS API, while still allowing application code to interact with OBS from any thread.
+//!
+//! # Thread Safety
+//!
+//! The OBS C API is not thread-safe and requires that all operations occur on the same thread.
+//! The `ObsRuntime` struct creates a dedicated thread for all OBS operations and manages
+//! message passing between application threads and the OBS thread.
+//!
+//! # Async and Blocking APIs
+//!
+//! The runtime supports both async and blocking APIs:
+//! - By default, all operations are asynchronous
+//! - With the `blocking` feature enabled, operations are synchronous
+//!
+//! # Example
+//!
+//! ```no_run
+//! use libobs_wrapper::runtime::ObsRuntime;
+//! use libobs_wrapper::utils::StartupInfo;
+//!
+//! async fn example() {
+//!     // Assuming that the OBS context is already initialized
+//!
+//!     // Run an operation on the OBS thread
+//!     let runtime = context.runtime();
+
+//!     runtime.run_with_obs(|| {
+//!         // This code runs on the OBS thread
+//!         println!("Running on OBS thread");
+//!     }).await.unwrap();
+//! }
+//! ```
 
 use std::ffi::CStr;
 use std::sync::mpsc::{channel, Sender};
@@ -11,6 +46,7 @@ use crate::bootstrap::bootstrap;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
+use crate::unsafe_send::Sendable;
 use crate::utils::initialization::load_debug_privilege;
 use crate::utils::{ObsBootstrapError, ObsError, ObsModules, ObsString};
 use crate::{
@@ -19,15 +55,18 @@ use crate::{
 };
 use crate::{mutex_blocking_lock, rx_recv};
 
-// Command type for operations to perform on the OBS thread
+/// Command type for operations to perform on the OBS thread
 enum ObsCommand {
+    /// Execute a function on the OBS thread and send result back
     Execute(
         Box<dyn FnOnce() -> Box<dyn std::any::Any + Send> + Send>,
         oneshot::Sender<Box<dyn std::any::Any + Send>>,
     ),
+    /// Signal the OBS thread to terminate
     Terminate,
 }
 
+/// Return type for OBS runtime initialization
 pub enum ObsRuntimeReturn {
     /// The OBS context is ready to use
     Done((ObsRuntime, ObsModules, StartupInfo)),
@@ -36,22 +75,87 @@ pub enum ObsRuntimeReturn {
     Restart,
 }
 
+/// Core runtime that manages the OBS thread
+///
+/// This struct represents the runtime environment for OBS operations.
+/// It creates and manages a dedicated thread for OBS API calls to
+/// ensure thread safety while allowing interaction from any thread.
+///
+/// # Thread Safety
+///
+/// `ObsRuntime` can be safely cloned and shared across threads. All operations
+/// are automatically dispatched to the dedicated OBS thread.
+///
+/// # Lifecycle Management
+///
+/// When the last `ObsRuntime` instance is dropped, the OBS thread is automatically
+/// shut down and all OBS resources are properly released.
+///
+/// # Examples
+///
+/// Creating a runtime:
+///
+/// ```
+/// use libobs_wrapper::runtime::ObsRuntime;
+/// use libobs_wrapper::utils::StartupInfo;
+///
+/// async fn example() {
+///     let startup_info = StartupInfo::default();
+///     let (runtime, _, _) = match ObsRuntime::startup(startup_info).await.unwrap() {
+///         ObsRuntimeReturn::Done(res) => res,
+///         _ => panic!("OBS initialization failed"),
+///     };
+///     // Now you can use runtime to interact with OBS
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct ObsRuntime {
     command_sender: Arc<Sender<ObsCommand>>,
     _guard: Arc<_ObsRuntimeGuard>,
 }
 
-#[derive(Debug)]
-struct SendableModules(ObsModules);
-unsafe impl Sync for SendableModules {}
-unsafe impl Send for SendableModules {}
-
 impl ObsRuntime {
-    //! This runtime creates a thread to manage OBS, so it can be used across threads.
-    //! Will startup OBS when this function is called.
+    /// Initializes the OBS runtime.
+    ///
+    /// This function starts up OBS on a dedicated thread and prepares it for use.
+    /// It handles bootstrapping (if configured), OBS initialization, module loading,
+    /// and setup of audio/video subsystems.
+    ///
+    /// # Parameters
+    ///
+    /// * `options` - The startup configuration for OBS
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing either:
+    /// - `ObsRuntimeReturn::Done` with the initialized runtime, modules, and startup info
+    /// - `ObsRuntimeReturn::Restart` if OBS needs to be updated and the application should restart
+    /// - An `ObsError` if initialization fails
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::runtime::{ObsRuntime, ObsRuntimeReturn};
+    /// use libobs_wrapper::utils::StartupInfo;
+    ///
+    /// async fn initialize() {
+    ///     let startup_info = StartupInfo::default();
+    ///     match ObsRuntime::startup(startup_info).await {
+    ///         Ok(ObsRuntimeReturn::Done(runtime_components)) => {
+    ///             // Use the initialized runtime
+    ///         },
+    ///         Ok(ObsRuntimeReturn::Restart) => {
+    ///             // Handle restart for OBS update
+    ///         },
+    ///         Err(e) => {
+    ///             // Handle initialization error
+    ///         }
+    ///     }
+    /// }
+    /// ```
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub(crate) async fn startup(mut options: StartupInfo) -> Result<ObsRuntimeReturn, ObsError> {
+        // Check if OBS is already running on another thread
         let obs_id = OBS_THREAD_ID.lock().await;
         if obs_id.is_some() {
             return Err(ObsError::ThreadFailure);
@@ -59,6 +163,7 @@ impl ObsRuntime {
 
         drop(obs_id);
 
+        // Handle bootstrapping if enabled and configured
         #[cfg(feature = "bootstrapper")]
         if options.bootstrap_handler.is_some() {
             use crate::bootstrap::BootstrapStatus;
@@ -124,6 +229,9 @@ impl ObsRuntime {
         ));
     }
 
+    /// Internal initialization method
+    ///
+    /// Creates the OBS thread and performs core initialization.
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
         let (command_sender, command_receiver) = channel();
@@ -137,7 +245,7 @@ impl ObsRuntime {
             match res {
                 Ok((info, modules)) => {
                     log::trace!("OBS context initialized successfully");
-                    let e = init_tx.send(Ok((SendableModules(modules), info)));
+                    let e = init_tx.send(Ok((Sendable(modules), info)));
                     if let Err(err) = e {
                         log::error!("Failed to send initialization signal: {:?}", err);
                     }
@@ -180,9 +288,31 @@ impl ObsRuntime {
         Ok((runtime, m.0, info))
     }
 
-    /// Run a function with the ObsContext
+    /// Executes an operation on the OBS thread without returning a value
     ///
-    /// This allows you to execute operations on the OBS thread that don't return a value
+    /// This is a convenience wrapper around `run_with_obs_result` for operations
+    /// that don't need to return a value.
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - A function to execute on the OBS thread
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::runtime::ObsRuntime;
+    ///
+    /// async fn example(runtime: &ObsRuntime) {
+    ///     runtime.run_with_obs(|| {
+    ///         // This code runs on the OBS thread
+    ///         println!("Hello from the OBS thread!");
+    ///     }).await.unwrap();
+    /// }
+    /// ```
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn run_with_obs<F>(&self, operation: F) -> anyhow::Result<()>
     where
@@ -197,13 +327,21 @@ impl ObsRuntime {
         Ok(())
     }
 
-    /// Run a function with the ObsContext and get a result
+    /// Executes an operation on the OBS thread and returns a result (blocking version)
     ///
-    /// This allows you to execute operations on the OBS thread and get a value back
+    /// This method blocks the current thread until the operation completes.
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - A function to execute on the OBS thread
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the value returned by the operation
+    ///
     /// # Panics
     ///
-    /// This function panics if called within an asynchronous execution
-    /// context.
+    /// This function panics if called within an asynchronous execution context.
     pub fn run_with_obs_result_blocking<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
         F: FnOnce() -> T + Send + 'static,
@@ -232,9 +370,32 @@ impl ObsRuntime {
             .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))
     }
 
-    /// Run a function with the ObsContext and get a result
+    /// Executes an operation on the OBS thread and returns a result (async version)
     ///
-    /// This allows you to execute operations on the OBS thread and get a value back
+    /// This method dispatches a task to the OBS thread and asynchronously waits for the result.
+    ///
+    /// # Parameters
+    ///
+    /// * `operation` - A function to execute on the OBS thread
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the value returned by the operation
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use libobs_wrapper::runtime::ObsRuntime;
+    ///
+    /// async fn example(runtime: &ObsRuntime) {
+    ///     let version = runtime.run_with_obs_result(|| {
+    ///         // This code runs on the OBS thread
+    ///         unsafe { libobs::obs_get_version_string() }
+    ///     }).await.unwrap();
+    ///     
+    ///     println!("OBS Version: {:?}", version);
+    /// }
+    /// ```
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn run_with_obs_result<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
@@ -265,19 +426,20 @@ impl ObsRuntime {
         Ok(res)
     }
 
-    /// Initializes the libobs context and prepares
-    /// it for recording.
+    /// Initializes the libobs context and prepares it for recording.
     ///
-    /// More specifically, it calls `obs_startup`,
-    /// `obs_reset_video`, `obs_reset_audio`, and
-    /// registers the video and audio encoders.
+    /// This method handles core OBS initialization including:
+    /// - Starting up the OBS core (`obs_startup`)
+    /// - Resetting video and audio subsystems 
+    /// - Loading OBS modules
+    /// 
+    /// # Parameters
     ///
-    /// At least on Windows x64, it seems that
-    /// resetting video and audio is necessary to
-    /// prevent a memory leak when restarting the
-    /// OBS context. This memory leak is not severe
-    /// (~10 KB per restart), but the point is
-    /// safety. Thank you @tt2468 for the help!
+    /// * `info` - The startup configuration for OBS
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the updated startup info and loaded modules, or an error
     fn initialize_inner(mut info: StartupInfo) -> Result<(StartupInfo, ObsModules), ObsError> {
         // Checks that there are no other threads
         // using libobs using a static Mutex.
@@ -385,6 +547,13 @@ impl ObsRuntime {
         Ok((info, obs_modules))
     }
 
+    /// Shuts down the OBS context and cleans up resources
+    ///
+    /// This method performs a clean shutdown of OBS, including:
+    /// - Removing sources from output channels
+    /// - Calling `obs_shutdown` to clean up OBS resources
+    /// - Removing log and crash handlers
+    /// - Checking for memory leaks
     fn shutdown_inner() {
         // Clean up sources
         for i in 0..libobs::MAX_CHANNELS {
@@ -425,14 +594,27 @@ impl ObsRuntime {
     }
 }
 
+/// Guard object to ensure proper cleanup when the runtime is dropped
+///
+/// This guard ensures that when the last reference to the runtime is dropped,
+/// the OBS thread is properly terminated and all resources are cleaned up.
 #[derive(Debug)]
 pub struct _ObsRuntimeGuard {
+    /// Thread handle for the OBS thread
     handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    /// Sender channel for the OBS thread
     command_sender: Arc<Sender<ObsCommand>>,
 }
 
 impl _ObsRuntimeGuard {
     /// Shutdown the OBS runtime and terminate the thread
+    ///
+    /// This method sends a terminate command to the OBS thread and waits
+    /// for it to complete its shutdown process.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` indicating success or failure
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn shutdown(&mut self) -> anyhow::Result<()> {
         self.command_sender
@@ -451,6 +633,7 @@ impl _ObsRuntimeGuard {
 }
 
 impl Drop for _ObsRuntimeGuard {
+    /// Ensures the OBS thread is properly shut down when the runtime is dropped
     fn drop(&mut self) {
         #[cfg(feature = "blocking")]
         let r = self.shutdown();

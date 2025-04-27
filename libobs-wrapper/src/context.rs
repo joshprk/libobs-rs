@@ -1,3 +1,40 @@
+//! OBS Context Management
+//!
+//! This module provides the core functionality for interacting with libobs.
+//! The primary type is [`ObsContext`], which serves as the main entry point for
+//! all OBS operations.
+//!
+//! # Overview
+//!
+//! The `ObsContext` represents an initialized OBS environment and provides methods to:
+//! - Initialize the OBS runtime
+//! - Create and manage scenes
+//! - Create and manage outputs (recording, streaming)
+//! - Access and configure video/audio settings
+//! - Download and bootstrap OBS binaries at runtime
+//!
+//! # Thread Safety
+//!
+//! OBS operations must be performed on a single thread. The `ObsContext` handles
+//! this requirement by creating a dedicated thread for OBS operations and providing
+//! a thread-safe interface to interact with it.
+//!
+//! # Examples
+//!
+//! Creating a basic OBS context:
+//!
+//! ```no_run
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! use libobs_wrapper::context::ObsContext;
+//!
+//! let context = ObsContext::builder().start().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! For more examples refer to the [examples](https://github.com/joshprk/libobs-rs/tree/main/examples) directory in the repository.
+//! ```
+
 use std::{collections::HashMap, ffi::CStr, pin::Pin, sync::Arc, thread::ThreadId};
 
 use crate::{
