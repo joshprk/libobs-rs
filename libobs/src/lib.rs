@@ -18,6 +18,3 @@ mod bindings {
 }
 
 pub use bindings::*;
-
-#[cfg(feature="debug-tracing")]
-include!(concat!(env!("OUT_DIR"), "/bindings_wrapper.rs"));

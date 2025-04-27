@@ -265,7 +265,6 @@ For even easier source creation and management, consider using the [`libobs-sour
 
 - `blocking` - Provides a blocking API instead of async (useful for applications that don't need async)
 - `bootstrapper` - Enables the OBS bootstrapper for runtime download and installation
-- `debug-tracing` - Enables additional debug tracing for libobs calls
 
 ## Common Issues
 
