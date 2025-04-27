@@ -1,3 +1,6 @@
+//! # Important Notice
+//! All structs in this module use direct obs calls to get the data from the obs_property_t struct. **ALWAYS MAKE SURE THIS IS RUNNING ON THE OBS THREAD**
+
 mod button;
 impl_general_property!(Color);
 mod editable_list;
@@ -29,17 +32,17 @@ pub use text::*;
 use super::{macros::impl_general_property, ObsProperty, ObsPropertyType};
 
 impl ObsPropertyType {
-    pub fn to_property_struct(&self, pointer: *mut obs_property) -> anyhow::Result<ObsProperty> {
+    pub fn to_property_struct(&self, pointer: *mut obs_property) -> ObsProperty {
         let name = unsafe { libobs::obs_property_name(pointer) };
         let name = unsafe { CStr::from_ptr(name) };
-        let name = name.to_str()?.to_string();
+        let name = name.to_string_lossy().to_string();
 
         let description = unsafe { libobs::obs_property_description(pointer) };
         let description = if description.is_null() {
             None
         } else {
             let description = unsafe { CStr::from_ptr(description) };
-            Some(description.to_str()?.to_string())
+            Some(description.to_string_lossy().to_string())
         };
 
         let info = PropertyCreationInfo {
@@ -48,7 +51,7 @@ impl ObsPropertyType {
             pointer,
         };
 
-        let res = match self {
+        match self {
             ObsPropertyType::Invalid => ObsProperty::Invalid("Invalid".to_string()),
             ObsPropertyType::Bool => ObsProperty::Bool,
             ObsPropertyType::Int => ObsProperty::Int(ObsNumberProperty::<i32>::from(info)),
@@ -63,8 +66,6 @@ impl ObsPropertyType {
             ObsPropertyType::FrameRate => ObsProperty::FrameRate(ObsFrameRateProperty::from(info)),
             ObsPropertyType::Group => ObsProperty::Group(ObsGroupProperty::from(info)),
             ObsPropertyType::ColorAlpha => ObsProperty::ColorAlpha(ObsColorAlphaProperty::from(info))
-        };
-
-        Ok(res)
+        }
     }
 }

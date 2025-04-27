@@ -1,6 +1,8 @@
 use std::ffi::CString;
 use std::os::raw::c_char;
 
+use crate::unsafe_send::Sendable;
+
 /// String wrapper for OBS function calls.
 ///
 /// This struct wraps `CString` internally with included helper
@@ -31,8 +33,8 @@ impl ObsString {
     ///
     /// Note that this pointer is read-only--writing
     /// to it is undefined behavior.
-    pub fn as_ptr(&self) -> *const c_char {
-        self.c_string.as_ptr()
+    pub fn as_ptr(&self) -> Sendable<*const c_char> {
+        Sendable(self.c_string.as_ptr())
     }
 }
 

@@ -166,9 +166,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.97"
+version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
+checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 dependencies = [
  "backtrace",
 ]
@@ -879,6 +879,8 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 name = "download-at-runtime"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "async-trait",
  "futures-util",
  "indicatif",
  "libobs-wrapper",
@@ -1088,12 +1090,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
+ "futures-sink",
 ]
 
 [[package]]
@@ -1101,6 +1119,17 @@ name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
 
 [[package]]
 name = "futures-io"
@@ -1137,6 +1166,7 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
+ "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -1863,11 +1893,12 @@ dependencies = [
  "libobs-wrapper",
  "num-derive",
  "num-traits",
+ "tokio",
 ]
 
 [[package]]
 name = "libobs-source-macro"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "num-traits",
  "proc-macro2",
@@ -1877,9 +1908,10 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "display-info",
  "duplicate",
  "env_logger",
@@ -1889,9 +1921,11 @@ dependencies = [
  "libobs-source-macro",
  "libobs-window-helper",
  "libobs-wrapper",
+ "log",
  "num-derive",
  "num-traits",
  "paste",
+ "remove-async-await",
  "tokio",
 ]
 
@@ -1909,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "2.0.3"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1920,6 +1954,7 @@ dependencies = [
  "crossbeam-channel",
  "dialog",
  "display-info",
+ "futures",
  "futures-core",
  "futures-util",
  "getters0",
@@ -1933,6 +1968,7 @@ dependencies = [
  "oneshot",
  "parking_lot",
  "paste",
+ "remove-async-await",
  "reqwest 0.12.15",
  "semver",
  "serde",
@@ -2083,8 +2119,10 @@ dependencies = [
 name = "monitor-capture"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "libobs-sources",
  "libobs-wrapper",
+ "tokio",
 ]
 
 [[package]]
@@ -2558,7 +2596,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "libobs-sources",
  "libobs-wrapper",
+ "tokio",
 ]
 
 [[package]]
@@ -2569,6 +2609,7 @@ dependencies = [
  "env_logger",
  "libobs-sources",
  "libobs-wrapper",
+ "tokio",
  "winit",
 ]
 
@@ -2964,6 +3005,16 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "remove-async-await"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a0993102a683d0fb29c6053ad44d7ed7555f69b2fa5fe0fa3bba959a9aa4cd1"
+dependencies = [
+ "quote",
+ "syn 1.0.109",
+]
 
 [[package]]
 name = "reqwest"

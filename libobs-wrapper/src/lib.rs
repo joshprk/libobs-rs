@@ -1,4 +1,4 @@
-mod unsafe_send;
+pub mod unsafe_send;
 pub mod crash_handler;
 pub mod data;
 pub mod sources;
@@ -10,9 +10,10 @@ pub mod display;
 pub mod scenes;
 #[cfg(feature="bootstrapper")]
 pub mod bootstrap;
-
-#[cfg(feature="runtime")]
 pub mod runtime;
 
 pub mod utils;
 pub mod enums;
+
+// Add the macros module to the public exports
+mod macros;

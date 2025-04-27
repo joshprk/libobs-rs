@@ -4,16 +4,22 @@ use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOWNA};
 
 use crate::display::ObsDisplayRef;
 
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ShowHideTrait {
-    fn show(&mut self);
-    fn hide(&mut self);
-    fn is_visible(&self) -> bool;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn show(&mut self);
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn hide(&mut self);
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn is_visible(&self) -> bool;
 }
 
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ShowHideTrait for ObsDisplayRef {
-    fn show(&mut self) {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn show(&mut self) {
         log::trace!("show");
-        let m = self.manager.read();
+        let m = self.manager.read().await;
         unsafe {
             let _ = ShowWindow(m.hwnd.0, SW_SHOWNA);
         }
@@ -21,9 +27,10 @@ impl ShowHideTrait for ObsDisplayRef {
         m.is_hidden.store(false, Ordering::Relaxed);
     }
 
-    fn hide(&mut self) {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn hide(&mut self) {
         log::trace!("hide");
-        let m  = self.manager.read();
+        let m = self.manager.read().await;
         unsafe {
             let _ = ShowWindow(m.hwnd.0, SW_HIDE);
         }
@@ -31,7 +38,8 @@ impl ShowHideTrait for ObsDisplayRef {
         m.is_hidden.store(true, Ordering::Relaxed);
     }
 
-    fn is_visible(&self) -> bool {
-        self.manager.read().is_hidden.load(Ordering::Relaxed)
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn is_visible(&self) -> bool {
+        self.manager.read().await.is_hidden.load(Ordering::Relaxed)
     }
 }

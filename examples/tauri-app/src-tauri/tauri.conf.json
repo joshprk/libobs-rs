@@ -12,9 +12,10 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-app",
+        "title": "LibOBS - Example",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "label": "main"
       }
     ],
     "security": {

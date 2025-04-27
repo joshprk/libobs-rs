@@ -1,26 +1,33 @@
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::pin::Pin;
+use std::sync::atomic::AtomicUsize;
+use std::sync::{Arc, RwLock};
 
-use libobs_sources::windows::MonitorCaptureSourceBuilder;
+use libobs_sources::{ObsObjectUpdater, windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater}};
+use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
-use libobs_wrapper::data::{ObsData, ObsObjectBuilder};
-use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait};
+use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait, ObsDisplayRef};
 use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
+use libobs_wrapper::sources::ObsSourceRef;
+use libobs_wrapper::unsafe_send::Sendable;
+use libobs_wrapper::utils::traits::ObsUpdatable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
+use tokio::task;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
 struct App {
-    window: Option<Window>,
-    // Notice: Refs should never be stored in a struct, it could cause memory leaks or crashes, thats why
-    // we are using a boolean here and fetching the display afterwards
-    display_id: Option<usize>,
-    context: Rc<RefCell<ObsContext>>,
+    window: Arc<RwLock<Option<Sendable<Window>>>>,
+    // Notice: Refs should never be stored in a struct, it could cause memory leaks or crashes, that's why
+    // we are using a boolean here and fetching the display afterward
+    display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
+    context: Arc<tokio::sync::RwLock<ObsContext>>,
+    monitor_index: Arc<AtomicUsize>,
+    source_ref: Arc<RwLock<ObsSourceRef>>
 }
 
 impl ApplicationHandler for App {
@@ -42,29 +49,55 @@ impl ApplicationHandler for App {
             panic!("Expected a Win32 window handle");
         };
 
-        let display_id = self
-            .context
-            .borrow_mut()
-            .display(ObsDisplayCreationData::new(hwnd.get(), 0, 0, width, height))
-            .unwrap();
+        let hwnd = Sendable(hwnd);
+        let w = self.window.clone();
+        let d_rw = self.display.clone();
+        let ctx = self.context.clone();
+        task::spawn(async move {
+            let hwnd = hwnd;
+            let data = ObsDisplayCreationData::new(
+                hwnd.0.get(),
+                0,
+                0,
+                width,
+                height,
+            );
 
-        self.display_id = Some(display_id);
-        self.window = Some(window);
+            let display = ctx
+                .write()
+                .await
+                .display(data)
+                .await
+                .unwrap();
+
+            w.write().unwrap().replace(Sendable(window));
+            d_rw.write().unwrap().replace(display);
+        });
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        let window = self.window.read().unwrap();
+        if window.is_none() {
+            return;
+        }
+
+        let window = window.as_ref().unwrap();
         match event {
             WindowEvent::CloseRequested => {
                 println!("The close button was pressed; stopping");
                 println!("Stopping output...");
-                if let Some(display_id) = self.display_id {
-                    self.context.borrow_mut().remove_display_by_id(display_id);
+                if let Some(display) = self.display.write().unwrap().clone() {
+                    let ctx = self.context.clone();
+
+                    task::spawn(async move {
+                        ctx.write().await.remove_display(&display).await;
+                    });
                 }
 
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                self.window.as_ref().unwrap().request_redraw();
+                window.0.request_redraw();
             }
             WindowEvent::Resized(size) => {
                 let width = size.width;
@@ -76,54 +109,84 @@ impl ApplicationHandler for App {
                     // Keeping the aspect ratio of 16 / 9
                     let _ = self
                         .window
+                        .read()
+                        .unwrap()
                         .as_ref()
                         .unwrap()
+                        .0
                         .request_inner_size(LogicalSize::new(width, height));
                 }
 
-                if let Some(display_id) = self.display_id {
-                    let display = self
-                        .context
-                        .borrow_mut()
-                        .get_display_by_id(display_id)
-                        .unwrap();
-                    // A real application would probably want to check the aspect ratio of the output
-                    display.set_size(width, height).unwrap();
+                if let Some(display) = self.display.write().unwrap().clone() {
+                    task::spawn(async move {
+                        // A real application would probably want to check the aspect ratio of the output
+                        display.set_size(width, height).await.unwrap();
+                    });
                 }
+            },
+            WindowEvent::MouseInput { state, .. } => {
+                if !matches!(state, ElementState::Pressed) {
+                    return;
+                }
+
+                let tmp = self.source_ref.clone();
+                let monitor_index = self.monitor_index.clone();
+
+                task::spawn(async move {
+                    let mut source = tmp.write().unwrap().clone();
+                    let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
+
+                    let monitor_index = monitor_index.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % monitors.len();
+                    let monitor = &monitors[monitor_index];
+
+                    source.create_updater::<MonitorCaptureSourceUpdater>()
+                        .await.unwrap()
+                        .set_monitor(monitor)
+                        .update()
+                        .await.unwrap();
+                });
             }
             _ => (),
         }
     }
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let info = StartupInfo::new().set_video_info(ObsVideoInfo::default());
 
-    let context = Rc::new(RefCell::new(ObsContext::new(info)?));
+    let context = ObsContext::new(info).await?;
+    let mut context = match context {
+        ObsContextReturn::Done(c) => c,
+        ObsContextReturn::Restart => {
+            return Ok(());
+        }
+    };
 
     // Set up output to ./recording.mp4
-    let mut output_settings = ObsData::new();
-    output_settings.set_string("path", "recording.mp4");
+    let mut output_settings = context.data().await?;
+    output_settings.set_string("path", "recording.mp4").await?;
 
-    let output_name = "output";
-    let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
-
-    let mut output = context.borrow_mut().output(output_info)?;
+    let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
+    let mut output = context.output(output_info).await?;
 
     // Register the video encoder
-    let mut video_settings = ObsData::new();
+    let mut video_settings = context.data().await?;
     video_settings
+        .bulk_update()
         .set_int("bf", 0)
         .set_bool("psycho_aq", true)
         .set_bool("lookahead", true)
         .set_string("profile", "high")
         .set_string("preset", "fast")
         .set_string("rate_control", "cbr")
-        .set_int("bitrate", 10000);
+        .set_int("bitrate", 10000)
+        .update()
+        .await?;
 
-    let encoders = ObsContext::get_available_video_encoders();
+    let encoders = context.get_available_video_encoders().await?;
 
     println!("Available encoders: {:?}", encoders);
     let encoder = encoders
@@ -138,32 +201,37 @@ fn main() -> anyhow::Result<()> {
     let video_info =
         VideoEncoderInfo::new(encoder.clone(), "video_encoder", Some(video_settings), None);
 
-    let video_handler = ObsContext::get_video_ptr()?;
-    output.video_encoder(video_info, video_handler)?;
+    let video_handler = context.get_video_ptr().await?;
+    output.video_encoder(video_info, video_handler).await?;
 
     // Register the audio encoder
-    let mut audio_settings = ObsData::new();
-    audio_settings.set_int("bitrate", 160);
+    let mut audio_settings = context.data().await?;
+    audio_settings.set_int("bitrate", 160).await?;
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-    let audio_handler = ObsContext::get_audio_ptr()?;
-    output.audio_encoder(audio_info, 0, audio_handler)?;
+    let audio_handler = context.get_audio_ptr().await?;
+    output.audio_encoder(audio_info, 0, audio_handler).await?;
 
-    let mut scene = context.borrow_mut().scene("Main Scene");
+    let mut scene = context.scene("Main Scene").await?;
 
-    MonitorCaptureSourceBuilder::new("Monitor Capture")
-        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[1])
-        .add_to_scene(&mut scene)?;
+    let source = context
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")
+        .await?
+        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[0])
+        .add_to_scene(&mut scene)
+        .await?;
 
-    scene.add_and_set(0);
+    scene.set_to_channel(0).await?;
 
     let event_loop = EventLoop::new()?;
     let mut app = App {
-        window: None,
-        display_id: None,
-        context: context.clone(),
+        window: Arc::new(RwLock::new(None)),
+        display: Arc::new(RwLock::new(None)),
+        context: Arc::new(tokio::sync::RwLock::new(context)),
+        monitor_index: Arc::new(AtomicUsize::new(1)),
+        source_ref: Arc::new(RwLock::new(source)),
     };
 
     event_loop.run_app(&mut app)?;

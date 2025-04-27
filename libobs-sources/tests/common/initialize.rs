@@ -1,9 +1,9 @@
 use env_logger::Env;
-use libobs_wrapper::{context::ObsContext, data::ObsData, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::{ObsContext, ObsContextReturn}, data::output::ObsOutputRef, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
 use std::{env::current_dir, fs::File, io::Write};
 
-pub fn initialize_obs<'a>(rec_file: impl Into<ObsString>) -> ObsContext {
-    initialize_obs_with_log(rec_file, false)
+pub async fn initialize_obs<'a, T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsContext, ObsOutputRef) {
+    initialize_obs_with_log(rec_file, false).await
 }
 
 #[derive(Debug)]
@@ -21,7 +21,7 @@ impl ObsLogger for DebugLogger {
 }
 
 /// The string returned is the name of the obs output
-pub fn initialize_obs_with_log<'a>(rec_file: impl Into<ObsString>, file_logger: bool) -> ObsContext {
+pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_file: T, file_logger: bool) -> (ObsContext, ObsOutputRef) {
     let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug")).is_test(true).try_init();
 
     // Start the OBS context
@@ -32,29 +32,35 @@ pub fn initialize_obs_with_log<'a>(rec_file: impl Into<ObsString>, file_logger: 
         //startup_info = startup_info.set_logger(Box::new(_l));
     }
 
-    let mut context = ObsContext::new(startup_info).unwrap();
+    let context = ObsContext::new(startup_info).await.unwrap();
+    let mut context = match context {
+        ObsContextReturn::Done(c) => c,
+        ObsContextReturn::Restart => panic!("OBS context restarted"),
+    };
 
     // Set up output to ./recording.mp4
-    let mut output_settings = ObsData::new();
-    output_settings.set_string("path", rec_file);
+    let mut output_settings = context.data().await.unwrap();
+    output_settings.set_string("path", rec_file).await.unwrap();
 
     let output_name = "output";
     let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
 
-    let mut output = context.output(output_info).unwrap();
+    let mut output = context.output(output_info).await.unwrap();
 
     // Register the video encoder
-    let mut video_settings = ObsData::new();
+    let mut video_settings = context.data().await.unwrap();
     video_settings
+        .bulk_update()
         .set_int("bf", 0)
         .set_bool("psycho_aq", true)
         .set_bool("lookahead", true)
         .set_string("profile", "high")
         .set_string("preset", "fast")
         .set_string("rate_control", "cbr")
-        .set_int("bitrate", 10000);
+        .set_int("bitrate", 10000)
+        .update().await.unwrap();
 
-    let encoders = ObsContext::get_available_video_encoders();
+    let encoders = context.get_available_video_encoders().await.unwrap();
 
     println!("Available encoders: {:?}", encoders);
     let encoder =  encoders.iter().find(|e| **e == ObsVideoEncoderType::H264_TEXTURE_AMF || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF).unwrap();
@@ -67,18 +73,18 @@ pub fn initialize_obs_with_log<'a>(rec_file: impl Into<ObsString>, file_logger: 
         None,
     );
 
-    let video_handler = ObsContext::get_video_ptr().unwrap();
-    output.video_encoder(video_info, video_handler).unwrap();
+    let video_handler = context.get_video_ptr().await.unwrap();
+    output.video_encoder(video_info, video_handler).await.unwrap();
 
     // Register the audio encoder
-    let mut audio_settings = ObsData::new();
-    audio_settings.set_int("bitrate", 160);
+    let mut audio_settings = context.data().await.unwrap();
+    audio_settings.set_int("bitrate", 160).await.unwrap();
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-    let audio_handler = ObsContext::get_audio_ptr().unwrap();
-    output.audio_encoder(audio_info, 0, audio_handler).unwrap();
+    let audio_handler = context.get_audio_ptr().await.unwrap();
+    output.audio_encoder(audio_info, 0, audio_handler).await.unwrap();
 
-    context
+    (context, output)
 }

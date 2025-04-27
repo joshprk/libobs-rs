@@ -39,7 +39,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         &fields,
         quote! {
             use libobs_wrapper::data::ObsObjectUpdater;
-            self.get_settings_mut()
+            self.get_settings_updater()
         },
     );
 
@@ -50,36 +50,56 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
         #visibility struct #updater_name<'a> {
             #(#struct_fields,)*
             settings: libobs_wrapper::data::ObsData,
+            settings_updater: libobs_wrapper::data::ObsDataUpdater,
             updatable: &'a mut #updatable_type2
         }
 
+        #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
         impl <'a> libobs_wrapper::data::ObsObjectUpdater<'a> for #updater_name<'a> {
             type ToUpdate = #updatable_type;
 
-            fn create_update(updatable: &'a mut Self::ToUpdate) -> Self {
-                Self {
+            #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+            async fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
+                let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
+
+                Ok(Self {
                     #(#struct_initializers,)*
-                    settings: libobs_wrapper::data::ObsData::new(),
+                    settings_updater: settings.bulk_update(),
+                    settings,
                     updatable,
-                }
+                })
             }
 
             fn get_settings(&self) -> &libobs_wrapper::data::ObsData {
                 &self.settings
             }
 
-            fn get_settings_mut(&mut self) -> &mut libobs_wrapper::data::ObsData {
-                &mut self.settings
+            fn get_settings_updater(&mut self) -> &mut libobs_wrapper::data::ObsDataUpdater {
+                &mut self.settings_updater
             }
 
             fn get_id() -> libobs_wrapper::utils::ObsString {
                 #id_value.into()
             }
 
-            fn update(self) {
+            #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+            async fn update(self) -> Result<(), libobs_wrapper::utils::ObsError> {
                 use libobs_wrapper::utils::traits::ObsUpdatable;
-                let settings = self.settings;
-                self.updatable.update_raw(settings);
+                let #updater_name {
+                    settings_updater,
+                    updatable,
+                    settings,
+                    ..
+                } = self;
+
+                log::trace!("Updating settings for {:?}", Self::get_id());
+                settings_updater.update().await?;
+
+                log::trace!("Updating raw settings for {:?}", Self::get_id());
+                let e = updatable.update_raw(settings).await;
+                log::trace!("Update done for {:?}", Self::get_id());
+
+                e
             }
         }
 
@@ -180,7 +200,7 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         &fields,
         quote! {
             use libobs_wrapper::data::ObsObjectBuilder;
-            self.get_or_create_settings()
+            self.get_settings_updater()
         },
     );
 
@@ -189,35 +209,46 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
         #[allow(dead_code)]
         #visibility struct #builder_name #generics {
             #(#struct_fields,)*
-            settings: Option<libobs_wrapper::data::ObsData>,
-            hotkeys: Option<libobs_wrapper::data::ObsData>,
-            name: libobs_wrapper::utils::ObsString
+            settings: libobs_wrapper::data::ObsData,
+            settings_updater: libobs_wrapper::data::ObsDataUpdater,
+            hotkeys: libobs_wrapper::data::ObsData,
+            hotkeys_updater: libobs_wrapper::data::ObsDataUpdater,
+            name: libobs_wrapper::utils::ObsString,
+            runtime: libobs_wrapper::runtime::ObsRuntime
         }
 
+        #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
         impl libobs_wrapper::data::ObsObjectBuilder for #builder_name {
-            fn new(name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
-                Self {
+            #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+            async fn new<T: Into<libobs_wrapper::utils::ObsString> + Send + Sync>(name: T, runtime: libobs_wrapper::runtime::ObsRuntime) -> Result<Self, libobs_wrapper::utils::ObsError> {
+                let mut hotkeys = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
+                let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone()).await?;
+
+                Ok(Self {
                     #(#struct_initializers,)*
                     name: name.into(),
-                    hotkeys: None,
-                    settings: None
-                }
+                    settings_updater: settings.bulk_update(),
+                    settings,
+                    hotkeys_updater: hotkeys.bulk_update(),
+                    hotkeys,
+                    runtime
+                })
             }
 
-            fn get_settings(&self) -> &Option<libobs_wrapper::data::ObsData> {
+            fn get_settings(&self) -> &libobs_wrapper::data::ObsData {
                 &self.settings
             }
 
-            fn get_settings_mut(&mut self) -> &mut Option<libobs_wrapper::data::ObsData> {
-                &mut self.settings
+            fn get_settings_updater(&mut self) -> &mut libobs_wrapper::data::ObsDataUpdater {
+                &mut self.settings_updater
             }
 
-            fn get_hotkeys(&self) -> &Option<libobs_wrapper::data::ObsData> {
+            fn get_hotkeys(&self) -> &libobs_wrapper::data::ObsData {
                 &self.hotkeys
             }
 
-            fn get_hotkeys_mut(&mut self) -> &mut Option<libobs_wrapper::data::ObsData> {
-                &mut self.hotkeys
+            fn get_hotkeys_updater(&mut self) -> &mut libobs_wrapper::data::ObsDataUpdater {
+                &mut self.hotkeys_updater
             }
 
             fn get_name(&self) -> libobs_wrapper::utils::ObsString {
@@ -226,6 +257,28 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             fn get_id() -> libobs_wrapper::utils::ObsString {
                 #id_value.into()
+            }
+
+            #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+            async fn build(self) -> Result<libobs_wrapper::utils::ObjectInfo, libobs_wrapper::utils::ObsError> {
+                let name = self.get_name();
+                let #builder_name {
+                    settings_updater,
+                    hotkeys_updater,
+                    settings,
+                    hotkeys,
+                    ..
+                } = self;
+
+                settings_updater.update().await?;
+                hotkeys_updater.update().await?;
+
+                Ok(libobs_wrapper::utils::ObjectInfo::new(
+                    Self::get_id(),
+                    name,
+                    Some(settings),
+                    Some(hotkeys),
+                ))
             }
         }
 

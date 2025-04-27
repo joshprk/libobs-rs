@@ -1,6 +1,6 @@
 use libobs::obs_audio_info2;
 
-use crate::enums::{ObsSamplesPerSecond, ObsSpeakerLayout};
+use crate::{enums::{ObsSamplesPerSecond, ObsSpeakerLayout}, unsafe_send::Sendable};
 
 
 
@@ -29,8 +29,8 @@ impl ObsAudioInfo {
         Self::new(samples_per_second, speakers, 20, true)
     }
 
-    pub fn as_ptr(&self) -> *const obs_audio_info2 {
-        self as *const Self as *const obs_audio_info2
+    pub fn as_ptr(&self) -> Sendable<*const obs_audio_info2> {
+        Sendable(self as *const Self as *const obs_audio_info2)
     }
 }
 

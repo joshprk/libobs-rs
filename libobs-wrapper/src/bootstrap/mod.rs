@@ -17,8 +17,8 @@ mod download;
 mod extract;
 mod github_types;
 mod options;
-mod version;
 pub mod status_handler;
+mod version;
 
 pub use options::ObsBootstrapperOptions;
 
@@ -56,19 +56,6 @@ pub enum BootstrapStatus {
 pub trait ObsBootstrap {
     fn is_valid_installation() -> anyhow::Result<bool>;
     fn is_update_available() -> anyhow::Result<bool>;
-
-    /// Downloads the latest version of OBS from the specified repository and extracts it to a temporary directory.
-    /// Puts the required dll files in the directory of the executable.
-    /// ä# Returns
-    /// - `Ok(None)` if no update is needed.
-    /// - `Ok(Some(stream))` if an update is needed. The stream will yield `BootstrapStatus` items.
-    /// - `Err(err)` if an error occurred during the process.
-    async fn bootstrap(
-        options: options::ObsBootstrapperOptions,
-    ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>>;
-
-    /// This function is used to spawn the updater process. For more info see `BootstrapStatus::RestartRequired`.
-    async fn spawn_updater() -> anyhow::Result<()>;
 }
 
 lazy_static! {
@@ -90,6 +77,136 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
     Ok(obs_dll)
 }
 
+#[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
+pub(crate) async fn bootstrap(
+    options: &options::ObsBootstrapperOptions,
+) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {
+    let repo = options.repository.to_string();
+
+    log::trace!("Checking for update...");
+    let update = if options.update {
+        ObsContext::is_update_available()?
+    } else {
+        ObsContext::is_valid_installation()?
+    };
+
+    if !update {
+        log::debug!("No update needed.");
+        return Ok(None);
+    }
+
+    let options = options.clone();
+    Ok(Some(stream! {
+        log::debug!("Downloading OBS from {}", repo);
+        let download_stream = download::download_obs(&repo).await;
+        if let Err(err) = download_stream {
+            yield BootstrapStatus::Error(err);
+            return;
+        }
+
+        let download_stream = download_stream.unwrap();
+        pin_mut!(download_stream);
+
+        let mut file = None;
+        while let Some(item) = download_stream.next().await {
+            match item {
+                DownloadStatus::Error(err) => {
+                    yield BootstrapStatus::Error(err);
+                    return;
+                }
+                DownloadStatus::Progress(progress, message) => {
+                    yield BootstrapStatus::Downloading(progress, message);
+                }
+                DownloadStatus::Done(path) => {
+                    file = Some(path)
+                }
+            }
+        }
+
+        let archive_file = file.ok_or_else(|| anyhow::anyhow!("OBS Archive could not be downloaded."));
+        if let Err(err) = archive_file {
+            yield BootstrapStatus::Error(err);
+            return;
+        }
+
+        log::debug!("Extracting OBS to {:?}", archive_file);
+        let archive_file = archive_file.unwrap();
+        let extract_stream = extract::extract_obs(&archive_file).await;
+        if let Err(err) = extract_stream {
+            yield BootstrapStatus::Error(err);
+            return;
+        }
+
+        let extract_stream = extract_stream.unwrap();
+        pin_mut!(extract_stream);
+
+        while let Some(item) = extract_stream.next().await {
+            match item {
+                ExtractStatus::Error(err) => {
+                    yield BootstrapStatus::Error(err);
+                    return;
+                }
+                ExtractStatus::Progress(progress, message) => {
+                    yield BootstrapStatus::Extracting(progress, message);
+                }
+            }
+        }
+
+        let r = spawn_updater(options).await;
+        if let Err(err) = r {
+            yield BootstrapStatus::Error(err);
+            return;
+        }
+
+        yield BootstrapStatus::RestartRequired;
+    }))
+}
+
+pub(crate) async fn spawn_updater(options: options::ObsBootstrapperOptions) -> anyhow::Result<()> {
+    let pid = process::id();
+    let args = env::args().collect::<Vec<_>>();
+    // Skip the first argument which is the executable path
+    let args = args.into_iter().skip(1).collect::<Vec<_>>();
+
+    let updater_path = env::temp_dir().join("libobs_updater.ps1");
+    let mut updater_file = File::create(&updater_path)
+        .await
+        .context("Creating updater script")?;
+
+    updater_file
+        .write_all(UPDATER_SCRIPT.as_bytes())
+        .await
+        .context("Writing updater script")?;
+
+    let mut command = Command::new("powershell");
+    command
+        .arg("-ExecutionPolicy")
+        .arg("Bypass")
+        .arg("-NoProfile")
+        .arg("-WindowStyle")
+        .arg("Hidden")
+        .arg("-File")
+        .arg(updater_path)
+        .arg("-processPid")
+        .arg(pid.to_string())
+        .arg("-binary")
+        .arg(env::current_exe()?.to_string_lossy().to_string());
+
+    if options.restart_after_update {
+        command.arg("-restart");
+    }
+
+    // Add arguments as an array
+    if !args.is_empty() {
+        command.arg("-arguments");
+        command.arg(format!("({})", args.join(",").replace("\"", "`\"")));
+    }
+
+    command.spawn().context("Spawning updater process")?;
+
+    Ok(())
+}
+
 #[async_trait]
 impl ObsBootstrap for ObsContext {
     fn is_valid_installation() -> anyhow::Result<bool> {
@@ -106,133 +223,5 @@ impl ObsBootstrap for ObsContext {
 
         let installed = installed.unwrap();
         Ok(version::should_update(&installed)?)
-    }
-
-    async fn bootstrap(
-        options: options::ObsBootstrapperOptions,
-    ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {
-        let repo = options.repository.to_string();
-
-        log::trace!("Checking for update...");
-        let update = if options.update {
-            Self::is_update_available()?
-        } else {
-            Self::is_valid_installation()?
-        };
-
-        if !update {
-            log::debug!("No update needed.");
-            return Ok(None);
-        }
-
-        Ok(Some(
-            stream! {
-            log::debug!("Downloading OBS from {}", repo);
-            let download_stream = download::download_obs(&repo).await;
-            if let Err(err) = download_stream {
-                yield BootstrapStatus::Error(err);
-                return;
-            }
-
-            let download_stream = download_stream.unwrap();
-            pin_mut!(download_stream);
-
-            let mut file = None;
-            while let Some(item) = download_stream.next().await {
-                match item {
-                    DownloadStatus::Error(err) => {
-                        yield BootstrapStatus::Error(err);
-                        return;
-                    }
-                    DownloadStatus::Progress(progress, message) => {
-                        yield BootstrapStatus::Downloading(progress, message);
-                    }
-                    DownloadStatus::Done(path) => {
-                        file = Some(path)
-                    }
-                }
-            }
-
-            let archive_file = file.ok_or_else(|| anyhow::anyhow!("OBS Archive could not be downloaded."));
-            if let Err(err) = archive_file {
-                yield BootstrapStatus::Error(err);
-                return;
-            }
-
-            log::debug!("Extracting OBS to {:?}", archive_file);
-            let archive_file = archive_file.unwrap();
-            let extract_stream = extract::extract_obs(&archive_file).await;
-            if let Err(err) = extract_stream {
-                yield BootstrapStatus::Error(err);
-                return;
-            }
-
-            let extract_stream = extract_stream.unwrap();
-            pin_mut!(extract_stream);
-
-            while let Some(item) = extract_stream.next().await {
-                match item {
-                    ExtractStatus::Error(err) => {
-                        yield BootstrapStatus::Error(err);
-                        return;
-                    }
-                    ExtractStatus::Progress(progress, message) => {
-                        yield BootstrapStatus::Extracting(progress, message);
-                    }
-                }
-            }
-
-            let r = Self::spawn_updater().await;
-            if let Err(err) = r {
-                yield BootstrapStatus::Error(err);
-                return;
-            }
-
-            yield BootstrapStatus::RestartRequired;
-        })
-    )
-    }
-
-    async fn spawn_updater() -> anyhow::Result<()> {
-        let pid = process::id();
-        let args = env::args().collect::<Vec<_>>();
-        // Skip the first argument which is the executable path
-        let args = args.into_iter().skip(1).collect::<Vec<_>>();
-
-        let updater_path = env::temp_dir().join("libobs_updater.ps1");
-        let mut updater_file = File::create(&updater_path)
-            .await
-            .context("Creating updater script")?;
-
-        updater_file
-            .write_all(UPDATER_SCRIPT.as_bytes())
-            .await
-            .context("Writing updater script")?;
-
-        let mut command = Command::new("powershell");
-        command
-            .arg("-ExecutionPolicy")
-            .arg("Bypass")
-            .arg("-NoProfile")
-            .arg("-WindowStyle")
-            .arg("Hidden")
-            .arg("-File")
-            .arg(updater_path)
-            .arg("-processPid")
-            .arg(pid.to_string())
-            .arg("-binary")
-            .arg(env::current_exe()?.to_string_lossy().to_string());
-
-        // Add arguments as an array
-        if !args.is_empty() {
-            command.arg("-arguments");
-            command.arg(format!("({})", args.join(",").replace("\"", "`\"")));
-        }
-
-        command
-            .spawn()
-            .context("Spawning updater process")?;
-
-        Ok(())
     }
 }

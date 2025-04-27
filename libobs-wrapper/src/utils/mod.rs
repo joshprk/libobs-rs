@@ -1,8 +1,9 @@
 mod error;
 mod info;
+pub(crate) mod initialization;
 mod obs_string;
 mod path;
-pub(crate) mod initialization;
+pub(crate) mod async_sync;
 pub mod traits;
 
 use std::ffi::CStr;
@@ -13,29 +14,33 @@ use libobs::obs_module_failure_info;
 pub use obs_string::*;
 pub use path::*;
 
-use crate::{enums::ObsLogLevel, logger::internal_log_global};
+use crate::{
+    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable
+};
 
 #[derive(Debug)]
 pub struct ObsModules {
     paths: StartupPaths,
 
     /// A pointer to the module failure info structure.
-    info: Option<obs_module_failure_info>,
+    info: Option<Sendable<obs_module_failure_info>>,
+    pub(crate) runtime: Option<ObsRuntime>,
 }
 
 impl ObsModules {
     pub fn add_paths(paths: &StartupPaths) -> Self {
         unsafe {
-            libobs::obs_add_data_path(paths.libobs_data_path().as_ptr());
+            libobs::obs_add_data_path(paths.libobs_data_path().as_ptr().0);
             libobs::obs_add_module_path(
-                paths.plugin_bin_path().as_ptr(),
-                paths.plugin_data_path().as_ptr(),
+                paths.plugin_bin_path().as_ptr().0,
+                paths.plugin_data_path().as_ptr().0,
             );
         }
 
         Self {
             paths: paths.clone(),
             info: None,
+            runtime: None,
         }
     }
 
@@ -57,18 +62,18 @@ impl ObsModules {
                 "---------------------------------".to_string(),
             );
             libobs::obs_post_load_modules();
-            self.info = Some(failure_info);
+            self.info = Some(Sendable(failure_info));
         }
 
         self.log_if_failed();
     }
 
     pub fn log_if_failed(&self) {
-        if self.info.is_none_or(|x| x.count == 0) {
+        if self.info.as_ref().is_none_or(|x| &x.0.count == &0) {
             return;
         }
 
-        let info = self.info.as_ref().unwrap();
+        let info = &self.info.as_ref().unwrap().0;
         let mut failed_modules = Vec::new();
         for i in 0..info.count {
             let module = unsafe { info.failed_modules.offset(i as isize) };
@@ -85,9 +90,26 @@ impl ObsModules {
 
 impl Drop for ObsModules {
     fn drop(&mut self) {
-        unsafe {
-            libobs::obs_remove_data_path(self.paths.libobs_data_path().as_ptr());
+        let paths = self.paths.clone();
+        let runtime = self.runtime.take().unwrap();
+
+        #[cfg(not(feature="blocking"))]
+        let r = futures::executor::block_on(async {
+            return run_with_obs!(runtime, move || unsafe {
+                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
+            }).await
+        });
+
+        #[cfg(feature="blocking")]
+        let r = run_with_obs!(runtime, move || unsafe {
+            libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
+        });
+
+        if std::thread::panicking() {
+            return;
         }
+
+        r.unwrap();
     }
 }
 

@@ -1,9 +1,10 @@
 //! Use the `libobs-source` crate to create sources like `window_capture` for obs
 
 use crate::{
-    data::ObsData,
-    utils::{traits::ObsUpdatable, ObjectInfo, ObsString},
+    data::ObsData, runtime::ObsRuntime, utils::{traits::ObsUpdatable, ObjectInfo, ObsError, ObsString}
 };
+
+use super::updater::ObsDataUpdater;
 
 pub trait StringEnum {
     fn to_str(&self) -> &str;
@@ -11,45 +12,44 @@ pub trait StringEnum {
 
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
+#[cfg_attr(not(feature="blocking"), async_trait::async_trait)]
 pub trait ObsObjectBuilder {
-    fn new(name: impl Into<ObsString>) -> Self;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn new<T: Into<ObsString> + Send + Sync>(name: T, runtime: ObsRuntime) -> Result<Self, ObsError>
+    where
+        Self: Sized;
 
     /// Returns the name of the source.
     fn get_name(&self) -> ObsString;
 
-    /// Adds the obs source to the output on the given channel
-    fn build(mut self) -> ObjectInfo
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn build(self) -> Result<ObjectInfo, ObsError>
     where
-        Self: Sized,
-    {
-        let settings = self.get_settings_mut().take();
-        let hotkeys = self.get_hotkeys_mut().take();
+        Self: Sized;
 
-        ObjectInfo::new(Self::get_id(), self.get_name(), settings, hotkeys)
-    }
+    fn get_settings(&self) -> &ObsData;
+    fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
-    fn get_settings(&self) -> &Option<ObsData>;
-    fn get_settings_mut(&mut self) -> &mut Option<ObsData>;
-
-    fn get_hotkeys(&self) -> &Option<ObsData>;
-    fn get_hotkeys_mut(&mut self) -> &mut Option<ObsData>;
-
-    fn get_or_create_settings(&mut self) -> &mut ObsData {
-        self.get_settings_mut().get_or_insert_with(ObsData::new)
-    }
+    fn get_hotkeys(&self) -> &ObsData;
+    fn get_hotkeys_updater(&mut self) -> &mut ObsDataUpdater;
 
     /// Returns the ID of the source.
     fn get_id() -> ObsString;
 }
 
+#[cfg_attr(not(feature="blocking"), async_trait::async_trait)]
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
-    fn create_update(updatable: &'a mut Self::ToUpdate) -> Self;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
+    where
+        Self: Sized;
 
     fn get_settings(&self) -> &ObsData;
-    fn get_settings_mut(&mut self) -> &mut ObsData;
+    fn get_settings_updater(&mut self) -> &mut ObsDataUpdater;
 
-    fn update(self);
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn update(self) -> Result<(), ObsError>;
 
     /// Returns the ID of the object
     fn get_id() -> ObsString;

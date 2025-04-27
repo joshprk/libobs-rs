@@ -72,7 +72,7 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
                         let val = #field_name.to_i32().unwrap();
 
                         #settings_getter
-                            .set_int(#obs_settings_key, val as i64);
+                            .set_int_ref(#obs_settings_key, val as i64);
 
                         self
                     }
@@ -85,7 +85,7 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
                         use libobs_wrapper::data::StringEnum;
 
                         #settings_getter
-                            .set_string(#obs_settings_key, #field_name.to_str());
+                            .set_string_ref(#obs_settings_key, #field_name.to_str());
 
                         self
                     }
@@ -94,9 +94,9 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
             "string" => {
                 quote! {
                     #(#docs_attr)*
-                    pub fn #set_field(mut self, #field_name: impl Into<libobs_wrapper::utils::ObsString>) -> Self {
+                    pub fn #set_field<T: Into<libobs_wrapper::utils::ObsString> + Sync + Send>(mut self, #field_name: T) -> Self {
                         #settings_getter
-                            .set_string(#obs_settings_key, #field_name);
+                            .set_string_ref(#obs_settings_key, #field_name);
                         self
                     }
                 }
@@ -106,7 +106,7 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: bool) -> Self {
                         #settings_getter
-                            .set_bool(#obs_settings_key, #field_name);
+                            .set_bool_ref(#obs_settings_key, #field_name);
                         self
                     }
                 }
@@ -116,7 +116,7 @@ pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_g
                     #(#docs_attr)*
                     pub fn #set_field(mut self, #field_name: i64) -> Self {
                         #settings_getter
-                            .set_int(#obs_settings_key, #field_name);
+                            .set_int_ref(#obs_settings_key, #field_name);
                         self
                     }
                 }

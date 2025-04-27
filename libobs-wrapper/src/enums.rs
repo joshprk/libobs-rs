@@ -139,7 +139,7 @@ pub enum ObsSpeakerLayout {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ObsOutputSignal {
+pub enum ObsOutputStopSignal {
     /// Successfully stopped
     Success,
     /// The specified path was invalid
@@ -160,53 +160,53 @@ pub enum ObsOutputSignal {
     EncodeError,
 }
 
-impl fmt::Display for ObsOutputSignal {
+impl fmt::Display for ObsOutputStopSignal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            ObsOutputSignal::Success => "Success",
-            ObsOutputSignal::BadPath => "Bad Path",
-            ObsOutputSignal::ConnectFailed => "Connect Failed",
-            ObsOutputSignal::InvalidStream => "Invalid Stream",
-            ObsOutputSignal::Error => "Error",
-            ObsOutputSignal::Disconnected => "Disconnected",
-            ObsOutputSignal::Unsupported => "Unsupported",
-            ObsOutputSignal::NoSpace => "No Space",
-            ObsOutputSignal::EncodeError => "Encode Error",
+            ObsOutputStopSignal::Success => "Success",
+            ObsOutputStopSignal::BadPath => "Bad Path",
+            ObsOutputStopSignal::ConnectFailed => "Connect Failed",
+            ObsOutputStopSignal::InvalidStream => "Invalid Stream",
+            ObsOutputStopSignal::Error => "Error",
+            ObsOutputStopSignal::Disconnected => "Disconnected",
+            ObsOutputStopSignal::Unsupported => "Unsupported",
+            ObsOutputStopSignal::NoSpace => "No Space",
+            ObsOutputStopSignal::EncodeError => "Encode Error",
         };
         write!(f, "{}", s)
     }
 }
 
-impl Into<i32> for ObsOutputSignal {
+impl Into<i32> for ObsOutputStopSignal {
     fn into(self) -> i32 {
         match self {
-            ObsOutputSignal::Success => libobs::OBS_OUTPUT_SUCCESS as i32,
-            ObsOutputSignal::BadPath => libobs::OBS_OUTPUT_BAD_PATH,
-            ObsOutputSignal::ConnectFailed => libobs::OBS_OUTPUT_CONNECT_FAILED,
-            ObsOutputSignal::InvalidStream => libobs::OBS_OUTPUT_INVALID_STREAM,
-            ObsOutputSignal::Error => libobs::OBS_OUTPUT_ERROR,
-            ObsOutputSignal::Disconnected => libobs::OBS_OUTPUT_DISCONNECTED,
-            ObsOutputSignal::Unsupported => libobs::OBS_OUTPUT_UNSUPPORTED,
-            ObsOutputSignal::NoSpace => libobs::OBS_OUTPUT_NO_SPACE,
-            ObsOutputSignal::EncodeError => libobs::OBS_OUTPUT_ENCODE_ERROR,
+            ObsOutputStopSignal::Success => libobs::OBS_OUTPUT_SUCCESS as i32,
+            ObsOutputStopSignal::BadPath => libobs::OBS_OUTPUT_BAD_PATH,
+            ObsOutputStopSignal::ConnectFailed => libobs::OBS_OUTPUT_CONNECT_FAILED,
+            ObsOutputStopSignal::InvalidStream => libobs::OBS_OUTPUT_INVALID_STREAM,
+            ObsOutputStopSignal::Error => libobs::OBS_OUTPUT_ERROR,
+            ObsOutputStopSignal::Disconnected => libobs::OBS_OUTPUT_DISCONNECTED,
+            ObsOutputStopSignal::Unsupported => libobs::OBS_OUTPUT_UNSUPPORTED,
+            ObsOutputStopSignal::NoSpace => libobs::OBS_OUTPUT_NO_SPACE,
+            ObsOutputStopSignal::EncodeError => libobs::OBS_OUTPUT_ENCODE_ERROR,
         }
     }
 }
 
-impl TryFrom<i32> for ObsOutputSignal {
+impl TryFrom<i32> for ObsOutputStopSignal {
     type Error = &'static str;
 
-    fn try_from(value: i32) -> Result<Self, <ObsOutputSignal as TryFrom<i32>>::Error> {
+    fn try_from(value: i32) -> Result<Self, <ObsOutputStopSignal as TryFrom<i32>>::Error> {
         match value {
-            x if x == libobs::OBS_OUTPUT_SUCCESS as i32 => Ok(ObsOutputSignal::Success),
-            x if x == libobs::OBS_OUTPUT_BAD_PATH => Ok(ObsOutputSignal::BadPath),
-            x if x == libobs::OBS_OUTPUT_CONNECT_FAILED => Ok(ObsOutputSignal::ConnectFailed),
-            x if x == libobs::OBS_OUTPUT_INVALID_STREAM => Ok(ObsOutputSignal::InvalidStream),
-            x if x == libobs::OBS_OUTPUT_ERROR => Ok(ObsOutputSignal::Error),
-            x if x == libobs::OBS_OUTPUT_DISCONNECTED => Ok(ObsOutputSignal::Disconnected),
-            x if x == libobs::OBS_OUTPUT_UNSUPPORTED => Ok(ObsOutputSignal::Unsupported),
-            x if x == libobs::OBS_OUTPUT_NO_SPACE => Ok(ObsOutputSignal::NoSpace),
-            x if x == libobs::OBS_OUTPUT_ENCODE_ERROR => Ok(ObsOutputSignal::EncodeError),
+            x if x == libobs::OBS_OUTPUT_SUCCESS as i32 => Ok(ObsOutputStopSignal::Success),
+            x if x == libobs::OBS_OUTPUT_BAD_PATH => Ok(ObsOutputStopSignal::BadPath),
+            x if x == libobs::OBS_OUTPUT_CONNECT_FAILED => Ok(ObsOutputStopSignal::ConnectFailed),
+            x if x == libobs::OBS_OUTPUT_INVALID_STREAM => Ok(ObsOutputStopSignal::InvalidStream),
+            x if x == libobs::OBS_OUTPUT_ERROR => Ok(ObsOutputStopSignal::Error),
+            x if x == libobs::OBS_OUTPUT_DISCONNECTED => Ok(ObsOutputStopSignal::Disconnected),
+            x if x == libobs::OBS_OUTPUT_UNSUPPORTED => Ok(ObsOutputStopSignal::Unsupported),
+            x if x == libobs::OBS_OUTPUT_NO_SPACE => Ok(ObsOutputStopSignal::NoSpace),
+            x if x == libobs::OBS_OUTPUT_ENCODE_ERROR => Ok(ObsOutputStopSignal::EncodeError),
             _ => Err("Invalid value"),
         }
     }

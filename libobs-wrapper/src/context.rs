@@ -1,27 +1,23 @@
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    ffi::CStr,
-    pin::Pin,
-    ptr,
-    rc::Rc,
-    thread::{self, ThreadId},
-};
+use std::{collections::HashMap, ffi::CStr, pin::Pin, sync::Arc, thread::ThreadId};
 
 use crate::{
-    crash_handler::main_crash_handler,
     data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
     display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
-    logger::{extern_log_callback, internal_log_global, LOGGER},
+    logger::LOGGER,
+    run_with_obs,
+    runtime::{ObsRuntime, ObsRuntimeReturn},
     scenes::ObsSceneRef,
-    unsafe_send::WrappedObsScene,
-    utils::{ObsError, ObsModules, ObsString, OutputInfo, StartupInfo, initialization::load_debug_privilege},
+    sources::ObsSourceBuilder,
+    unsafe_send::Sendable,
+    utils::{
+        ObsError, ObsModules, ObsString, OutputInfo, StartupInfo,
+    },
 };
-use anyhow::Result;
+use crate::utils::async_sync::{Mutex, RwLock};
 use getters0::Getters;
-use libobs::{audio_output, video_output};
-use tokio::sync::Mutex;
+use libobs::{audio_output, obs_scene_t, video_output};
+
 lazy_static::lazy_static! {
     pub(crate) static ref OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 }
@@ -47,35 +43,49 @@ pub struct ObsContext {
     /// Stores startup info for safe-keeping. This
     /// prevents any use-after-free as these do not
     /// get copied in libobs.
-    startup_info: Rc<RefCell<StartupInfo>>,
+    startup_info: Arc<RwLock<StartupInfo>>,
 
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    displays: Rc<RefCell<HashMap<usize, Rc<Pin<Box<ObsDisplayRef>>>>>>,
+    displays: Arc<RwLock<HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>>>,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
     #[allow(dead_code)]
     #[get_mut]
-    pub(crate) outputs: Rc<RefCell<Vec<ObsOutputRef>>>,
+    pub(crate) outputs: Arc<RwLock<Vec<ObsOutputRef>>>,
 
     #[get_mut]
-    pub(crate) scenes: Rc<RefCell<Vec<ObsSceneRef>>>,
+    pub(crate) scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
 
     #[skip_getter]
-    pub(crate) active_scene: Rc<RefCell<Option<WrappedObsScene>>>,
+    pub(crate) active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
 
     #[skip_getter]
-    pub(crate) _obs_modules: Rc<ObsModules>,
+    pub(crate) _obs_modules: Arc<ObsModules>,
 
-    /// This allows us to call obs_shutdown() after
-    /// everything else has been freed. Doing other-
-    /// wise completely crashes the program.
-    #[skip_getter]
-    context_shutdown_zst: Rc<ObsContextShutdownZST>,
+    /// This struct must be the last element which makes sure
+    /// that everything else has been freed already before the runtime
+    /// shuts down
+    pub(crate) runtime: ObsRuntime,
+}
+
+#[cfg(not(feature = "bootstrapper"))]
+pub type ObsContextReturn = ObsContext;
+#[cfg(feature = "bootstrapper")]
+pub enum ObsContextReturn {
+    /// The OBS context is ready to use
+    Done(ObsContext),
+
+    /// The application must be restarted to apply OBS updates
+    Restart,
 }
 
 impl ObsContext {
+    pub fn builder() -> StartupInfo {
+        StartupInfo::new()
+    }
+
     /// Initializes libobs on the current thread.
     ///
     /// Note that there can be only one ObsContext
@@ -86,139 +96,57 @@ impl ObsContext {
     /// amount of memory. As a result, it is
     /// probably a good idea not to restart the
     /// OBS context repeatedly over a very long
-    /// period of time. If anyone can fix this, it
-    /// would be nice.
-    pub fn new(info: StartupInfo) -> Result<ObsContext, ObsError> {
-        // Checks that there are no other threads
-        // using libobs using a static Mutex.
-        //
-        // Fun fact: this code caused a huge debate
-        // about whether AtomicBool is UB or whatever
-        // in the Rust Programming Discord server.
-        // I didn't read too closely into it because
-        // they were talking about what architecture
-        // fridges have or something.
-        //
-        // Since this function is not meant to be
-        // high-performance or called a thousand times,
-        // a Mutex is fine here.
-        log::trace!("Checking if OBS is already initialized");
-        let mut mutex_value = OBS_THREAD_ID.blocking_lock();
-        log::trace!("Mutex locked");
+    /// period of time. Unfortunately the memory
+    /// leak is caused by a bug in libobs itself.
+    ///
+    /// If the `bootstrapper` feature is enabled, and ObsContextReturn::Restart is returned,
+    /// the application must be restarted to apply the updates and initialization can not continue.
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn new(info: StartupInfo) -> Result<ObsContextReturn, ObsError> {
+        // Spawning runtime, I'll keep this as function for now
+        let runtime = ObsRuntime::startup(info).await?;
 
-        // Directly checks if the value of the
-        // Mutex is false. If true, then error.
-        if *mutex_value != None {
-            return Err(ObsError::ThreadFailure);
+        if matches!(runtime, ObsRuntimeReturn::Restart) {
+            return Ok(ObsContextReturn::Restart);
         }
 
-        // If the Mutex is None, then change
-        // it to current thread ID so that no
-        // other thread can use libobs while
-        // the current thread is using it.
-        *mutex_value = Some(thread::current().id());
+        let (runtime, obs_modules, info) = match runtime {
+            ObsRuntimeReturn::Done(r) => r,
+            ObsRuntimeReturn::Restart => unreachable!(),
+        };
 
-        Self::init(info)
+        let context = Self {
+            _obs_modules: Arc::new(obs_modules),
+            active_scene: Default::default(),
+            displays: Default::default(),
+            outputs: Default::default(),
+            scenes: Default::default(),
+            runtime,
+            startup_info: Arc::new(RwLock::new(info)),
+        };
+
+        #[cfg(feature = "bootstrapper")]
+        return Ok(ObsContextReturn::Done(context));
+
+        #[cfg(not(feature = "bootstrapper"))]
+        return Ok(context);
     }
 
-    pub fn get_version() -> String {
-        let version = unsafe { libobs::obs_get_version_string() };
-        let version_cstr = unsafe { CStr::from_ptr(version) };
-        version_cstr.to_string_lossy().into_owned()
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_version(&self) -> Result<String, ObsError> {
+        let res = run_with_obs!(self.runtime, || unsafe {
+            let version = libobs::obs_get_version_string();
+            let version_cstr = CStr::from_ptr(version);
+
+            version_cstr.to_string_lossy().into_owned()
+        }).await?;
+
+        Ok(res)
     }
 
     pub fn log(&self, level: ObsLogLevel, msg: &str) {
         let mut log = LOGGER.lock().unwrap();
         log.log(level, msg.to_string());
-    }
-
-    /// Initializes the libobs context and prepares
-    /// it for recording.
-    ///
-    /// More specifically, it calls `obs_startup`,
-    /// `obs_reset_video`, `obs_reset_audio`, and
-    /// registers the video and audio encoders.
-    ///
-    /// At least on Windows x64, it seems that
-    /// resetting video and audio is necessary to
-    /// prevent a memory leak when restarting the
-    /// OBS context. This memory leak is not severe
-    /// (~10 KB per restart), but the point is
-    /// safety. Thank you @tt2468 for the help!
-    fn init(mut info: StartupInfo) -> Result<ObsContext, ObsError> {
-        // Install DLL blocklist hook here
-
-        unsafe {
-            libobs::obs_init_win32_crash_handler();
-        }
-
-        // Set logger, load debug privileges and crash handler
-        unsafe {
-            libobs::base_set_crash_handler(Some(main_crash_handler), std::ptr::null_mut());
-            load_debug_privilege();
-            libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
-        }
-
-        let mut log_callback = LOGGER.lock().map_err(|_e| ObsError::MutexFailure)?;
-
-        *log_callback = info.logger.take().expect("Logger can never be null");
-        drop(log_callback);
-
-        // Locale will only be used internally by
-        // libobs for logging purposes, making it
-        // unnecessary to support other languages.
-        let locale_str = ObsString::new("en-US");
-        let startup_status =
-            unsafe { libobs::obs_startup(locale_str.as_ptr(), ptr::null(), ptr::null_mut()) };
-
-        internal_log_global(ObsLogLevel::Info, format!("OBS {}", Self::get_version()));
-        internal_log_global(
-            ObsLogLevel::Info,
-            "---------------------------------".to_string(),
-        );
-
-        if !startup_status {
-            return Err(ObsError::Failure);
-        }
-
-        let mut obs_modules = ObsModules::add_paths(&info.startup_paths);
-
-        // Note that audio is meant to only be reset
-        // once. See the link below for information.
-        //
-        // https://docs.obsproject.com/frontends
-        unsafe {
-            libobs::obs_reset_audio2(info.obs_audio_info.as_ptr());
-        }
-
-        // Resets the video context. Note that this
-        // is similar to Self::reset_video, but it
-        // does not call that function because the
-        // ObsContext struct is not created yet,
-        // and also because there is no need to free
-        // anything tied to the OBS context.
-        let reset_video_status = Self::reset_video_internal(&mut info.obs_video_info);
-
-        if reset_video_status != ObsResetVideoStatus::Success {
-            return Err(ObsError::ResetVideoFailure(reset_video_status));
-        }
-
-        obs_modules.load_modules();
-
-        internal_log_global(
-            ObsLogLevel::Info,
-            "==== Startup complete ===============================================".to_string(),
-        );
-
-        Ok(Self {
-            startup_info: Rc::new(RefCell::new(info)),
-            outputs: Rc::new(RefCell::new(vec![])),
-            displays: Rc::new(RefCell::new(HashMap::new())),
-            active_scene: Rc::new(RefCell::new(None)),
-            scenes: Rc::new(RefCell::new(vec![])),
-            _obs_modules: Rc::new(obs_modules),
-            context_shutdown_zst: Rc::new(ObsContextShutdownZST {}),
-        })
     }
 
     /// Resets the OBS video context. This is often called
@@ -235,61 +163,94 @@ impl ObsContext {
     /// Note that you cannot reset the graphics module
     /// without destroying the entire OBS context. Trying
     /// so will result in an error.
-    pub fn reset_video(&mut self, mut ovi: ObsVideoInfo) -> Result<(), ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn reset_video(&mut self, ovi: ObsVideoInfo) -> Result<(), ObsError> {
         // You cannot change the graphics module without
         // completely destroying the entire OBS context.
-        if self.startup_info.borrow().obs_video_info.graphics_module() != ovi.graphics_module() {
+        if self
+            .startup_info
+            .read()
+            .await
+            .obs_video_info
+            .graphics_module()
+            != ovi.graphics_module()
+        {
             return Err(ObsError::ResetVideoFailureGraphicsModule);
         }
 
-        let reset_video_status = Self::reset_video_internal(&mut ovi);
+        // Resets the video context. Note that this
+        // is similar to Self::reset_video, but it
+        // does not call that function because the
+        // ObsContext struct is not created yet,
+        // and also because there is no need to free
+        // anything tied to the OBS context.
+        let mut vid = self.startup_info.write().await;
+        let vid_ptr = Sendable(vid.obs_video_info.as_ptr());
+
+        let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
+            libobs::obs_reset_video(vid_ptr)
+        }).await?;
+
+        drop(vid);
+        let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
+
+        let reset_video_status = match reset_video_status {
+            Some(x) => x,
+            None => ObsResetVideoStatus::Failure,
+        };
 
         if reset_video_status != ObsResetVideoStatus::Success {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         } else {
-            for output in self.outputs.borrow().iter() {
-                for video_encoder in output.get_video_encoders().iter() {
-                    unsafe {
-                        libobs::obs_encoder_set_video(
-                            video_encoder.as_ptr(),
-                            ObsContext::get_video_ptr().unwrap(),
-                        )
-                    }
-                }
+            let outputs = self.outputs.read().await.clone();
+            let mut video_encoders = vec![];
+
+            for output in outputs.iter() {
+                let encoders = output.get_video_encoders().await;
+                video_encoders.extend(encoders.into_iter().map(|e| e.as_ptr()));
             }
 
-            self.startup_info.borrow_mut().obs_video_info = ovi;
+            let vid_ptr = self.get_video_ptr().await?;
+            run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
+                for encoder_ptr in video_encoders.into_iter() {
+                    libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
+                }
+            }).await?;
+
+            self.startup_info.write().await.obs_video_info = ovi;
             return Ok(());
         }
     }
 
-    pub fn get_video_ptr() -> Result<*mut video_output, ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(unsafe { libobs::obs_get_video() })
+        run_with_obs!(self.runtime, || unsafe {
+            Sendable(libobs::obs_get_video())
+        }).await
     }
 
-    pub fn get_audio_ptr() -> Result<*mut audio_output, ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
-        Ok(unsafe { libobs::obs_get_audio() })
+        run_with_obs!(self.runtime, || unsafe {
+            Sendable(libobs::obs_get_audio())
+        }).await
     }
 
-    fn reset_video_internal(ovi: &mut ObsVideoInfo) -> ObsResetVideoStatus {
-        let status =
-            num_traits::FromPrimitive::from_i32(unsafe { libobs::obs_reset_video(ovi.as_ptr()) });
-
-        return match status {
-            Some(x) => x,
-            None => ObsResetVideoStatus::Failure,
-        };
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn data(&self) -> Result<ObsData, ObsError> {
+        ObsData::new(self.runtime.clone()).await
     }
 
-    pub fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
-        let output = ObsOutputRef::new(info, self.context_shutdown_zst.clone());
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
+        let output = ObsOutputRef::new(info, self.runtime.clone()).await;
 
         return match output {
             Ok(x) => {
                 let tmp = x.clone();
-                self.outputs.borrow_mut().push(x);
+                self.outputs.write().await.push(x);
                 Ok(tmp)
             }
 
@@ -298,105 +259,90 @@ impl ObsContext {
     }
 
     /// Creates a new display and returns its ID.
-    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<usize, ObsError> {
-        let display = ObsDisplayRef::new(data,  self.context_shutdown_zst.clone())
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+        let display = ObsDisplayRef::new(data, self.runtime.clone())
+            .await
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 
+        let display_clone = display.clone();
+
         let id = display.id();
-        self.displays.borrow_mut().insert(id, Rc::new(display));
-        Ok(id)
+        self.displays.write().await.insert(id, Arc::new(display));
+        Ok(display_clone)
     }
 
-    pub fn remove_display(&mut self, display: &ObsDisplayRef) {
-        self.remove_display_by_id(display.id());
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn remove_display(&mut self, display: &ObsDisplayRef) {
+        self.remove_display_by_id(display.id()).await;
     }
 
-    pub fn remove_display_by_id(&mut self, id: usize) {
-        self.displays.borrow_mut().remove(&id);
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn remove_display_by_id(&mut self, id: usize) {
+        self.displays.write().await.remove(&id);
     }
 
-    pub fn get_display_by_id(&self, id: usize) -> Option<Rc<Pin<Box<ObsDisplayRef>>>> {
-        self.displays.borrow().get(&id).cloned()
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_display_by_id(&self, id: usize) -> Option<Arc<Pin<Box<ObsDisplayRef>>>> {
+        self.displays.read().await.get(&id).cloned()
     }
 
-    pub fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_output(&mut self, name: &str) -> Option<ObsOutputRef> {
         self.outputs
-            .borrow()
+            .read()
+            .await
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
     }
 
-    pub fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn update_output(&mut self, name: &str, settings: ObsData) -> Result<(), ObsError> {
         match self
             .outputs
-            .borrow_mut()
+            .write()
+            .await
             .iter_mut()
             .find(|x| x.name().to_string().as_str() == name)
         {
-            Some(output) => output.update_settings(settings),
+            Some(output) => output.update_settings(settings).await,
             None => Err(ObsError::OutputNotFound),
         }
     }
 
-    pub fn scene(&mut self, name: impl Into<ObsString>) -> ObsSceneRef {
-        let scene = ObsSceneRef::new(name.into(), self.active_scene.clone(),  self.context_shutdown_zst.clone());
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn scene<T: Into<ObsString> + Send + Sync>(
+        &mut self,
+        name: T,
+    ) -> Result<ObsSceneRef, ObsError> {
+        let scene =
+            ObsSceneRef::new(name.into(), self.active_scene.clone(), self.runtime.clone()).await?;
 
         let tmp = scene.clone();
-        self.scenes.borrow_mut().push(scene);
+        self.scenes.write().await.push(scene);
 
-        tmp
+        Ok(tmp)
     }
 
-    pub fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_scene(&mut self, name: &str) -> Option<ObsSceneRef> {
         self.scenes
-            .borrow()
+            .read()
+            .await
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
             .map(|e| e.clone())
     }
-}
 
-#[derive(Debug)]
-pub(crate) struct ObsContextShutdownZST {}
-
-impl Drop for ObsContextShutdownZST {
-    fn drop(&mut self) {
-        // Clean up sources
-        for i in 0..libobs::MAX_CHANNELS {
-            unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
-        }
-
-        unsafe { libobs::obs_shutdown() }
-
-        let r = LOGGER.lock();
-        match r {
-            Ok(mut logger) => {
-                logger.log(ObsLogLevel::Info, "OBS context shutdown.".to_string());
-                let allocs = unsafe { libobs::bnum_allocs() };
-
-                // Increasing this to 1 because of whats described below
-                let level = if allocs > 1 {
-                    ObsLogLevel::Error
-                } else {
-                    ObsLogLevel::Info
-                };
-                // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
-                // even when obs_remove_data_path is called. This is a bug in OBS.
-                logger.log(level, format!("Number of memory leaks: {}", allocs))
-            }
-            Err(_) => {
-                println!("OBS context shutdown. (but couldn't lock logger)");
-            }
-        }
-
-        unsafe {
-            // Clean up log and crash handler
-            libobs::base_set_crash_handler(None, std::ptr::null_mut());
-            libobs::base_set_log_handler(None, std::ptr::null_mut());
-        }
-
-        let mut mutex_value = OBS_THREAD_ID.blocking_lock();
-        *mutex_value = None;
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn source_builder<T: ObsSourceBuilder, K: Into<ObsString> + Send + Sync>(
+        &self,
+        name: K,
+    ) -> Result<T, ObsError> {
+        T::new(name.into(), self.runtime.clone()).await
     }
 }
