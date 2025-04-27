@@ -11,13 +11,13 @@ use crate::bootstrap::bootstrap;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
-use crate::{mutex_blocking_lock, rx_recv};
 use crate::utils::initialization::load_debug_privilege;
 use crate::utils::{ObsBootstrapError, ObsError, ObsModules, ObsString};
 use crate::{
     context::OBS_THREAD_ID,
-    utils::{StartupInfo, async_sync::Mutex},
+    utils::{async_sync::Mutex, StartupInfo},
 };
+use crate::{mutex_blocking_lock, rx_recv};
 
 // Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -38,8 +38,8 @@ pub enum ObsRuntimeReturn {
 
 #[derive(Debug, Clone)]
 pub struct ObsRuntime {
-    handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     command_sender: Arc<Sender<ObsCommand>>,
+    _guard: Arc<_ObsRuntimeGuard>,
 }
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ unsafe impl Send for SendableModules {}
 impl ObsRuntime {
     //! This runtime creates a thread to manage OBS, so it can be used across threads.
     //! Will startup OBS when this function is called.
-    #[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub(crate) async fn startup(mut options: StartupInfo) -> Result<ObsRuntimeReturn, ObsError> {
         let obs_id = OBS_THREAD_ID.lock().await;
         if obs_id.is_some() {
@@ -63,7 +63,7 @@ impl ObsRuntime {
         if options.bootstrap_handler.is_some() {
             use crate::bootstrap::BootstrapStatus;
             use futures_util::pin_mut;
-            #[cfg(not(feature="blocking"))]
+            #[cfg(not(feature = "blocking"))]
             use futures_util::stream::StreamExt;
 
             log::trace!("Starting bootstrapper");
@@ -74,7 +74,7 @@ impl ObsRuntime {
                 })?;
             if let Some(stream) = stream {
                 pin_mut!(stream);
-                #[cfg(feature="blocking")]
+                #[cfg(feature = "blocking")]
                 let mut stream = futures::executor::block_on_stream(stream);
 
                 log::trace!("Waiting for bootstrapper to finish");
@@ -124,7 +124,7 @@ impl ObsRuntime {
         ));
     }
 
-    #[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
         let (command_sender, command_receiver) = channel();
         let (init_tx, init_rx) = oneshot::channel();
@@ -166,9 +166,14 @@ impl ObsRuntime {
         // Wait for initialization to complete
         let (mut m, info) = rx_recv!(init_rx)??;
 
+        let handle = Arc::new(Mutex::new(Some(handle)));
+        let command_sender = Arc::new(command_sender);
         let runtime = Self {
-            handle: Arc::new(Mutex::new(Some(handle))),
-            command_sender: Arc::new(command_sender),
+            command_sender: command_sender.clone(),
+            _guard: Arc::new(_ObsRuntimeGuard {
+                handle,
+                command_sender,
+            }),
         };
 
         m.0.runtime = Some(runtime.clone());
@@ -248,8 +253,8 @@ impl ObsRuntime {
             .send(ObsCommand::Execute(Box::new(wrapper), tx))
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
 
-        let result = rx_recv!(rx)
-            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+        let result =
+            rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         let res = result
@@ -258,23 +263,6 @@ impl ObsRuntime {
             .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))?;
 
         Ok(res)
-    }
-
-    /// Shutdown the OBS runtime and terminate the thread
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn shutdown(self) -> anyhow::Result<()> {
-        self.command_sender
-            .send(ObsCommand::Terminate)
-            .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"))?;
-
-        // Wait for the thread to finish
-        let mut handle = self.handle.lock().await;
-        let handle = handle.take().expect("Handle can not be empty");
-
-        if let Err(err) = handle.join() {
-            return Err(anyhow::anyhow!("OBS thread panicked: {:?}", err));
-        }
-        Ok(())
     }
 
     /// Initializes the libobs context and prepares
@@ -434,5 +422,46 @@ impl ObsRuntime {
 
         let mut mutex_value = mutex_blocking_lock!(OBS_THREAD_ID);
         *mutex_value = None;
+    }
+}
+
+#[derive(Debug)]
+pub struct _ObsRuntimeGuard {
+    handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    command_sender: Arc<Sender<ObsCommand>>,
+}
+
+impl _ObsRuntimeGuard {
+    /// Shutdown the OBS runtime and terminate the thread
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn shutdown(&mut self) -> anyhow::Result<()> {
+        self.command_sender
+            .send(ObsCommand::Terminate)
+            .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"))?;
+
+        // Wait for the thread to finish
+        let mut handle = self.handle.lock().await;
+        let handle = handle.take().expect("Handle can not be empty");
+
+        if let Err(err) = handle.join() {
+            return Err(anyhow::anyhow!("OBS thread panicked: {:?}", err));
+        }
+        Ok(())
+    }
+}
+
+impl Drop for _ObsRuntimeGuard {
+    fn drop(&mut self) {
+        #[cfg(feature = "blocking")]
+        let r = self.shutdown();
+
+        #[cfg(not(feature = "blocking"))]
+        let r = futures::executor::block_on(self.shutdown());
+
+        if thread::panicking() {
+            return;
+        }
+
+        r.unwrap();
     }
 }
