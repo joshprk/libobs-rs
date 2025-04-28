@@ -5,20 +5,19 @@ use std::{ffi::CStr, ptr};
 use anyhow::bail;
 use getters0::Getters;
 use libobs::{
-    audio_output, calldata_get_data, calldata_t, obs_encoder_set_audio, obs_encoder_set_video,
-    obs_output, obs_output_active, obs_output_create, obs_output_get_last_error,
-    obs_output_get_name, obs_output_get_signal_handler, obs_output_release,
-    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop,
-    obs_output_update, signal_handler_connect, signal_handler_disconnect, video_output,
+    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active,
+    obs_output_create, obs_output_get_last_error, obs_output_release, obs_output_set_audio_encoder,
+    obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_output_update,
+    video_output,
 };
 
 use crate::enums::ObsOutputStopSignal;
 use crate::runtime::ObsRuntime;
-use crate::signals::{rec_output_signal, OUTPUT_SIGNALS};
 use crate::unsafe_send::Sendable;
 use crate::utils::async_sync::RwLock;
 use crate::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
-use crate::{impl_obs_drop, run_with_obs, rw_lock_blocking_read};
+use crate::{impl_obs_drop, impl_signal_manager, run_with_obs};
+use crate::signals::process_no_op;
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
@@ -37,15 +36,6 @@ struct _ObsDropGuard {
 }
 
 impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
-    let handler = obs_output_get_signal_handler(output);
-    let signal = ObsString::new("stop");
-    signal_handler_disconnect(
-        handler,
-        signal.as_ptr().0,
-        Some(signal_handler),
-        ptr::null_mut(),
-    );
-
     obs_output_release(output);
 });
 
@@ -64,7 +54,7 @@ impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
 pub struct ObsOutputRef {
     /// Settings for the output
     pub(crate) settings: Arc<RwLock<Option<ObsData>>>,
-    
+
     /// Hotkey configuration data for the output
     pub(crate) hotkey_data: Arc<RwLock<Option<ObsData>>>,
 
@@ -79,10 +69,10 @@ pub struct ObsOutputRef {
     /// Pointer to the underlying OBS output
     #[skip_getter]
     pub(crate) output: Sendable<*mut obs_output>,
-    
+
     /// The type identifier of this output
     pub(crate) id: ObsString,
-    
+
     /// The unique name of this output
     pub(crate) name: ObsString,
 
@@ -92,6 +82,8 @@ pub struct ObsOutputRef {
 
     #[skip_getter]
     pub(crate) runtime: ObsRuntime,
+
+    pub(crate) signal_manager: Arc<ObsOutputSignals>,
 }
 
 impl ObsOutputRef {
@@ -137,23 +129,13 @@ impl ObsOutputRef {
                     bail!("Null pointer returned from obs_output_create");
                 }
 
-                let handler = unsafe { obs_output_get_signal_handler(output) };
-                unsafe {
-                    let signal = ObsString::new("stop");
-                    signal_handler_connect(
-                        handler,
-                        signal.as_ptr().0,
-                        Some(signal_handler),
-                        ptr::null_mut(),
-                    )
-                };
-
                 return Ok((Sendable(output), id, name, settings, hotkey_data));
             })
             .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))?
             .map_err(|_| ObsError::NullPointer)?;
 
+        let signal_manager = ObsOutputSignals::new(&output, runtime.clone()).await?;
         Ok(Self {
             settings: Arc::new(RwLock::new(settings)),
             hotkey_data: Arc::new(RwLock::new(hotkey_data)),
@@ -171,6 +153,7 @@ impl ObsOutputRef {
             }),
 
             runtime,
+            signal_manager: Arc::new(signal_manager),
         })
     }
 
@@ -220,7 +203,8 @@ impl ObsOutputRef {
                 obs_encoder_set_video(encoder_ptr, handler.0);
                 obs_output_set_video_encoder(output_ptr, encoder_ptr);
             }
-        ).await?;
+        )
+        .await?;
 
         let tmp = Arc::new(video_enc);
         self.video_encoders.write().await.push(tmp.clone());
@@ -246,7 +230,8 @@ impl ObsOutputRef {
 
         run_with_obs!(self.runtime, (output, encoder_ptr), move || unsafe {
             obs_output_set_video_encoder(output, encoder_ptr);
-        }).await?;
+        })
+        .await?;
 
         if !self
             .video_encoders
@@ -277,14 +262,16 @@ impl ObsOutputRef {
         let output = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
             obs_output_active(output)
-        }).await?;
+        })
+        .await?;
 
         if !output_active {
             let settings_ptr = settings.as_ptr();
 
             run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
                 obs_output_update(output, settings_ptr)
-            }).await?;
+            })
+            .await?;
 
             self.settings.write().await.replace(settings);
             Ok(())
@@ -332,7 +319,8 @@ impl ObsOutputRef {
                 obs_encoder_set_audio(encoder_ptr, handler);
                 obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
             }
-        ).await?;
+        )
+        .await?;
 
         let x = Arc::new(audio_enc);
         self.audio_encoders.write().await.push(x.clone());
@@ -361,7 +349,8 @@ impl ObsOutputRef {
         let output_ptr = self.output.clone();
         run_with_obs!(self.runtime, (output_ptr, encoder_ptr), move || unsafe {
             obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
-        }).await?;
+        })
+        .await?;
 
         if !self
             .audio_encoders
@@ -388,12 +377,14 @@ impl ObsOutputRef {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
-        }).await?;
+        })
+        .await?;
 
         if !output_active {
             let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_start(output_ptr)
-            }).await?;
+            })
+            .await?;
 
             if res {
                 return Ok(());
@@ -401,7 +392,8 @@ impl ObsOutputRef {
 
             let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 Sendable(obs_output_get_last_error(output_ptr))
-            }).await?;
+            })
+            .await?;
 
             let c_str = unsafe { CStr::from_ptr(err.0) };
             let err_str = c_str.to_str().ok().map(|x| x.to_string());
@@ -412,7 +404,6 @@ impl ObsOutputRef {
         Err(ObsError::OutputAlreadyActive)
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Stops the output.
     ///
     /// This ends the encoding and streaming/recording process.
@@ -420,21 +411,22 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error with details about why stopping failed
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn stop(&mut self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
-        }).await?;
+        })
+        .await?;
 
         if output_active {
+            let mut rx = self.signal_manager.get_stop_receiver().await?;
             run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_stop(output_ptr)
-            }).await?;
+            })
+            .await?;
 
-            let signal = rec_output_signal(&self)
-                .await
-                .map_err(|e| ObsError::OutputStopFailure(Some(e.to_string())))?;
-
+            let signal = rx.recv().await.map_err(|_| ObsError::NoSenderError)?;
             log::debug!("Signal: {:?}", signal);
             if signal == ObsOutputStopSignal::Success {
                 return Ok(());
@@ -447,49 +439,45 @@ impl ObsOutputRef {
             "Output is not active.".to_string(),
         )));
     }
-}
 
-extern "C" fn signal_handler(_data: *mut std::ffi::c_void, cd: *mut calldata_t) {
-    unsafe {
-        let mut output = ptr::null_mut();
-        let output_str = CString::new("output").unwrap();
-        let output_got = calldata_get_data(
-            cd,
-            output_str.as_ptr(),
-            &mut output as *mut _ as *mut std::ffi::c_void,
-            size_of::<*mut std::ffi::c_void>(),
-        );
-        if !output_got {
-            return;
-        }
-
-        let mut code = 0i64;
-        let code_str = CString::new("code").unwrap();
-        let code_got = calldata_get_data(
-            cd,
-            code_str.as_ptr(),
-            &mut code as *mut _ as *mut std::ffi::c_void,
-            size_of::<i64>(),
-        );
-
-        if !code_got {
-            return;
-        }
-
-        let name = obs_output_get_name(output as *mut _);
-        let name_str = CStr::from_ptr(name).to_string_lossy().to_string();
-
-        let signal = ObsOutputStopSignal::try_from(code as i32);
-        if signal.is_err() {
-            return;
-        }
-
-        let signal = signal.unwrap();
-        let r = rw_lock_blocking_read!(OUTPUT_SIGNALS);
-        let r = r.0.send((name_str, signal));
-        if let Err(e) = r {
-            eprintln!("Couldn't send msg {:?}", e);
-            return;
-        }
+    pub fn as_ptr(&self) -> Sendable<*mut obs_output> {
+        self.output.clone()
     }
 }
+
+pub unsafe fn process_stop_signal(
+    cd: *mut libobs::calldata_t,
+) -> anyhow::Result<ObsOutputStopSignal> {
+    let mut code = 0i64;
+    let code_str = CString::new("code").unwrap();
+    let got_code = libobs::calldata_get_data(
+        cd,
+        code_str.as_ptr(),
+        &mut code as *mut _ as *mut std::ffi::c_void,
+        size_of::<i64>(),
+    );
+
+    if !got_code {
+        bail!("Failed to get code from calldata");
+    }
+
+    let signal = ObsOutputStopSignal::try_from(code as i32);
+    if let Err(e) = signal {
+        bail!("Failed to convert code to ObsOutputStopSignal: {}", e);
+    }
+
+    Ok(signal.unwrap())
+}
+
+impl_signal_manager!("output", ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
+    "start": process_no_op => (),
+    "stop": process_stop_signal => crate::enums::ObsOutputStopSignal,
+    "pause": process_no_op => (),
+    "unpause": process_no_op => (),
+    "starting": process_no_op => (),
+    "stopping": process_no_op => (),
+    "activate": process_no_op => (),
+    "deactivate": process_no_op => (),
+    "reconnect": process_no_op => (),
+    "reconnect_success": process_no_op => (),
+]);

@@ -52,3 +52,21 @@ macro_rules! rw_lock_blocking_read {
         $lock.read()
     };
 }
+
+
+#[macro_export]
+#[cfg(not(feature="blocking"))]
+macro_rules! rw_lock_blocking_write {
+    ($lock:expr) => {
+        $lock.blocking_write()
+    };
+}
+
+
+#[macro_export]
+#[cfg(feature="blocking")]
+macro_rules! rw_lock_blocking_write {
+    ($lock:expr) => {
+        $lock.write()
+    };
+}

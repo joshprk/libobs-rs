@@ -7,11 +7,7 @@ use libobs::{
 };
 
 use crate::{
-    data::{immutable::ImmutableObsData, ObsData},
-    impl_obs_drop, run_with_obs,
-    runtime::ObsRuntime,
-    unsafe_send::Sendable,
-    utils::{traits::ObsUpdatable, ObsError, ObsString},
+    data::{immutable::ImmutableObsData, ObsData}, impl_obs_drop, impl_signal_manager, run_with_obs, runtime::ObsRuntime, signals::{get_boolean_processor, process_no_op}, unsafe_send::Sendable, utils::{traits::ObsUpdatable, ObsError, ObsString}
 };
 use std::{ptr, sync::Arc};
 
@@ -27,6 +23,7 @@ pub struct ObsSourceRef {
 
     _guard: Arc<_ObsSourceGuard>,
     pub(crate) runtime: ObsRuntime,
+    pub(crate) signal_manager: Arc<ObsSourceSignals>
 }
 
 impl ObsSourceRef {
@@ -74,6 +71,7 @@ impl ObsSourceRef {
             return Err(ObsError::NullPointer);
         }
 
+        let signals = ObsSourceSignals::new(&source, runtime.clone()).await?;
         Ok(Self {
             source: source.clone(),
             id,
@@ -86,6 +84,7 @@ impl ObsSourceRef {
             }),
             scene_item: None,
             runtime,
+            signal_manager: Arc::new(signals),
         })
     }
 
@@ -142,6 +141,20 @@ impl ObsUpdatable for ObsSourceRef {
         Ok(ImmutableObsData::from_raw(res, self.runtime.clone()).await)
     }
 }
+
+impl_signal_manager!("source", ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
+    "destroy": process_no_op => (),
+    "remove": process_no_op => (),
+    "update": process_no_op => (),
+    "save": process_no_op => (),
+    "load": process_no_op => (),
+    "activate": process_no_op => (),
+    "deactivate": process_no_op => (),
+    "show": process_no_op => (),
+    "hide": process_no_op => (),
+    "mute": process_no_op => (),
+    "push_to_mute_changed": get_boolean_processor("enabled") => bool
+]);
 
 #[derive(Debug)]
 struct _ObsSourceGuard {
