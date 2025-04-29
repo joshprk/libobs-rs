@@ -27,6 +27,8 @@ duplicate = "2.0.0"
 async-trait = "0.1.88"
 log = "0.4.27"
 remove-async-await = { version = "1.0.1", optional = true }
+display-info = "0.5.4"
+libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.3", optional = true }
 
 [features]
 default = ["window-list"]
@@ -38,8 +40,6 @@ env_logger = "0.11.8"
 essi-ffmpeg = "0.2.0"
 lazy_static = "1.5.0"
 tokio = "1.44.1"
-display-info = "0.5.4"
-libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.3", optional = true }
 
 [package.metadata.docs.rs]
 # This also sets the default target to `x86_64-pc-windows-msvc`

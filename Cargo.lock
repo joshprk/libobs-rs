@@ -1916,7 +1916,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1951,7 +1951,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "anyhow",
  "arboard",
