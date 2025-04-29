@@ -17,7 +17,6 @@ use crate::unsafe_send::Sendable;
 use crate::utils::async_sync::RwLock;
 use crate::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
 use crate::{impl_obs_drop, impl_signal_manager, run_with_obs};
-use crate::signals::process_no_op;
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
@@ -470,14 +469,14 @@ pub unsafe fn process_stop_signal(
 }
 
 impl_signal_manager!("output", ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
-    "start": process_no_op => (),
-    "stop": process_stop_signal => crate::enums::ObsOutputStopSignal,
-    "pause": process_no_op => (),
-    "unpause": process_no_op => (),
-    "starting": process_no_op => (),
-    "stopping": process_no_op => (),
-    "activate": process_no_op => (),
-    "deactivate": process_no_op => (),
-    "reconnect": process_no_op => (),
-    "reconnect_success": process_no_op => (),
+    "start": {},
+    "stop": {code: crate::enums::ObsOutputStopSignal},
+    "pause": {},
+    "unpause": {},
+    "starting": {},
+    "stopping": {},
+    "activate": {},
+    "deactivate": {},
+    "reconnect": {},
+    "reconnect_success": {},
 ]);

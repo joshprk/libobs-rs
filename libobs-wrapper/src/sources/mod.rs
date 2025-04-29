@@ -7,8 +7,13 @@ use libobs::{
 };
 
 use crate::{
-    data::{immutable::ImmutableObsData, ObsData}, impl_obs_drop, impl_signal_manager, run_with_obs, runtime::ObsRuntime, signals::{get_boolean_processor, process_no_op}, unsafe_send::Sendable, utils::{traits::ObsUpdatable, ObsError, ObsString}
+    data::{immutable::ImmutableObsData, ObsData},
+    impl_obs_drop, impl_signal_manager, run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{traits::ObsUpdatable, ObsError, ObsString},
 };
+
 use std::{ptr, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -23,7 +28,7 @@ pub struct ObsSourceRef {
 
     _guard: Arc<_ObsSourceGuard>,
     pub(crate) runtime: ObsRuntime,
-    pub(crate) signal_manager: Arc<ObsSourceSignals>
+    pub(crate) signal_manager: Arc<ObsSourceSignals>,
 }
 
 impl ObsSourceRef {
@@ -114,7 +119,8 @@ impl ObsUpdatable for ObsSourceRef {
         log::trace!("Updating source: {:?}", self.source);
         run_with_obs!(self.runtime, (source_ptr, data_ptr), move || unsafe {
             obs_source_update(source_ptr, data_ptr);
-        }).await
+        })
+        .await
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
@@ -122,7 +128,8 @@ impl ObsUpdatable for ObsSourceRef {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             obs_source_reset_settings(source_ptr, data.as_ptr().0);
-        }).await
+        })
+        .await
     }
 
     fn runtime(&self) -> ObsRuntime {
@@ -135,7 +142,8 @@ impl ObsUpdatable for ObsSourceRef {
         let source_ptr = self.source.clone();
         let res = run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             Sendable(libobs::obs_source_get_settings(source_ptr))
-        }).await?;
+        })
+        .await?;
 
         log::trace!("Got settings: {:?}", res);
         Ok(ImmutableObsData::from_raw(res, self.runtime.clone()).await)
@@ -143,17 +151,11 @@ impl ObsUpdatable for ObsSourceRef {
 }
 
 impl_signal_manager!("source", ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
-    "destroy": process_no_op => (),
-    "remove": process_no_op => (),
-    "update": process_no_op => (),
-    "save": process_no_op => (),
-    "load": process_no_op => (),
-    "activate": process_no_op => (),
-    "deactivate": process_no_op => (),
-    "show": process_no_op => (),
-    "hide": process_no_op => (),
-    "mute": process_no_op => (),
-    "push_to_mute_changed": get_boolean_processor("enabled") => bool
+    "filter_add": {struct FilterAddSignal {
+        POINTERS {
+            filter: *mut std::ffi::c_void,
+        }
+    }},
 ]);
 
 #[derive(Debug)]
