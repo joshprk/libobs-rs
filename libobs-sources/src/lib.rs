@@ -28,8 +28,9 @@
 //! .unwrap();
 //! `````
 
-#[cfg(target_family = "windows")]
-/// Windows-specific functionality. Contains a builder for e.g. `window-capture` sources.
+#[cfg(not(windows))]
+compiler_error!("libobs-sources can only be used in windows");
+
 pub mod windows;
 
 pub mod encoders;

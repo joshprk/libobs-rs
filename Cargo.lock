@@ -1882,7 +1882,7 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "bindgen",
  "vsprintf",
@@ -1906,7 +1906,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-source-macro"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "num-traits",
  "proc-macro2",
