@@ -151,11 +151,74 @@ impl ObsUpdatable for ObsSourceRef {
 }
 
 impl_signal_manager!("source", ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
+    "destroy": {},
+    "remove": {},
+    "update": {},
+    "save": {},
+    "load": {},
+    "activate": {},
+    "deactivate": {},
+    "show": {},
+    "hide": {},
+    "mute": { struct MuteSignal {
+        muted: bool
+    } },
+    "push_to_mute_changed": {struct PushToMuteChangedSignal {
+        enabled: bool
+    }},
+    "push_to_mute_delay": {struct PushToMuteDelaySignal {
+        delay: i64
+    }},
+    "push_to_talk_changed": {struct PushToTalkChangedSignal {
+        enabled: bool
+    }},
+    "push_to_talk_delay": {struct PushToTalkDelaySignal {
+        delay: i64
+    }},
+    "enable": {struct EnableSignal {
+        enabled: bool
+    }},
+    "rename": {struct NewNameSignal {
+        new_name: String,
+        prev_name: String
+    }},
+    "update_properties": {},
+    "update_flags": {struct UpdateFlagsSignal {
+        flags: i64
+    }},
+    "audio_sync": {struct AudioSyncSignal {
+        offset: i64,
+    }},
+    "audio_balance": {struct AudioBalanceSignal {
+        balance: f64,
+    }},
+    "audio_mixers": {struct AudioMixersSignal {
+        mixers: i64,
+    }},
+    "audio_activate": {},
+    "audio_deactivate": {},
     "filter_add": {struct FilterAddSignal {
         POINTERS {
-            filter: *mut std::ffi::c_void,
+            filter: *mut libobs::obs_source_t,
         }
     }},
+    "filter_remove": {struct FilterRemoveSignal {
+        POINTERS {
+            filter: *mut libobs::obs_source_t,
+        }
+    }},
+    "reorder_filters": {},
+    "transition_start": {},
+    "transition_video_stop": {},
+    "transition_stop": {},
+    "media_started": {},
+    "media_ended":{},
+    "media_pause": {},
+    "media_play": {},
+    "media_restart": {},
+    "media_stopped": {},
+    "media_next": {},
+    "media_previous": {}
 ]);
 
 #[derive(Debug)]

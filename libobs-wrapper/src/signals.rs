@@ -141,7 +141,10 @@ macro_rules! __signals_impl_signal {
     ($ptr: ty, $signal_name: literal, struct $name: ident {
         $($field_name: ident: $field_type: ty),* $(,)*
     }) => {
-        crate::__signals_impl_signal!($ptr, $signal_name, $($field_name: $field_type),*);
+        crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
+            $($field_name: $field_type),*;
+            POINTERS {}
+        });
     };
     ($ptr: ty, $signal_name: literal, struct $name: ident {
         POINTERS
@@ -203,7 +206,10 @@ macro_rules! impl_signal_manager {
                 }
 
                 let res = res.unwrap();
-                let senders = crate::rw_lock_blocking_read!([<$signal_name:snake:upper _SENDERS>]);
+                #[cfg(feature="blocking")]
+                let senders = [<$signal_name:snake:upper _SENDERS>].read();
+                #[cfg(not(feature="blocking"))]
+                let senders = futures::executor::block_on([<$signal_name:snake:upper _SENDERS>].read());
                 let senders = senders.get(&$crate::unsafe_send::SendableComp(obj_ptr as $ptr));
                 if senders.is_none() {
                     log::warn!("No sender found for signal {}", stringify!($signal_name));
@@ -211,10 +217,7 @@ macro_rules! impl_signal_manager {
                 }
 
                 let senders = senders.unwrap();
-                let res = senders.send(res);
-                if let Err(e) = res {
-                    log::warn!("Error sending signal {}: {:?}", stringify!($signal_name), e);
-                };
+                let _ = senders.send(res);
             })*
 
             #[derive(Debug)]
@@ -258,7 +261,7 @@ macro_rules! impl_signal_manager {
                 $(
                     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
                     pub async fn [<get_ $signal_name:snake _receiver>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
-                        let handlers = crate::rw_lock_blocking_read!([<$signal_name:snake:upper _SENDERS>]);
+                        let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;
                         let rx = handlers.get(&self.pointer)
                             .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
                             .subscribe();
