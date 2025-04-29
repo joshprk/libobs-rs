@@ -1,31 +1,326 @@
-use anyhow::Result;
-use crossbeam_channel::{unbounded, Receiver, Sender};
-use lazy_static::lazy_static;
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __signals_impl_primitive_handler {
+    () => {move || {
+        Ok(())
+    }};
 
-use crate::{data::output::ObsOutputRef, enums::ObsOutputStopSignal, utils::async_sync::RwLock};
+    // Match against all primitive types
+    ($field_name: ident, i8) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i8) };
+    ($field_name: ident, i16) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i16) };
+    ($field_name: ident, i32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i32) };
+    ($field_name: ident, i64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i64) };
+    ($field_name: ident, i128) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i128) };
+    ($field_name: ident, isize) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, isize) };
 
-pub type OutputSignalType = (String, ObsOutputStopSignal);
-lazy_static! {
-    pub static ref OUTPUT_SIGNALS: RwLock<(Sender<OutputSignalType>, Receiver<OutputSignalType>)> =
-        RwLock::new(unbounded());
-    static ref SIGNALS: RwLock<Vec<OutputSignalType>> = RwLock::new(vec![]);
-}
+    ($field_name: ident, u8) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u8) };
+    ($field_name: ident, u16) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u16) };
+    ($field_name: ident, u32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u32) };
+    ($field_name: ident, u64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u64) };
+    ($field_name: ident, u128) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u128) };
+    ($field_name: ident, usize) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, usize) };
 
-#[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-pub async fn rec_output_signal(output: &ObsOutputRef) -> Result<ObsOutputStopSignal> {
-    let receiver = &OUTPUT_SIGNALS.read().await.1;
-    let mut s = SIGNALS.write().await;
+    ($field_name: ident, f32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, f32) };
+    ($field_name: ident, f64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, f64) };
 
-    while let Some(e) = receiver.try_recv().ok() {
-        s.push(e);
-    }
+    ($field_name: ident, bool) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, bool) };
+    ($field_name: ident, char) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, char) };
 
-    for i in 0..s.len() {
-        if s[i].0 == output.name().to_string() {
-            let s = s.remove(i);
-            return Ok(s.1);
+    ($field_name: ident, String) => {
+        move |__internal_calldata|  {
+            let mut $field_name = std::ptr::null_mut();
+            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let success = libobs::calldata_get_string(
+                __internal_calldata,
+                obs_str.as_ptr().0,
+                &mut $field_name as *const _ as _,
+            );
+
+            if !success {
+                return Err(anyhow::anyhow!(
+                    "Failed to get {} from calldata",
+                    stringify!($field_name)
+                ));
+            }
+
+            let $field_name = std::ffi::CStr::from_ptr($field_name).to_str()?;
+
+            Result::<_, anyhow::Error>::Ok($field_name.to_owned())
+        }
+    };
+
+    // For any other type, return false
+    ($field_name: ident, $other:ty) => { crate::__signals_impl_primitive_handler!(__enum $field_name, $other) };
+
+    (__inner, $field_name: ident, $field_type: ty) => {
+        move |__internal_calldata| {
+            let mut $field_name = std::mem::zeroed::<$field_type>();
+            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let success = libobs::calldata_get_data(
+                __internal_calldata,
+                obs_str.as_ptr().0,
+                &mut $field_name as *const _ as *mut std::ffi::c_void,
+                std::mem::size_of::<$field_type>(),
+            );
+
+            if !success {
+                return Err(anyhow::anyhow!(
+                    "Failed to get {} from calldata",
+                    stringify!($field_name)
+                ));
+            }
+
+            Result::<_, anyhow::Error>::Ok($field_name)
+        }
+    };
+    (__ptr, $field_name: ident, $field_type: ty) => {
+        move |__internal_calldata| {
+            let mut $field_name = std::mem::zeroed::<$field_type>();
+            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let success = libobs::calldata_get_data(
+                __internal_calldata,
+                obs_str.as_ptr().0,
+                &mut $field_name as *const _ as *mut std::ffi::c_void,
+                std::mem::size_of::<$field_type>(),
+            );
+
+            if !success {
+                return Err(anyhow::anyhow!(
+                    "Failed to get {} from calldata",
+                    stringify!($field_name)
+                ));
+            }
+
+            Result::<_, anyhow::Error>::Ok(crate::unsafe_send::Sendable($field_name))
+        }
+    };
+    (__enum $field_name: ident, $enum_type: ty) => {
+        move |__internal_calldata| {
+            let code = crate::__signals_impl_primitive_handler!(__inner, $field_name, i64)(__internal_calldata)?;
+            let en = <$enum_type>::try_from(code as i32);
+            if let Err(e) = en {
+                anyhow::bail!("Failed to convert code to {}: {}", stringify!($field_name), e);
+            }
+
+            Result::<_, anyhow::Error>::Ok(en.unwrap())
         }
     }
+}
 
-    Ok(receiver.recv()?.1)
+#[macro_export]
+#[doc(hidden)]
+macro_rules! __signals_impl_signal {
+    ($ptr: ty, $signal_name: literal, $field_name: ident: $gen_type:ty) => {
+        paste::paste! {
+            type [<__Private $signal_name:camel Type >] = $gen_type;
+            lazy_static::lazy_static! {
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$gen_type>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+            }
+
+            unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$gen_type> {
+                let e = crate::__signals_impl_primitive_handler!($field_name, $gen_type)(cd);
+
+                e
+            }
+        }
+
+    };
+    ($ptr: ty, $signal_name: literal, ) => {
+        paste::paste! {
+            type [<__Private $signal_name:camel Type >] = ();
+            lazy_static::lazy_static! {
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<()>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+            }
+
+            unsafe fn [< $signal_name:snake _handler_inner>](_cd: *mut libobs::calldata_t) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+
+    };
+    ($ptr: ty, $signal_name: literal, struct $name: ident {
+        $($field_name: ident: $field_type: ty),* $(,)*
+    }) => {
+        crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
+            $($field_name: $field_type),*;
+            POINTERS {}
+        });
+    };
+    ($ptr: ty, $signal_name: literal, struct $name: ident {
+        POINTERS
+        {$($ptr_field_name: ident: $ptr_field_type: ty),* $(,)*}
+    }) => {
+        crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
+            ;POINTERS { $($ptr_field_name: $ptr_field_type),* }
+        });
+    };
+    ($ptr: ty, $signal_name: literal, struct $name: ident {
+        $($field_name: ident: $field_type: ty),* $(,)*;
+        POINTERS
+        {$($ptr_field_name: ident: $ptr_field_type: ty),* $(,)*}
+    }) => {
+        paste::paste! {
+            type [<__Private $signal_name:camel Type >] = $name;
+            lazy_static::lazy_static! {
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$name>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+            }
+
+            #[derive(Debug, Clone)]
+            pub struct $name {
+                $(pub $field_name: $field_type,)*
+                $(pub $ptr_field_name: crate::unsafe_send::Sendable<$ptr_field_type>,)*
+            }
+
+            unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$name> {
+                $(
+                    let $field_name = crate::__signals_impl_primitive_handler!($field_name, $field_type)(cd)?;
+                )*
+                $(
+                    let $ptr_field_name = crate::__signals_impl_primitive_handler!(__ptr, $ptr_field_name, $ptr_field_type)(cd)?;
+                )*
+
+                Ok($name {
+                    $($field_name,)*
+                    $($ptr_field_name,)*
+                })
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! impl_signal_manager {
+    ($handler_getter: expr, $name: ident for $ref: ident<$ptr: ty>, [
+        $($signal_name: literal: { $($inner_def:tt)* }),* $(,)*
+    ]) => {
+        paste::paste! {
+            $(crate::__signals_impl_signal!($ptr, $signal_name, $($inner_def)*);)*
+
+            $(
+            extern "C" fn [< $signal_name:snake _handler>](obj_ptr: *mut std::ffi::c_void, __internal_calldata: *mut libobs::calldata_t) {
+                #[allow(unused_unsafe)]
+                let res = unsafe { [< $signal_name:snake _handler_inner>](__internal_calldata) };
+                if res.is_err() {
+                    log::warn!("Error processing signal {}: {:?}", stringify!($signal_name), res.err());
+                    return;
+                }
+
+                let res = res.unwrap();
+                #[cfg(feature="blocking")]
+                let senders = [<$signal_name:snake:upper _SENDERS>].read();
+                #[cfg(not(feature="blocking"))]
+                let senders = futures::executor::block_on([<$signal_name:snake:upper _SENDERS>].read());
+                let senders = senders.get(&$crate::unsafe_send::SendableComp(obj_ptr as $ptr));
+                if senders.is_none() {
+                    log::warn!("No sender found for signal {}", stringify!($signal_name));
+                    return;
+                }
+
+                let senders = senders.unwrap();
+                let _ = senders.send(res);
+            })*
+
+            #[derive(Debug)]
+            pub struct $name {
+                pointer: $crate::unsafe_send::SendableComp<$ptr>,
+                runtime: $crate::runtime::ObsRuntime
+            }
+
+            impl $name {
+                #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+                pub(crate) async fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, crate::utils::ObsError> {
+                    use crate::{utils::ObsString, unsafe_send::SendableComp};
+                    let pointer =  SendableComp(ptr.0);
+
+                    $(
+                        let senders = [<$signal_name:snake:upper _SENDERS>].clone();
+                        let mut senders = senders.write().await;
+                        let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
+                        senders.insert(pointer.clone(), tx);
+                    )*
+
+                    crate::run_with_obs!(runtime, (pointer), move || unsafe {
+                            let handler = ($handler_getter)(pointer);
+                            $(
+                                let signal = ObsString::new($signal_name);
+                                libobs::signal_handler_connect(
+                                    handler,
+                                    signal.as_ptr().0,
+                                    Some([< $signal_name:snake _handler>]),
+                                    pointer as *mut std::ffi::c_void,
+                                );
+                            )*
+                    }).await?;
+
+                    Ok(Self {
+                        pointer,
+                        runtime
+                    })
+                }
+
+                $(
+                    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+                    pub async fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
+                        let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;
+                        let rx = handlers.get(&self.pointer)
+                            .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
+                            .subscribe();
+
+                        Ok(rx)
+                    }
+                )*
+            }
+
+            impl Drop for $name {
+                fn drop(&mut self) {
+                    #[allow(unused_variables)]
+                    let ptr = self.pointer.clone();
+                    #[allow(unused_variables)]
+                    let runtime = self.runtime.clone();
+
+                    let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
+                        #[allow(unused_variables)]
+                        let handler = ($handler_getter)(ptr);
+                        $(
+                            let signal = crate::utils::ObsString::new($signal_name);
+                            libobs::signal_handler_disconnect(
+                                handler,
+                                signal.as_ptr().0,
+                                Some([< $signal_name:snake _handler>]),
+                                ptr as *mut std::ffi::c_void,
+                            );
+                        )*
+                    });
+
+                    #[allow(unused_variables)]
+                    let tmp_ptr = self.pointer.clone();
+                    #[cfg(not(feature="blocking"))]
+                    let r = futures::executor::block_on(async move {
+                        $(
+                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write().await;
+                            handlers.remove(&tmp_ptr);
+                        )*
+
+                        future.await
+                    });
+
+                    #[cfg(feature="blocking")]
+                    let r = {
+                        $(
+                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write();
+                            handlers.remove(&self.pointer);
+                        )*
+
+                        future
+                    };
+
+                    if std::thread::panicking() {
+                        return;
+                    }
+
+                    r.unwrap();
+                }
+            }
+        }
+    };
 }

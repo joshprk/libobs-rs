@@ -24,7 +24,7 @@ pub async fn monitor_test() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
-    let (mut context, mut output) = initialize_obs("monitor_capture.mp4").await;
+    let (mut context, mut output) = initialize_obs(rec_file).await;
     let mut scene = context.scene("main").await.unwrap();
 
     let monitor = MonitorCaptureSourceBuilder::get_monitors().unwrap()[0].clone();

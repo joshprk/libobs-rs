@@ -8,11 +8,12 @@ use libobs::{
 
 use crate::{
     data::{immutable::ImmutableObsData, ObsData},
-    impl_obs_drop, run_with_obs,
+    impl_obs_drop, impl_signal_manager, run_with_obs,
     runtime::ObsRuntime,
     unsafe_send::Sendable,
     utils::{traits::ObsUpdatable, ObsError, ObsString},
 };
+
 use std::{ptr, sync::Arc};
 
 #[derive(Debug, Clone)]
@@ -27,6 +28,7 @@ pub struct ObsSourceRef {
 
     _guard: Arc<_ObsSourceGuard>,
     pub(crate) runtime: ObsRuntime,
+    pub(crate) signal_manager: Arc<ObsSourceSignals>,
 }
 
 impl ObsSourceRef {
@@ -74,6 +76,7 @@ impl ObsSourceRef {
             return Err(ObsError::NullPointer);
         }
 
+        let signals = ObsSourceSignals::new(&source, runtime.clone()).await?;
         Ok(Self {
             source: source.clone(),
             id,
@@ -86,6 +89,7 @@ impl ObsSourceRef {
             }),
             scene_item: None,
             runtime,
+            signal_manager: Arc::new(signals),
         })
     }
 
@@ -104,6 +108,10 @@ impl ObsSourceRef {
     pub fn id(&self) -> String {
         self.id.to_string()
     }
+
+    pub fn signal_manager(&self) -> Arc<ObsSourceSignals> {
+        self.signal_manager.clone()
+    }
 }
 
 #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
@@ -115,7 +123,8 @@ impl ObsUpdatable for ObsSourceRef {
         log::trace!("Updating source: {:?}", self.source);
         run_with_obs!(self.runtime, (source_ptr, data_ptr), move || unsafe {
             obs_source_update(source_ptr, data_ptr);
-        }).await
+        })
+        .await
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
@@ -123,7 +132,8 @@ impl ObsUpdatable for ObsSourceRef {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             obs_source_reset_settings(source_ptr, data.as_ptr().0);
-        }).await
+        })
+        .await
     }
 
     fn runtime(&self) -> ObsRuntime {
@@ -136,12 +146,84 @@ impl ObsUpdatable for ObsSourceRef {
         let source_ptr = self.source.clone();
         let res = run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             Sendable(libobs::obs_source_get_settings(source_ptr))
-        }).await?;
+        })
+        .await?;
 
         log::trace!("Got settings: {:?}", res);
         Ok(ImmutableObsData::from_raw(res, self.runtime.clone()).await)
     }
 }
+
+impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
+    "destroy": {},
+    "remove": {},
+    "update": {},
+    "save": {},
+    "load": {},
+    "activate": {},
+    "deactivate": {},
+    "show": {},
+    "hide": {},
+    "mute": { struct MuteSignal {
+        muted: bool
+    } },
+    "push_to_mute_changed": {struct PushToMuteChangedSignal {
+        enabled: bool
+    }},
+    "push_to_mute_delay": {struct PushToMuteDelaySignal {
+        delay: i64
+    }},
+    "push_to_talk_changed": {struct PushToTalkChangedSignal {
+        enabled: bool
+    }},
+    "push_to_talk_delay": {struct PushToTalkDelaySignal {
+        delay: i64
+    }},
+    "enable": {struct EnableSignal {
+        enabled: bool
+    }},
+    "rename": {struct NewNameSignal {
+        new_name: String,
+        prev_name: String
+    }},
+    "update_properties": {},
+    "update_flags": {struct UpdateFlagsSignal {
+        flags: i64
+    }},
+    "audio_sync": {struct AudioSyncSignal {
+        offset: i64,
+    }},
+    "audio_balance": {struct AudioBalanceSignal {
+        balance: f64,
+    }},
+    "audio_mixers": {struct AudioMixersSignal {
+        mixers: i64,
+    }},
+    "audio_activate": {},
+    "audio_deactivate": {},
+    "filter_add": {struct FilterAddSignal {
+        POINTERS {
+            filter: *mut libobs::obs_source_t,
+        }
+    }},
+    "filter_remove": {struct FilterRemoveSignal {
+        POINTERS {
+            filter: *mut libobs::obs_source_t,
+        }
+    }},
+    "reorder_filters": {},
+    "transition_start": {},
+    "transition_video_stop": {},
+    "transition_stop": {},
+    "media_started": {},
+    "media_ended":{},
+    "media_pause": {},
+    "media_play": {},
+    "media_restart": {},
+    "media_stopped": {},
+    "media_next": {},
+    "media_previous": {}
+]);
 
 #[derive(Debug)]
 struct _ObsSourceGuard {

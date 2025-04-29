@@ -53,7 +53,7 @@ use crate::{
     context::OBS_THREAD_ID,
     utils::{async_sync::Mutex, StartupInfo},
 };
-use crate::{mutex_blocking_lock, rx_recv};
+use crate::{mutex_blocking_lock, oneshot_rx_recv};
 
 /// Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -272,7 +272,7 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (mut m, info) = rx_recv!(init_rx)??;
+        let (mut m, info) = oneshot_rx_recv!(init_rx)??;
 
         let handle = Arc::new(Mutex::new(Some(handle)));
         let command_sender = Arc::new(command_sender);
@@ -415,7 +415,7 @@ impl ObsRuntime {
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
 
         let result =
-            rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+            oneshot_rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         let res = result
@@ -569,14 +569,16 @@ impl ObsRuntime {
                 let allocs = unsafe { libobs::bnum_allocs() };
 
                 // Increasing this to 1 because of whats described below
+                let mut notice = "";
                 let level = if allocs > 1 {
                     ObsLogLevel::Error
                 } else {
+                    notice = " (this is an issue in the OBS source code that cannot be fixed)";
                     ObsLogLevel::Info
                 };
                 // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
                 // even when obs_remove_data_path is called. This is a bug in OBS.
-                logger.log(level, format!("Number of memory leaks: {}", allocs))
+                logger.log(level, format!("Number of memory leaks: {}{}", allocs, notice))
             }
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");
