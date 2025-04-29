@@ -1,7 +1,7 @@
 [package]
 name = "libobs-sources"
 description = "A helper crate to create sources for OBS"
-version = "2.0.1"
+version = "2.0.2"
 repository = "https://github.com/joshprk/libobs-rs"
 readme = "README.md"
 authors = ["sshcrack"]
@@ -17,7 +17,7 @@ edition = "2021"
 
 [dependencies]
 libobs = { package = "libobs", version = "2.0.5", path = "../libobs" }
-libobs-wrapper = { path = "../libobs-wrapper", version = "3.0.1" }
+libobs-wrapper = { path = "../libobs-wrapper", version = "3.0.2" }
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 libobs-source-macro = { path = "../libobs-source-macro", version = "2.0.1" }
