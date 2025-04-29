@@ -177,8 +177,37 @@ impl_signal_manager!(|scene_ptr| {
     "refresh": {},
     "item_visible": {
         struct ItemVisibleSignal {
-            visible: bool,
-            ;POINTERS {
+            visible: bool,;
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "item_locked": {
+        struct ItemLockedSignal {
+            locked: bool,;
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "item_select": {
+        struct ItemSelectSignal {
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "item_deselect": {
+        struct ItemDeselectSignal {
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "item_transform": {
+        struct ItemTransformSignal {
+            POINTERS {
                 item: *mut libobs::obs_sceneitem_t,
             }
         }
