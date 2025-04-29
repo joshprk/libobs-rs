@@ -51,8 +51,6 @@ libloading = { version="0.8.6", optional = true }
 futures = "0.3.31"
 remove-async-await = { version = "1.0.1", optional = true }
 parking_lot = { version = "0.12.3", optional = true }
-
-[target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
@@ -84,3 +82,7 @@ bootstrapper = [
     "dep:libloading"
 ]
 blocking = ["dep:remove-async-await", "dep:parking_lot"]
+
+[package.metadata.docs.rs]
+# This also sets the default target to `x86_64-pc-windows-msvc`
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

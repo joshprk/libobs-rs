@@ -1,3 +1,6 @@
+#[cfg(not(windows))]
+compiler_error!("libobs-wrapper can only be used in windows");
+
 pub mod unsafe_send;
 pub mod crash_handler;
 pub mod data;
