@@ -108,6 +108,10 @@ impl ObsSourceRef {
     pub fn id(&self) -> String {
         self.id.to_string()
     }
+
+    pub fn signal_manager(&self) -> Arc<ObsSourceSignals> {
+        self.signal_manager.clone()
+    }
 }
 
 #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]

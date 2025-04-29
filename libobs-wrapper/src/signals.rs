@@ -260,7 +260,7 @@ macro_rules! impl_signal_manager {
 
                 $(
                     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-                    pub async fn [<get_ $signal_name:snake _receiver>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
+                    pub async fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
                         let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;
                         let rx = handlers.get(&self.pointer)
                             .ok_or_else(|| crate::utils::ObsError::NoSenderError)?

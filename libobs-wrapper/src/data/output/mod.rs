@@ -419,7 +419,7 @@ impl ObsOutputRef {
         .await?;
 
         if output_active {
-            let mut rx = self.signal_manager.get_stop_receiver().await?;
+            let mut rx = self.signal_manager.on_stop().await?;
             run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_stop(output_ptr)
             })

@@ -225,6 +225,18 @@ async fn main() -> anyhow::Result<()> {
 
     scene.set_to_channel(0).await?;
 
+    // Example for signals and events with libobs
+    let tmp = source.clone();
+    task::spawn(async move {
+        let signal_manager = tmp.signal_manager();
+        let mut x = signal_manager.on_update().await.unwrap();
+
+        println!("Listening for updates");
+        while let Ok(_) = x.recv().await {
+            println!("Monitor Source has been updated!");
+        }
+    });
+
     let event_loop = EventLoop::new()?;
     let mut app = App {
         window: Arc::new(RwLock::new(None)),
