@@ -1087,17 +1087,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
-name = "duplicate"
-version = "2.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97af9b5f014e228b33e77d75ee0e6e87960124f0f4b16337b586a6bec91867b1"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "proc-macro2-diagnostics",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2451,15 +2440,14 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.0.3"
+version = "2.0.5"
 dependencies = [
  "bindgen",
- "cc",
 ]
 
 [[package]]
 name = "libobs-source-macro"
-version = "1.0.0"
+version = "2.0.1"
 dependencies = [
  "num-traits",
  "proc-macro2",
@@ -2469,12 +2457,11 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "1.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
  "display-info",
- "duplicate",
  "libobs",
  "libobs-source-macro",
  "libobs-window-helper",
@@ -2496,7 +2483,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "2.0.3"
+version = "3.0.1"
 dependencies = [
  "anyhow",
  "arboard",
@@ -2504,7 +2491,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "colored",
- "crossbeam-channel",
  "dialog",
  "display-info",
  "futures",
@@ -3536,19 +3522,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a31971752e70b8b2686d7e46ec17fb38dad4051d94024c88df49b667caea9c84"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "proc-macro2-diagnostics"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.100",
- "version_check",
- "yansi",
 ]
 
 [[package]]
@@ -6323,12 +6296,6 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
-
-[[package]]
-name = "yansi"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
 
 [[package]]
 name = "yoke"

@@ -17,7 +17,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.97"
-libobs = { package = "libobs", version = "2.0.4", path = "../libobs" }
+libobs = { package = "libobs", version = "2.0.5", path = "../libobs" }
 display-info = "0.5.4"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
