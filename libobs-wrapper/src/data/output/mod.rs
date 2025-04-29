@@ -468,7 +468,7 @@ pub unsafe fn process_stop_signal(
     Ok(signal.unwrap())
 }
 
-impl_signal_manager!("output", ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
+impl_signal_manager!(|ptr| libobs::obs_output_get_signal_handler(ptr), ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
     "start": {},
     "stop": {code: crate::enums::ObsOutputStopSignal},
     "pause": {},

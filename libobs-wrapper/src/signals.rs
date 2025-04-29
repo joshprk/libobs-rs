@@ -167,8 +167,8 @@ macro_rules! __signals_impl_signal {
 
             #[derive(Debug, Clone)]
             pub struct $name {
-                $(pub $field_name: $field_type),*
-                $(pub $ptr_field_name: crate::unsafe_send::Sendable<$ptr_field_type>),*,
+                $(pub $field_name: $field_type,)*
+                $(pub $ptr_field_name: crate::unsafe_send::Sendable<$ptr_field_type>,)*
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$name> {
@@ -180,8 +180,8 @@ macro_rules! __signals_impl_signal {
                 )*
 
                 Ok($name {
-                    $($field_name),*
-                    $($ptr_field_name),*
+                    $($field_name,)*
+                    $($ptr_field_name,)*
                 })
             }
         }
@@ -190,7 +190,7 @@ macro_rules! __signals_impl_signal {
 
 #[macro_export]
 macro_rules! impl_signal_manager {
-    ($objName: literal, $name: ident for $ref: ident<$ptr: ty>, [
+    ($handler_getter: expr, $name: ident for $ref: ident<$ptr: ty>, [
         $($signal_name: literal: { $($inner_def:tt)* }),* $(,)*
     ]) => {
         paste::paste! {
@@ -240,7 +240,7 @@ macro_rules! impl_signal_manager {
                     )*
 
                     crate::run_with_obs!(runtime, (pointer), move || unsafe {
-                            let handler = libobs::[< obs_ $objName:snake _get_signal_handler>](pointer);
+                            let handler = ($handler_getter)(pointer);
                             $(
                                 let signal = ObsString::new($signal_name);
                                 libobs::signal_handler_connect(
@@ -277,7 +277,7 @@ macro_rules! impl_signal_manager {
                     let runtime = self.runtime.clone();
 
                     let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
-                        let handler = libobs::[< obs_ $objName:snake _get_signal_handler>](ptr);
+                        let handler = ($handler_getter)(ptr);
                         $(
                             let signal = crate::utils::ObsString::new($signal_name);
                             libobs::signal_handler_disconnect(

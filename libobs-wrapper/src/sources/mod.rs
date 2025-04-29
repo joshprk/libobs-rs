@@ -150,7 +150,7 @@ impl ObsUpdatable for ObsSourceRef {
     }
 }
 
-impl_signal_manager!("source", ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
+impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
     "destroy": {},
     "remove": {},
     "update": {},

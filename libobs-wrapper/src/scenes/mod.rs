@@ -4,11 +4,7 @@ use getters0::Getters;
 use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
 
 use crate::{
-    impl_obs_drop, run_with_obs,
-    runtime::ObsRuntime,
-    sources::ObsSourceRef,
-    unsafe_send::Sendable,
-    utils::{async_sync::RwLock, ObsError, ObsString, SourceInfo},
+    impl_obs_drop, impl_signal_manager, run_with_obs, runtime::ObsRuntime, sources::ObsSourceRef, unsafe_send::Sendable, utils::{async_sync::RwLock, ObsError, ObsString, SourceInfo}
 };
 
 #[derive(Debug)]
@@ -37,6 +33,8 @@ pub struct ObsSceneRef {
 
     #[skip_getter]
     runtime: ObsRuntime,
+
+    pub(crate) signals: Arc<ObsSceneSignals>,
 }
 
 impl ObsSceneRef {
@@ -51,6 +49,7 @@ impl ObsSceneRef {
             Sendable(libobs::obs_scene_create(name_ptr))
         }).await?;
 
+        let signals = Arc::new(ObsSceneSignals::new(&scene, runtime.clone()).await?);
         Ok(Self {
             name,
             scene: Arc::new(scene.clone()),
@@ -61,6 +60,7 @@ impl ObsSceneRef {
                 runtime: runtime.clone(),
             }),
             runtime,
+            signals,
         })
     }
 
@@ -153,3 +153,34 @@ impl ObsSceneRef {
         Sendable(self.scene.0)
     }
 }
+
+impl_signal_manager!(|scene_ptr| {
+    let source_ptr = libobs::obs_scene_get_source(scene_ptr);
+
+    libobs::obs_source_get_signal_handler(source_ptr)
+}, ObsSceneSignals for ObsSceneRef<*mut libobs::obs_scene_t>, [
+    "item_add": {
+        struct ItemAddSignal {
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "item_remove": {
+        struct ItemRemoveSignal {
+            POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    },
+    "reorder": {},
+    "refresh": {},
+    "item_visible": {
+        struct ItemVisibleSignal {
+            visible: bool,
+            ;POINTERS {
+                item: *mut libobs::obs_sceneitem_t,
+            }
+        }
+    }
+]);
