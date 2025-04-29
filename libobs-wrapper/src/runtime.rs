@@ -53,7 +53,7 @@ use crate::{
     context::OBS_THREAD_ID,
     utils::{async_sync::Mutex, StartupInfo},
 };
-use crate::{mutex_blocking_lock, rx_recv};
+use crate::{mutex_blocking_lock, oneshot_rx_recv};
 
 /// Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -272,7 +272,7 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (mut m, info) = rx_recv!(init_rx)??;
+        let (mut m, info) = oneshot_rx_recv!(init_rx)??;
 
         let handle = Arc::new(Mutex::new(Some(handle)));
         let command_sender = Arc::new(command_sender);
@@ -415,7 +415,7 @@ impl ObsRuntime {
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
 
         let result =
-            rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+            oneshot_rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         let res = result

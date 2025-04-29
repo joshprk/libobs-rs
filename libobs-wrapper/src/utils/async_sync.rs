@@ -6,9 +6,17 @@ pub use parking_lot::{Mutex, RwLock};
 
 #[macro_export]
 #[cfg(not(feature="blocking"))]
-macro_rules! rx_recv {
+macro_rules! oneshot_rx_recv {
     ($rx:ident) => {
         $rx.await
+    };
+}
+
+#[macro_export]
+#[cfg(not(feature="blocking"))]
+macro_rules! rx_recv {
+    ($rx:ident) => {
+        $rx.recv().await
     };
 }
 
@@ -19,6 +27,15 @@ macro_rules! rx_recv {
         $rx.blocking_recv()
     };
 }
+
+#[macro_export]
+#[cfg(feature="blocking")]
+macro_rules! oneshot_rx_recv {
+    ($rx:ident) => {
+        $rx.blocking_recv()
+    };
+}
+
 
 #[macro_export]
 #[cfg(not(feature="blocking"))]

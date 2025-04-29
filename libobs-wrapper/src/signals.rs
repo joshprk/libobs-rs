@@ -273,10 +273,13 @@ macro_rules! impl_signal_manager {
 
             impl Drop for $name {
                 fn drop(&mut self) {
+                    #[allow(unused_variables)]
                     let ptr = self.pointer.clone();
+                    #[allow(unused_variables)]
                     let runtime = self.runtime.clone();
 
                     let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
+                        #[allow(unused_variables)]
                         let handler = ($handler_getter)(ptr);
                         $(
                             let signal = crate::utils::ObsString::new($signal_name);
@@ -289,6 +292,7 @@ macro_rules! impl_signal_manager {
                         )*
                     });
 
+                    #[allow(unused_variables)]
                     let tmp_ptr = self.pointer.clone();
                     #[cfg(not(feature="blocking"))]
                     let r = futures::executor::block_on(async move {
@@ -303,7 +307,7 @@ macro_rules! impl_signal_manager {
                     #[cfg(feature="blocking")]
                     let r = {
                         $(
-                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].blocking_write();
+                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write();
                             handlers.remove(&self.pointer);
                         )*
 

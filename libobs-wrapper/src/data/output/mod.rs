@@ -16,7 +16,7 @@ use crate::runtime::ObsRuntime;
 use crate::unsafe_send::Sendable;
 use crate::utils::async_sync::RwLock;
 use crate::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
-use crate::{impl_obs_drop, impl_signal_manager, run_with_obs};
+use crate::{impl_obs_drop, impl_signal_manager, run_with_obs, rx_recv};
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
@@ -425,7 +425,7 @@ impl ObsOutputRef {
             })
             .await?;
 
-            let signal = rx.recv().await.map_err(|_| ObsError::NoSenderError)?;
+            let signal = rx_recv!(rx).map_err(|_| ObsError::NoSenderError)?;
             log::debug!("Signal: {:?}", signal);
             if signal == ObsOutputStopSignal::Success {
                 return Ok(());

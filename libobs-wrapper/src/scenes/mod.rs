@@ -177,7 +177,7 @@ impl_signal_manager!(|scene_ptr| {
     "refresh": {},
     "item_visible": {
         struct ItemVisibleSignal {
-            visible: bool,;
+            visible: bool;
             POINTERS {
                 item: *mut libobs::obs_sceneitem_t,
             }
@@ -185,7 +185,7 @@ impl_signal_manager!(|scene_ptr| {
     },
     "item_locked": {
         struct ItemLockedSignal {
-            locked: bool,;
+            locked: bool;
             POINTERS {
                 item: *mut libobs::obs_sceneitem_t,
             }
