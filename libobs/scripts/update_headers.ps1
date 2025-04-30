@@ -30,7 +30,7 @@ if (Test-Path -Path $tempDir) {
 
 # Clone the repository with depth 1
 Write-Host "Cloning obs-studio repository (branch/tag: $Branch)..."
-git clone --depth 1 --branch $Branch https://github.com/$Repository.git $tempDir
+git clone --recursive --depth 1 --branch $Branch https://github.com/$Repository.git $tempDir
 
 if (-not $?) {
     Write-Error "Failed to clone the repository. Make sure git is installed and the branch/tag name is correct."
@@ -60,15 +60,26 @@ Write-Host "Found $headerCount header files."
 foreach ($file in $headerFiles) {
     $relativePath = $file.FullName.Substring($sourceHeaderDir.Length + 1)
     $destination = Join-Path -Path $targetHeaderDir -ChildPath $relativePath
-    
+
     # Ensure the destination directory exists
     $destinationDir = Split-Path -Path $destination -Parent
     if (-not (Test-Path -Path $destinationDir)) {
         New-Item -Path $destinationDir -ItemType Directory -Force | Out-Null
     }
-    
+
     Copy-Item -Path $file.FullName -Destination $destination -Force
 }
+
+Write-Host "Configuring CMake for libobs..."
+Push-Location $tempDir
+try {
+    cmake -DENABLE_PLUGINS=OFF -DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_HEVC=OFF -DENABLE_FRONTEND=OFF --preset windows-x64
+    cmake --build --preset windows-x64
+} finally {
+    Pop-Location
+}
+
+Copy-Item $tempDir/build_x64/libobs/RelWithDebInfo/obs.lib $PSScriptRoot/../
 
 Write-Host "Cleaning up temporary directory..."
 Remove-Item -Path $tempDir -Recurse -Force
