@@ -17,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Cache dependencies
         uses: actions/cache@v4
+        if: always()
         with:
           path: |
             ~/.cargo/registry
@@ -35,9 +36,7 @@ jobs:
         run: |
           git checkout --orphan gh-pages
           git reset --hard
-          mkdir -p docs
-          cp -r target/doc/* docs/
-          git add docs
+          git add target/doc -f
           git commit -m "Update documentation"
           git push -f origin gh-pages
         shell: pwsh
