@@ -36,8 +36,8 @@ jobs:
         run: |
           git checkout --orphan gh-pages
           git reset --hard
-          git add target/doc -f
-          git commit -m "Update documentation" --quiet
+          git add target/doc -f --quiet
+          git commit -m "Update documentation"
           git push -f origin gh-pages
         shell: pwsh
         env:
