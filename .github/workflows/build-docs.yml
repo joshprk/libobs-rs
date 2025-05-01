@@ -1,5 +1,6 @@
 name: Build Documentation
 
+
 on:
   push:
     tags:
@@ -12,6 +13,8 @@ concurrency:
 
 jobs:
   build-docs:
+    permissions:
+      contents: write
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
