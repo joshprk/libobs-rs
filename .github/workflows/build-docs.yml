@@ -1,0 +1,38 @@
+name: Build Documentation
+
+on:
+  push:
+    branches: ['main', 'master']
+  workflow_dispatch:
+
+jobs:
+  build-docs:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Generate documentation
+        run: cargo doc --no-deps --lib
+        shell: pwsh
+      - name: Configure Git
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+        shell: pwsh
+      - name: Deploy to gh-pages
+        run: |
+          git checkout --orphan gh-pages
+          git reset --hard
+          mkdir -p docs
+          cp -r target/doc/* docs/
+          git add docs
+          git commit -m "Update documentation"
+          git push -f origin gh-pages
+        shell: pwsh
