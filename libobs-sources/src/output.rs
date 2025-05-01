@@ -41,7 +41,7 @@ macro_rules! new_output_builder {
             #[obs_property(type_t = "string")]
             /// The format to use for the file name of the recording.
             /// e.g. "%CCYY-%MM-%DD %hh-%mm-%ss"
-            /// Code for formatting can be found [here])https://github.com/obsproject/obs-studio/blob/5854f3b9e5861246ea57dd4a26d3d847a8552c4b/libobs/util/platform.c#L715)
+            /// Code for formatting can be found [here](https://github.com/obsproject/obs-studio/blob/5854f3b9e5861246ea57dd4a26d3d847a8552c4b/libobs/util/platform.c#L715)
             format: String,
 
             #[obs_property(type_t = "string")]

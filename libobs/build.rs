@@ -76,8 +76,20 @@ fn main() {
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     let bindings_path = out_path.join("bindings.rs");
+    let bindings = bindings.to_string();
+    let lines = bindings.lines().map(|line| {
+        if line.trim().starts_with("#[doc") {
+            let start_pos = line.find('"').unwrap() + 1;
+            let end_pos = line.rfind('"').unwrap();
+            let doc = &line[start_pos..end_pos];
+            let doc = doc.replace("[", "\\\\[").replace("]", "\\\\]");
 
-    bindings
-        .write_to_file(&bindings_path)
-        .expect("Couldn't write bindings!");
+            format!("#[doc = \"{}\"]", doc)
+        } else {
+            line.to_string()
+        }
+    });
+
+    let bindings = lines.collect::<Vec<_>>().join("\n");
+    std::fs::write(&bindings_path, bindings).expect("Couldn't write bindings!");
 }
