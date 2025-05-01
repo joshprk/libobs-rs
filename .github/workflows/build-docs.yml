@@ -40,3 +40,5 @@ jobs:
           git commit -m "Update documentation" --quiet
           git push -f origin gh-pages
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
