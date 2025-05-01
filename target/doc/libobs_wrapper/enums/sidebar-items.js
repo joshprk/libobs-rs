@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ObsColorspace","ObsEncoderType","ObsGraphicsModule","ObsLogLevel","ObsOutputStopSignal","ObsResetVideoStatus","ObsSamplesPerSecond","ObsScaleType","ObsSpeakerLayout","ObsVideoFormat","ObsVideoRange"]};

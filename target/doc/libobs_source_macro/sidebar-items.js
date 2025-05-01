@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["obs_object_builder","obs_object_impl","obs_object_updater"]};

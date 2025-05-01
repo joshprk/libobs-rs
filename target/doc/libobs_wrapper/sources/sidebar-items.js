@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AudioBalanceSignal","AudioMixersSignal","AudioSyncSignal","EnableSignal","FilterAddSignal","FilterRemoveSignal","MuteSignal","NewNameSignal","ObsSourceRef","ObsSourceSignals","PushToMuteChangedSignal","PushToMuteDelaySignal","PushToTalkChangedSignal","PushToTalkDelaySignal","UpdateFlagsSignal"],"trait":["ObsSourceBuilder"]};

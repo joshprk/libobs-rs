@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["libobs",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"struct\" href=\"libobs/struct.__BindgenFloat16.html\" title=\"struct libobs::__BindgenFloat16\">__BindgenFloat16</a>"],["impl&lt;Storage: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"struct\" href=\"libobs/struct.__BindgenBitfieldUnit.html\" title=\"struct libobs::__BindgenBitfieldUnit\">__BindgenBitfieldUnit</a>&lt;Storage&gt;"],["impl&lt;T&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"struct\" href=\"libobs/struct.__BindgenUnionField.html\" title=\"struct libobs::__BindgenUnionField\">__BindgenUnionField</a>&lt;T&gt;"]]],["libobs_wrapper",[["impl&lt;T: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.86.0/core/hash/trait.Hash.html\" title=\"trait core::hash::Hash\">Hash</a> for <a class=\"struct\" href=\"libobs_wrapper/unsafe_send/struct.SendableComp.html\" title=\"struct libobs_wrapper::unsafe_send::SendableComp\">SendableComp</a>&lt;T&gt;"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1024,468]}

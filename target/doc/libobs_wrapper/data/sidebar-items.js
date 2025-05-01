@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ObsDataChange"],"mod":["audio","immutable","output","properties","video"],"struct":["ObsData","ObsDataUpdater"],"trait":["ObsObjectBuilder","ObsObjectUpdater","StringEnum"]};

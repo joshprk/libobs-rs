@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["WindowSearchMode"],"fn":["get_all_windows","get_thread_proc_id","get_window_info","is_blacklisted_window","is_microsoft_internal_exe","is_window_valid"],"struct":["ProcessInfo","WindowInfo"]};

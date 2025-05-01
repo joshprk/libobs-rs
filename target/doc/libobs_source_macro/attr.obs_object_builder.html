@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This macro is used to generate a builder pattern for an obs source.  The attribute should be the id of the source. The struct should have named fields, each field should have an attribute `#[obs_property(type_t=&#34;your_type&#34;)]`.  `type_t` can be `enum`, `enum_string`, `string`, `bool` or `int`. "><title>obs_object_builder in libobs_source_macro - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-6c3ea77c.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="libobs_source_macro" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0 (05f9846f8 2025-03-31)" data-channel="1.86.0" data-search-js="search-581efc7a.js" data-settings-js="settings-6dad6058.js" ><script src="../static.files/storage-3a5871a4.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-4d63596a.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc attr"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../libobs_source_macro/index.html">libobs_<wbr>source_<wbr>macro</a><span class="version">2.0.1</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">libobs_source_macro</a></div><h1>Attribute Macro <span class="attr">obs_object_builder</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/libobs_source_macro/lib.rs.html#176-291">Source</a> </span></div><pre class="rust item-decl"><code>#[obs_object_builder]</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This macro is used to generate a builder pattern for an obs source. <br>
+The attribute should be the id of the source.<br>
+The struct should have named fields, each field should have an attribute <code>#[obs_property(type_t="your_type")]</code>. <br>
+<code>type_t</code> can be <code>enum</code>, <code>enum_string</code>, <code>string</code>, <code>bool</code> or <code>int</code>. <br></p>
+<ul>
+<li><code>enum</code>: the field should be an enum with <code>num_derive::{FromPrimitive, ToPrimitive}</code>.</li>
+<li><code>enum_string</code>: the field should be an enum which implements <code>StringEnum</code>.</li>
+<li><code>string</code>: the field should be a string.</li>
+<li><code>bool</code>: the field should be a bool.</li>
+<li><code>type_t</code>: <code>int</code>, the field should be an i64.
+The attribute can also have a <code>settings_key</code> which is the key used in the settings, if this attribute is not given, the macro defaults to the field name. <br>
+Documentation is inherited from the field to the setter function.<br>
+Example: <br></li>
+</ul>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>libobs_wrapper::data::StringEnum;
+<span class="kw">use </span>libobs_source_macro::obs_object_builder;
+<span class="kw">use </span>num_derive::{FromPrimitive, ToPrimitive};
+
+<span class="attr">#[repr(i32)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+</span><span class="kw">pub enum </span>ObsWindowCaptureMethod {
+    MethodAuto = libobs::window_capture_method_METHOD_AUTO,
+	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
+	MethodWgc = libobs::window_capture_method_METHOD_WGC,
+}
+
+<span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>ObsGameCaptureRgbaSpace {
+    SRgb,
+    RGBA2100pq
+}
+
+<span class="kw">impl </span>StringEnum <span class="kw">for </span>ObsGameCaptureRgbaSpace {
+    <span class="kw">fn </span>to_str(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            ObsGameCaptureRgbaSpace::SRgb =&gt; <span class="string">"sRGB"</span>,
+            ObsGameCaptureRgbaSpace::RGBA2100pq =&gt; <span class="string">"Rec. 2100 (PQ)"
+        </span>}
+    }
+}
+
+<span class="doccomment">/// Provides a easy to use builder for the window capture source.
+</span><span class="attr">#[derive(Debug)]
+#[obs_object_builder(<span class="string">"window_capture"</span>)]
+</span><span class="kw">pub struct </span>WindowCaptureSourceBuilder {
+<span class="attr">#[obs_property(type_t=<span class="string">"enum"</span>)]
+    </span><span class="doccomment">/// Sets the capture method for the window capture
+    </span>capture_method: ObsWindowCaptureMethod,
+
+    <span class="doccomment">/// Sets the window to capture.
+    </span><span class="attr">#[obs_property(type_t = <span class="string">"string"</span>, settings_key = <span class="string">"window"</span>)]
+    </span>window_raw: String,
+
+    <span class="attr">#[obs_property(type_t = <span class="string">"bool"</span>)]
+    </span><span class="doccomment">/// Sets whether the cursor should be captured
+    </span>cursor: bool,
+
+    <span class="doccomment">/// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
+    </span><span class="attr">#[obs_property(type_t = <span class="string">"enum_string"</span>)]
+    </span>capture_mode: ObsGameCaptureMode,
+}</code></pre></div>
+</div></details></section></div></main></body></html>

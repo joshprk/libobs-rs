@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["ENCODER_HIDE_FLAGS"],"enum":["ObsBootstrapError","ObsError"],"mod":["traits"],"struct":["ObjectInfo","ObsModules","ObsPath","ObsString","StartupInfo","StartupPaths","StartupPathsBuilder"],"type":["AudioEncoderInfo","OutputInfo","SourceInfo","VideoEncoderInfo"]};

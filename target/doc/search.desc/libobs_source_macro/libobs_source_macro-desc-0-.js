@@ -1,0 +1,1 @@
+searchState.loadedDescShard("libobs_source_macro", 0, "This macro is used to generate a builder pattern for an …\nThis macro is used to generate an updater pattern for an …")

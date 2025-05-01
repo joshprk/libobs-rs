@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ItemAddSignal","ItemDeselectSignal","ItemLockedSignal","ItemRemoveSignal","ItemSelectSignal","ItemTransformSignal","ItemVisibleSignal","ObsSceneRef","ObsSceneSignals"]};

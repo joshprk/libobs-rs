@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["UPDATER_SCRIPT"],"enum":["BootstrapStatus"],"mod":["status_handler"],"struct":["ObsBootstrapperOptions"],"trait":["ObsBootstrap"]};

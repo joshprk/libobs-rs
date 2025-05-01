@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ObsButtonType","ObsComboFormat","ObsComboType","ObsEditableListType","ObsGroupType","ObsNumberType","ObsPathType","ObsProperty","ObsPropertyType","ObsTextInfoType","ObsTextType"],"mod":["prop_impl","types"],"trait":["ObsPropertyObject","ObsPropertyObjectPrivate"]};

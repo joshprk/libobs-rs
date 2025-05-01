@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ObsDisplayCaptureMethod","ObsGameCaptureMode","ObsGameCaptureRgbaSpace","ObsHookRate","ObsWindowCaptureMethod","ObsWindowPriority"],"struct":["GameCaptureSourceBuilder","GameCaptureSourceUpdater","MonitorCaptureSourceBuilder","MonitorCaptureSourceUpdater","WindowCaptureSourceBuilder","WindowCaptureSourceUpdater"]};

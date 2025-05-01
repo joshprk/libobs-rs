@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="OBS Context Management"><title>libobs_wrapper::context - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-6c3ea77c.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libobs_wrapper" data-themes="" data-resource-suffix="" data-rustdoc-version="1.86.0 (05f9846f8 2025-03-31)" data-channel="1.86.0" data-search-js="search-581efc7a.js" data-settings-js="settings-6dad6058.js" ><script src="../../static.files/storage-3a5871a4.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-4d63596a.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../libobs_wrapper/index.html">libobs_<wbr>wrapper</a><span class="version">3.0.2</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module context</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#thread-safety" title="Thread Safety">Thread Safety</a></li><li><a href="#examples" title="Examples">Examples</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate libobs_<wbr>wrapper</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">libobs_wrapper</a></div><h1>Module <span>context</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/libobs_wrapper/context.rs.html#1-384">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>OBS Context Management</p>
+<p>This module provides the core functionality for interacting with libobs.
+The primary type is <a href="struct.ObsContext.html" title="struct libobs_wrapper::context::ObsContext"><code>ObsContext</code></a>, which serves as the main entry point for
+all OBS operations.</p>
+<h2 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h2>
+<p>The <code>ObsContext</code> represents an initialized OBS environment and provides methods to:</p>
+<ul>
+<li>Initialize the OBS runtime</li>
+<li>Create and manage scenes</li>
+<li>Create and manage outputs (recording, streaming)</li>
+<li>Access and configure video/audio settings</li>
+<li>Download and bootstrap OBS binaries at runtime</li>
+</ul>
+<h2 id="thread-safety"><a class="doc-anchor" href="#thread-safety">§</a>Thread Safety</h2>
+<p>OBS operations must be performed on a single thread. The <code>ObsContext</code> handles
+this requirement by creating a dedicated thread for OBS operations and providing
+a thread-safe interface to interact with it.</p>
+<h2 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h2>
+<p>Creating a basic OBS context:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>libobs_wrapper::context::ObsContext;
+
+<span class="kw">let </span>context = ObsContext::builder().start().<span class="kw">await</span><span class="question-mark">?</span>;</code></pre></div>
+<p>For more examples refer to the <a href="https://github.com/joshprk/libobs-rs/tree/main/examples">examples</a> directory in the repository.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.ObsContext.html" title="struct libobs_wrapper::context::ObsContext">ObsContext</a></dt><dd>Interface to the OBS context. Only one context
+can exist across all threads and any attempt to
+create a new context while there is an existing
+one will error.</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ObsContextReturn.html" title="enum libobs_wrapper::context::ObsContextReturn">ObsContext<wbr>Return</a></dt></dl></section></div></main></body></html>
