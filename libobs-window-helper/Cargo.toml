@@ -5,6 +5,7 @@ description = "Provides a list of windows that can be captured by OBS"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/joshprk/obs-window-helper"
+documentation = "https://joshprk.github.io/libobs-rs/libobs_window_helper/"
 license = "GPL-3.0"
 
 [dependencies]

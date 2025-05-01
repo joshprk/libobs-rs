@@ -3,6 +3,7 @@ name = "libobs-wrapper"
 description = "A safe wrapper around libobs"
 version = "3.0.2"
 repository = "https://github.com/joshprk/libobs-rs"
+documentation = "https://joshprk.github.io/libobs-rs/libobs_wrapper/"
 readme = "README.md"
 authors = ["sshcrack"]
 categories = [

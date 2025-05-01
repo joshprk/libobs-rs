@@ -2,6 +2,7 @@
 name = "libobs-source-macro"
 description = "Helper macro for libobs-sources"
 repository = "https://github.com/joshprk/libobs-rs"
+documentation = "https://joshprk.github.io/libobs-rs/libobs_source_macro/"
 readme = "README.md"
 authors = ["sshcrack"]
 categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
