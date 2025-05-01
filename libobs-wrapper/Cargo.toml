@@ -61,6 +61,7 @@ windows = { version = "0.61.1", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Security"
 ] }
+duplicate = "2.0.0"
 
 [features]
 default = ["color-logger", "dialog_crash_handler", "bootstrapper"]

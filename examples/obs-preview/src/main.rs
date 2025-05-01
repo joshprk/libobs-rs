@@ -2,15 +2,18 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
-use libobs_sources::{ObsObjectUpdater, windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater}};
+use libobs_sources::{
+    windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater},
+    ObsObjectUpdater,
+};
 use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
-use libobs_wrapper::display::{ObsDisplayCreationData, WindowPositionTrait, ObsDisplayRef};
+use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
 use libobs_wrapper::utils::traits::ObsUpdatable;
-use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
+use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 use tokio::task;
 use winit::application::ApplicationHandler;
@@ -27,7 +30,7 @@ struct App {
     display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
     context: Arc<tokio::sync::RwLock<ObsContext>>,
     monitor_index: Arc<AtomicUsize>,
-    source_ref: Arc<RwLock<ObsSourceRef>>
+    source_ref: Arc<RwLock<ObsSourceRef>>,
 }
 
 impl ApplicationHandler for App {
@@ -55,20 +58,9 @@ impl ApplicationHandler for App {
         let ctx = self.context.clone();
         task::spawn(async move {
             let hwnd = hwnd;
-            let data = ObsDisplayCreationData::new(
-                hwnd.0.get(),
-                0,
-                0,
-                width,
-                height,
-            );
+            let data = ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height);
 
-            let display = ctx
-                .write()
-                .await
-                .display(data)
-                .await
-                .unwrap();
+            let display = ctx.write().await.display(data).await.unwrap();
 
             w.write().unwrap().replace(Sendable(window));
             d_rw.write().unwrap().replace(display);
@@ -123,7 +115,7 @@ impl ApplicationHandler for App {
                         display.set_size(width, height).await.unwrap();
                     });
                 }
-            },
+            }
             WindowEvent::MouseInput { state, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;
@@ -136,14 +128,19 @@ impl ApplicationHandler for App {
                     let mut source = tmp.write().unwrap().clone();
                     let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
 
-                    let monitor_index = monitor_index.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % monitors.len();
+                    let monitor_index = monitor_index
+                        .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                        % monitors.len();
                     let monitor = &monitors[monitor_index];
 
-                    source.create_updater::<MonitorCaptureSourceUpdater>()
-                        .await.unwrap()
+                    source
+                        .create_updater::<MonitorCaptureSourceUpdater>()
+                        .await
+                        .unwrap()
                         .set_monitor(monitor)
                         .update()
-                        .await.unwrap();
+                        .await
+                        .unwrap();
                 });
             }
             _ => (),
@@ -186,23 +183,24 @@ async fn main() -> anyhow::Result<()> {
         .update()
         .await?;
 
-    let encoders = context.get_available_video_encoders().await?;
+    let encoders = context.available_video_encoders().await?;
 
     println!("Available encoders: {:?}", encoders);
     let encoder = encoders
-        .iter()
+        .into_iter()
         .find(|e| {
-            **e == ObsVideoEncoderType::H264_TEXTURE_AMF
-                || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF
+            e.get_encoder_id() == &ObsVideoEncoderType::H264_TEXTURE_AMF
+                || e.get_encoder_id() == &ObsVideoEncoderType::AV1_TEXTURE_AMF
         })
         .unwrap();
 
     println!("Using encoder {:?}", encoder);
-    let video_info =
-        VideoEncoderInfo::new(encoder.clone(), "video_encoder", Some(video_settings), None);
-
-    let video_handler = context.get_video_ptr().await?;
-    output.video_encoder(video_info, video_handler).await?;
+    encoder.set_to_output(
+        &mut output,
+        "video_encoder",
+        Some(video_settings),
+        None,
+    ).await?;
 
     // Register the audio encoder
     let mut audio_settings = context.data().await?;

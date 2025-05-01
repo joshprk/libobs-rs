@@ -55,12 +55,17 @@ pub trait ObsPropertyObjectPrivate {
 }
 
 #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-async fn get_properties_inner(
+pub(crate) async fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
 ) -> Result<Vec<ObsProperty>, ObsError> {
     let properties_raw = properties_raw.clone();
     if properties_raw.0.is_null() {
+        let ptr_clone = properties_raw.clone();
+        run_with_obs!(runtime, (ptr_clone), move || {
+            unsafe { libobs::obs_properties_destroy(ptr_clone) };
+        }).await?;
+
         return Ok(vec![]);
     }
 

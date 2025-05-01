@@ -7,7 +7,7 @@ use libobs_wrapper::data::ObsObjectUpdater;
 use libobs_wrapper::encoders::ObsContextEncoders;
 use libobs_wrapper::sources::ObsSourceBuilder;
 use libobs_wrapper::utils::traits::ObsUpdatable;
-use libobs_wrapper::utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo};
+use libobs_wrapper::utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo};
 
 #[tokio::main]
 pub async fn main() -> anyhow::Result<()> {
@@ -63,15 +63,8 @@ pub async fn main() -> anyhow::Result<()> {
         .update()
         .await?;
 
-    let video_info = VideoEncoderInfo::new(
-        context.get_best_video_encoder().await?,
-        "video_encoder",
-        Some(video_settings),
-        None,
-    );
-
-    let video_handler = context.get_video_ptr().await?;
-    output.video_encoder(video_info, video_handler).await?;
+    let video_encoder = context.best_video_encoder().await?;
+    video_encoder.set_to_output(&mut output, "video_encoder", Some(video_settings), None).await?;
 
     // Register the audio encoder
     let mut audio_settings = context.data().await?;

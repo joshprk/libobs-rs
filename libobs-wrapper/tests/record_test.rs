@@ -8,7 +8,7 @@ mod require_non_blocking {
     use libobs_wrapper::enums::ObsLogLevel;
     use libobs_wrapper::logger::ObsLogger;
     use libobs_wrapper::utils::{
-        AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo, VideoEncoderInfo,
+        AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo,
     };
 
     #[derive(Debug)]
@@ -66,6 +66,8 @@ mod require_non_blocking {
 
         let mut output = context.output(output_info).await.unwrap();
 
+        let video_encoder = context.get_best_video_encoder().await.unwrap();
+
         // Register the video encoder
         let mut video_settings = context.data().await.unwrap();
         video_settings
@@ -81,18 +83,7 @@ mod require_non_blocking {
             .await
             .unwrap();
 
-        let video_info = VideoEncoderInfo::new(
-            context.get_best_video_encoder().await.unwrap(),
-            "video_encoder",
-            Some(video_settings),
-            None,
-        );
-
-        let video_handler = context.get_video_ptr().await.unwrap();
-        output
-            .video_encoder(video_info, video_handler)
-            .await
-            .unwrap();
+        video_encoder.set_to_output(&mut output, "video_encoder", Some(video_settings), None).await.unwrap();
 
         // Register the audio encoder
         let mut audio_settings = context.data().await.unwrap();

@@ -1,5 +1,5 @@
 use env_logger::Env;
-use libobs_wrapper::{context::{ObsContext, ObsContextReturn}, data::output::ObsOutputRef, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo, VideoEncoderInfo}};
+use libobs_wrapper::{context::{ObsContext, ObsContextReturn}, data::output::ObsOutputRef, encoders::{ObsContextEncoders, ObsVideoEncoderType}, enums::ObsLogLevel, logger::ObsLogger, utils::{AudioEncoderInfo, ObsString, OutputInfo, StartupInfo}};
 use std::{env::current_dir, fs::File, io::Write};
 
 pub async fn initialize_obs<'a, T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsContext, ObsOutputRef) {
@@ -60,21 +60,16 @@ pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_f
         .set_int("bitrate", 10000)
         .update().await.unwrap();
 
-    let encoders = context.get_available_video_encoders().await.unwrap();
+    let encoders = context.available_video_encoders().await.unwrap();
 
     println!("Available encoders: {:?}", encoders);
-    let encoder =  encoders.iter().find(|e| **e == ObsVideoEncoderType::H264_TEXTURE_AMF || **e == ObsVideoEncoderType::AV1_TEXTURE_AMF).unwrap();
+    let encoder =  encoders.into_iter().find(|e| {
+        let  t = e.get_encoder_id();
+        t == &ObsVideoEncoderType::H264_TEXTURE_AMF || t == &ObsVideoEncoderType::AV1_TEXTURE_AMF
+    }).unwrap();
 
     println!("Using encoder {:?}", encoder);
-    let video_info = VideoEncoderInfo::new(
-        encoder.clone(),
-        "video_encoder",
-        Some(video_settings),
-        None,
-    );
-
-    let video_handler = context.get_video_ptr().await.unwrap();
-    output.video_encoder(video_info, video_handler).await.unwrap();
+    encoder.set_to_output(&mut output, "video_encoder", Some(video_settings), None).await.unwrap();
 
     // Register the audio encoder
     let mut audio_settings = context.data().await.unwrap();
