@@ -1,7 +1,7 @@
 [package]
 name = "libobs-wrapper"
 description = "A safe wrapper around libobs"
-version = "3.0.2"
+version = "3.0.3"
 repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs_wrapper/"
 readme = "README.md"
@@ -18,7 +18,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.97"
-libobs = { package = "libobs", version = "2.0.5", path = "../libobs" }
+libobs = { package = "libobs", version = "2.0.6", path = "../libobs" }
 display-info = "0.5.4"
 num-derive = "0.4.2"
 num-traits = "0.2.19"
