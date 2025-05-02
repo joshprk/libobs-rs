@@ -3,7 +3,7 @@ mod macros;
 pub mod prop_impl;
 pub mod types;
 
-use std::ffi::CStr;
+use std::{collections::HashMap, ffi::CStr};
 
 use libobs::obs_properties;
 use macros::*;
@@ -17,7 +17,7 @@ use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{Ob
 #[derive(Debug, Clone)]
 pub enum ObsProperty {
     /// A property that is not valid
-    Invalid(String),
+    Invalid,
     /// A boolean property
     Bool,
     /// An integer property
@@ -58,7 +58,7 @@ pub trait ObsPropertyObjectPrivate {
 pub(crate) async fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
-) -> Result<Vec<ObsProperty>, ObsError> {
+) -> Result<HashMap<String, ObsProperty>, ObsError> {
     let properties_raw = properties_raw.clone();
     if properties_raw.0.is_null() {
         let ptr_clone = properties_raw.clone();
@@ -66,11 +66,11 @@ pub(crate) async fn get_properties_inner(
             unsafe { libobs::obs_properties_destroy(ptr_clone) };
         }).await?;
 
-        return Ok(vec![]);
+        return Ok(HashMap::new());
     }
 
     run_with_obs!(runtime, (properties_raw), move || {
-        let mut result = Vec::new();
+        let mut result = HashMap::new();
         let mut property = unsafe { libobs::obs_properties_first(properties_raw) };
         while !property.is_null() {
             let name = unsafe { libobs::obs_property_name(property) };
@@ -80,11 +80,14 @@ pub(crate) async fn get_properties_inner(
             let p_type = unsafe { libobs::obs_property_get_type(property) };
             let p_type = ObsPropertyType::from_i32(p_type);
 
+            println!("Property: {:?}", name);
             match p_type {
                 Some(p_type) => {
-                    result.push(p_type.to_property_struct(property));
+                    result.insert(name, p_type.to_property_struct(property));
                 }
-                None => result.push(ObsProperty::Invalid(name)),
+                None => {
+                    result.insert(name, ObsProperty::Invalid);
+                }
             }
 
             // Move to the next property
@@ -101,10 +104,10 @@ pub(crate) async fn get_properties_inner(
 pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError>;
+    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError>;
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<Vec<ObsProperty>, ObsError> {
+    async fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<HashMap<String, ObsProperty>, ObsError> {
         let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone()).await?;
         get_properties_inner(properties_raw, runtime.clone()).await
     }

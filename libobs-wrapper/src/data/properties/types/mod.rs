@@ -52,7 +52,7 @@ impl ObsPropertyType {
         };
 
         match self {
-            ObsPropertyType::Invalid => ObsProperty::Invalid("Invalid".to_string()),
+            ObsPropertyType::Invalid => ObsProperty::Invalid,
             ObsPropertyType::Bool => ObsProperty::Bool,
             ObsPropertyType::Int => ObsProperty::Int(ObsNumberProperty::<i32>::from(info)),
             ObsPropertyType::Float => ObsProperty::Float(ObsNumberProperty::<f64>::from(info)),

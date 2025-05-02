@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use duplicate::duplicate_item;
 
@@ -104,7 +104,7 @@ impl ObsVideoEncoderBuilder {
 #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObject for StructName {
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<Vec<ObsProperty>, ObsError> {
+    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
         let properties_raw = self.get_properties_raw().await?;
         get_properties_inner(properties_raw, self.runtime.clone()).await
     }

@@ -4,6 +4,7 @@ mod require_non_blocking {
     use std::time::Duration;
 
     use libobs_wrapper::context::ObsContext;
+    use libobs_wrapper::data::properties::ObsPropertyObject;
     use libobs_wrapper::encoders::ObsContextEncoders;
     use libobs_wrapper::enums::ObsLogLevel;
     use libobs_wrapper::logger::ObsLogger;
@@ -66,7 +67,7 @@ mod require_non_blocking {
 
         let mut output = context.output(output_info).await.unwrap();
 
-        let video_encoder = context.get_best_video_encoder().await.unwrap();
+        let video_encoder = context.best_video_encoder().await.unwrap();
 
         // Register the video encoder
         let mut video_settings = context.data().await.unwrap();

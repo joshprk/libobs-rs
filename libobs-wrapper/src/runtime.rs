@@ -96,7 +96,7 @@ pub enum ObsRuntimeReturn {
 /// Creating a runtime:
 ///
 /// ```
-/// use libobs_wrapper::runtime::ObsRuntime;
+/// use libobs_wrapper::runtime::{ObsRuntimeReturn, ObsRuntime};
 /// use libobs_wrapper::utils::StartupInfo;
 ///
 /// async fn example() {

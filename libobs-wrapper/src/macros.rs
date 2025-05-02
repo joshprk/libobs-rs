@@ -61,6 +61,7 @@ macro_rules! impl_obs_drop {
     ($struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
         impl Drop for $struct_name {
             fn drop(&mut self) {
+                //TODO Make sure that we are not blocking when dropping the object
                 $(let $var = self.$var.clone();)*
                 #[cfg(not(feature="blocking"))]
                 let r = futures::executor::block_on(async {
