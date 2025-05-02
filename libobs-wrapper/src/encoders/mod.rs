@@ -86,22 +86,18 @@ async fn get_encoders_raw(
 impl ObsContextEncoders for ObsContext {
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn best_video_encoder(&self) -> Result<ObsVideoEncoderBuilder, ObsError> {
-        Ok(self
-            .available_video_encoders()
-            .await?
-            .first()
-            .unwrap()
-            .clone())
+        let encoders = self.available_video_encoders().await?;
+        encoders.into_iter()
+            .next()
+            .ok_or(ObsError::NoAvailableEncoders)
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn best_audio_encoder(&self) -> Result<ObsAudioEncoderBuilder, ObsError> {
-        Ok(self
-            .available_audio_encoders()
-            .await?
-            .first()
-            .unwrap()
-            .clone())
+        let encoders = self.available_audio_encoders().await?;
+        encoders.into_iter()
+            .next()
+            .ok_or(ObsError::NoAvailableEncoders)
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]

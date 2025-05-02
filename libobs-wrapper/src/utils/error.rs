@@ -47,6 +47,7 @@ pub enum ObsError {
     JsonParseError,
     /// Couldn't get the sender of the signal
     NoSenderError,
+    NoAvailableEncoders,
 }
 
 impl Display for ObsError {
@@ -68,13 +69,14 @@ impl Display for ObsError {
             ObsError::OutputSaveBufferFailure(e) => write!(f, "Couldn't save output buffer: {:?}", e),
             ObsError::SourceNotFound => write!(f, "Source not found."),
             ObsError::BootstrapperFailure(error) => match error {
-                                ObsBootstrapError::GeneralError(e) => write!(f, "Bootstrapper error: {:?}", e),
-                                ObsBootstrapError::DownloadError(e) => write!(f, "Bootstrapper download error: {:?}", e),
-                                ObsBootstrapError::ExtractError(e) => write!(f, "Bootstrapper extract error: {:?}", e),
-                            },
+                                        ObsBootstrapError::GeneralError(e) => write!(f, "Bootstrapper error: {:?}", e),
+                                        ObsBootstrapError::DownloadError(e) => write!(f, "Bootstrapper download error: {:?}", e),
+                                        ObsBootstrapError::ExtractError(e) => write!(f, "Bootstrapper extract error: {:?}", e),
+                                    },
             ObsError::InvocationError(e) => write!(f, "The obs thread couldn't be called: {:?}", e),
             ObsError::JsonParseError => write!(f, "Failed to parse JSON data."),
             ObsError::NoSenderError => write!(f, "Couldn't get the sender of the signal."),
+            ObsError::NoAvailableEncoders => write!(f, "No available encoders found."),
         }
     }
 }

@@ -34,7 +34,8 @@ pub(crate) struct _ObsDataDropGuard {
 /// Contains `obs_data` and its related strings. Note that
 /// this struct prevents string pointers from being freed
 /// by keeping them owned.
-/// Update: The strings are actually copied by obs itself, we don't need to store them
+/// Cloning `ObsData` is blocking and will create a new `ObsData` instance. Recommended is to use `ObsData::full_clone()` instead.
+//NOTE: Update: The strings are actually copied by obs itself, we don't need to store them
 #[derive(Debug)]
 pub struct ObsData {
     obs_data: Sendable<*mut obs_data>,
@@ -205,9 +206,19 @@ impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
     obs_data_release(obs_data)
 });
 
+impl Clone for ObsData {
+    fn clone(&self) -> Self {
+        #[cfg(feature="blocking")]
+        return self.clone().unwrap();
+
+        #[cfg(not(feature="blocking"))]
+        return futures::executor::block_on(self.full_clone()).unwrap();
+    }
+}
+
 impl ObsData {
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn clone(&self) -> Result<Self, ObsError> {
+    pub async fn full_clone(&self) -> Result<Self, ObsError> {
         let json = self.get_json().await?;
 
         Self::from_json(json.as_str(), self.runtime.clone()).await

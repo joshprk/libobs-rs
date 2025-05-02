@@ -36,6 +36,7 @@
 //! ```
 
 use std::ffi::CStr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::Arc;
 use std::{fmt::Debug, thread::JoinHandle};
@@ -111,6 +112,7 @@ pub enum ObsRuntimeReturn {
 #[derive(Debug, Clone)]
 pub struct ObsRuntime {
     command_sender: Arc<Sender<ObsCommand>>,
+    queued_commands: Arc<AtomicUsize>,
     _guard: Arc<_ObsRuntimeGuard>,
 }
 
@@ -236,7 +238,9 @@ impl ObsRuntime {
     async fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
         let (command_sender, command_receiver) = channel();
         let (init_tx, init_rx) = oneshot::channel();
+        let queued_commands = Arc::new(AtomicUsize::new(0));
 
+        let queued_commands_clone = queued_commands.clone();
         let handle = std::thread::spawn(move || {
             log::trace!("Starting OBS thread");
 
@@ -256,6 +260,7 @@ impl ObsRuntime {
                             ObsCommand::Execute(func, result_sender) => {
                                 let result = func();
                                 let _ = result_sender.send(result);
+                                queued_commands_clone.fetch_sub(1, Ordering::SeqCst);
                             }
                             ObsCommand::Terminate => break,
                         }
@@ -278,6 +283,7 @@ impl ObsRuntime {
         let command_sender = Arc::new(command_sender);
         let runtime = Self {
             command_sender: command_sender.clone(),
+            queued_commands,
             _guard: Arc::new(_ObsRuntimeGuard {
                 handle,
                 command_sender,
@@ -355,6 +361,11 @@ impl ObsRuntime {
             Box::new(result)
         };
 
+        let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
+        if val > 50 {
+            log::warn!("More than 50 queued commands. Try to batch them together.");
+        }
+
         self.command_sender
             .send(ObsCommand::Execute(Box::new(wrapper), tx))
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
@@ -409,6 +420,12 @@ impl ObsRuntime {
             let result = operation();
             Box::new(result)
         };
+
+
+        let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
+        if val > 50 {
+            log::warn!("More than 50 queued commands. Try to batch them together.");
+        }
 
         self.command_sender
             .send(ObsCommand::Execute(Box::new(wrapper), tx))
@@ -619,6 +636,8 @@ impl _ObsRuntimeGuard {
     /// A `Result` indicating success or failure
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     async fn shutdown(&mut self) -> anyhow::Result<()> {
+        // Theoretically the queued_commands is zero and should be increased but because
+        // we are shutting down, we don't care about that.
         self.command_sender
             .send(ObsCommand::Terminate)
             .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"))?;

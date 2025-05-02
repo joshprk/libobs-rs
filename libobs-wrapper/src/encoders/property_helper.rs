@@ -24,11 +24,13 @@ use super::{audio::ObsAudioEncoder, video::ObsVideoEncoder, ObsAudioEncoderType,
     [ObsAudioEncoderBuilder] [ObsAudioEncoderType];
     [ObsVideoEncoderBuilder] [ObsVideoEncoderType]
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct StructName {
     encoder_id: EncoderType,
     runtime: ObsRuntime,
     context: ObsContext,
+    settings: Option<ObsData>,
+    hotkey_data: Option<ObsData>,
 }
 
 #[duplicate_item(
@@ -42,11 +44,39 @@ impl StructName {
             encoder_id: EncoderType::from_str(encoder_id).unwrap(),
             runtime: context.runtime().clone(),
             context,
+            settings: None,
+            hotkey_data: None
         }
     }
 
     pub fn get_encoder_id(&self) -> &EncoderType {
         &self.encoder_id
+    }
+
+    pub fn set_settings(&mut self, settings: ObsData) -> &mut Self {
+        self.settings = Some(settings);
+        self
+    }
+
+    pub fn set_hotkey_data(&mut self, hotkey_data: ObsData) -> &mut Self {
+        self.hotkey_data = Some(hotkey_data);
+        self
+    }
+
+    pub fn get_settings(&self) -> Option<&ObsData> {
+        self.settings.as_ref()
+    }
+
+    pub fn get_hotkey_data(&self) -> Option<&ObsData> {
+        self.hotkey_data.as_ref()
+    }
+
+    pub fn get_settings_mut(&mut self) -> Option<&mut ObsData> {
+        self.settings.as_mut()
+    }
+
+    pub fn get_hotkey_data_mut(&mut self) -> Option<&mut ObsData> {
+        self.hotkey_data.as_mut()
     }
 }
 
@@ -79,16 +109,14 @@ impl ObsVideoEncoderBuilder {
     pub async fn set_to_output(
         self,
         output: &mut ObsOutputRef,
-        name: &str,
-        settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>
+        name: &str
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
         let e_id: ObsString = self.encoder_id.into();
         let info = ObjectInfo::new(
             e_id,
             ObsString::new(name),
-            settings,
-            hotkey_data,
+            self.settings,
+            self.hotkey_data,
         );
 
         let video_handler = self.context.get_video_ptr().await?;
