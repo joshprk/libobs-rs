@@ -209,7 +209,7 @@ impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
 impl Clone for ObsData {
     fn clone(&self) -> Self {
         #[cfg(feature="blocking")]
-        return self.clone().unwrap();
+        return self.full_clone().unwrap();
 
         #[cfg(not(feature="blocking"))]
         return futures::executor::block_on(self.full_clone()).unwrap();

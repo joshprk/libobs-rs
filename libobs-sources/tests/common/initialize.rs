@@ -63,13 +63,14 @@ pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_f
     let encoders = context.available_video_encoders().await.unwrap();
 
     println!("Available encoders: {:?}", encoders);
-    let encoder =  encoders.into_iter().find(|e| {
+    let mut encoder =  encoders.into_iter().find(|e| {
         let  t = e.get_encoder_id();
         t == &ObsVideoEncoderType::H264_TEXTURE_AMF || t == &ObsVideoEncoderType::AV1_TEXTURE_AMF
     }).unwrap();
 
     println!("Using encoder {:?}", encoder);
-    encoder.set_to_output(&mut output, "video_encoder", Some(video_settings), None).await.unwrap();
+    encoder.set_settings(video_settings);
+    encoder.set_to_output(&mut output, "video_encoder").await.unwrap();
 
     // Register the audio encoder
     let mut audio_settings = context.data().await.unwrap();
