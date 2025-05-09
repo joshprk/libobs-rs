@@ -11,7 +11,11 @@ members = [
 
     "examples/*",
 ]
-exclude = ["examples/tauri-app"]
+exclude = [
+    "examples/tauri-app",
+    # Exclude the preview example because it uses the "blocking" feature
+    "examples/obs-preview"
+]
 
 [workspace.metadata]
 libobs-version = "31.0.3"

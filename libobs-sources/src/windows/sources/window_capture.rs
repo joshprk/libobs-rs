@@ -1,7 +1,13 @@
 use libobs_source_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::sources::{ObsSourceRef, ObsSourceBuilder};
+use libobs_wrapper::{
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    scenes::ObsSceneRef,
+    sources::{ObsSourceBuilder, ObsSourceRef},
+    utils::ObsError,
+};
+use num_traits::ToPrimitive;
 
 use crate::macro_helper::define_object_manager;
 
@@ -11,9 +17,6 @@ define_object_manager!(
     /// Provides a easy to use builder for the window capture source.
     #[derive(Debug)]
     struct WindowCaptureSource("window_capture") for ObsSourceRef {
-    #[obs_property(type_t = "enum")]
-    /// Sets the capture method for the window capture
-    capture_method: ObsWindowCaptureMethod,
 
     /// Sets the priority of the window capture source.
     /// Used to determine in which order windows are searched for.
@@ -60,6 +63,8 @@ define_object_manager!(
 
     #[obs_property(type_t = "bool")]
     compatibility: bool,
+
+    capture_method: Option<ObsWindowCaptureMethod>,
 });
 
 #[obs_object_impl]
@@ -84,4 +89,45 @@ impl WindowCaptureSource {
     }
 }
 
-impl ObsSourceBuilder for WindowCaptureSourceBuilder {}
+impl<'a> WindowCaptureSourceUpdater<'a> {
+    pub fn set_capture_method(mut self, method: ObsWindowCaptureMethod) -> Self {
+        self.get_settings_updater()
+            .set_int_ref("method", method.to_i32().unwrap() as i64);
+
+        self
+    }
+}
+
+#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
+impl ObsSourceBuilder for WindowCaptureSourceBuilder {
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    async fn add_to_scene<'a>(
+        mut self,
+        scene: &'a mut ObsSceneRef,
+    ) -> Result<ObsSourceRef, ObsError>
+    where
+        Self: Sized,
+    {
+        // Because of a black screen bug, we need to set the method to WGC first and then update (I've copied this code from the DisplayCapture source, they should have the same issue)
+        self.get_settings_updater().set_int_ref(
+            "method",
+            ObsWindowCaptureMethod::MethodAuto.to_i32().unwrap() as i64,
+        );
+
+        let method_to_set = self.capture_method.clone();
+        let runtime = self.runtime.clone();
+
+        let b = self.build().await?;
+        let mut res = scene.add_source(b).await?;
+
+        if let Some(method) = method_to_set {
+            WindowCaptureSourceUpdater::create_update(runtime, &mut res)
+                .await?
+                .set_capture_method(method)
+                .update()
+                .await?;
+        }
+
+        Ok(res)
+    }
+}
