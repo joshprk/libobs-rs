@@ -99,9 +99,9 @@ impl<'a> WindowCaptureSourceUpdater<'a> {
 }
 
 
-impl MonitorCaptureSourceBuilder {
+impl WindowCaptureSourceBuilder {
     /// Sets the capture method for the window capture source.
-    pub fn set_capture_method(mut self, method: ObsDisplayCaptureMethod) -> Self {
+    pub fn set_capture_method(mut self, method: ObsWindowCaptureMethod) -> Self {
         self.capture_method = Some(method);
         self
     }
