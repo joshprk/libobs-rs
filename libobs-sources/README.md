@@ -1,6 +1,7 @@
 # libOBS Sources
 This crate makes it really easy to create new sources for OBS Studio using the [libobs-wrapper](https://crates.io/crates/libobs-wrapper) crate.
 
+(This example is outdated, look at tests and examples for more up to date code)
 ## Example
 ```rust
 let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();

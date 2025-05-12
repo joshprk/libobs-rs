@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::common::{initialize_obs, test_video};
-use libobs_sources::windows::{WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
+use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::data::ObsObjectUpdater;
 use libobs_wrapper::{
@@ -53,6 +53,7 @@ pub async fn test_window_capture() {
         .source_builder::<WindowCaptureSourceBuilder, _>(source_name)
         .await
         .unwrap()
+        .set_capture_method(ObsWindowCaptureMethod::MethodAuto)
         .set_window(&window)
         .add_to_scene(&mut scene)
         .await

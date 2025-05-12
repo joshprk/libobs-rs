@@ -62,7 +62,7 @@ pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_f
 
     let encoders = context.available_video_encoders().await.unwrap();
 
-    println!("Available encoders: {:?}", encoders);
+    println!("Available encoders: {:?}", encoders.iter().map(|e| e.get_encoder_id()).collect::<Vec<_>>());
     let mut encoder =  encoders.into_iter().find(|e| {
         let  t = e.get_encoder_id();
         t == &ObsVideoEncoderType::H264_TEXTURE_AMF || t == &ObsVideoEncoderType::AV1_TEXTURE_AMF
