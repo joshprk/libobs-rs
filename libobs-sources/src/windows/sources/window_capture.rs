@@ -98,6 +98,15 @@ impl<'a> WindowCaptureSourceUpdater<'a> {
     }
 }
 
+
+impl MonitorCaptureSourceBuilder {
+    /// Sets the capture method for the window capture source.
+    pub fn set_capture_method(mut self, method: ObsDisplayCaptureMethod) -> Self {
+        self.capture_method = Some(method);
+        self
+    }
+}
+
 #[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsSourceBuilder for WindowCaptureSourceBuilder {
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
