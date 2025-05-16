@@ -277,9 +277,8 @@ If you're experiencing crashes or missing DLL errors:
 
 ### Memory Leaks
 
-The library handles most memory management automatically, but you should:
-1. Properly drop or release OBS resources when done with them
-2. Avoid resetting the OBS context repeatedly as this can cause small memory leaks (due to an OBS limitation)
+The library handles most memory management automatically, but you should avoid resetting the OBS context repeatedly as this can cause small memory leaks (due to an OBS limitation). 
+Also notice that dropping Obs structs leads to a blocking call to the runtime.
 
 ## License
 
