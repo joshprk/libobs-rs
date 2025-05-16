@@ -13,7 +13,7 @@ sudo apt-get libobs-dev llvm-dev libclang-dev clang
 
 
 > [!NOTE]
-> The libobs-wrapper API is now fully sendable and async. If you do not want to use the async runtime, enable the feature `blocking` for `libobs-wrapper`
+> The libobs-wrapper API is now fully sendable and async. If you do not want to use the async runtime, enable the feature `blocking` for `libobs-wrapper` & `libobs-sources`
 
 
 ## Prerequisites
