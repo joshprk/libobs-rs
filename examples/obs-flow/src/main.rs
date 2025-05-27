@@ -79,13 +79,8 @@ async fn main() -> anyhow::Result<()> {
     let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name").await?;
 
     // Read the monitor_id from the property
-    if let Some(prop) = properties.iter().find(|p| {
-        if let ObsProperty::List(list) = p {
-            list.name().eq("monitor_id")
-        } else {
-            false
-        }
-    }) {
+    let prop = properties.get("monitor_id");
+    if let Some(prop) = prop {
         if let ObsProperty::List(list) = prop {
             if list.items().len() > 0 {
                 if let ObsListItemValue::String(value) = list.items()[0].value() {
