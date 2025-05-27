@@ -53,6 +53,12 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", path);
     }
 
+    #[cfg(not(feature = "skip_bindings"))]
+    generate_bindings();
+}
+
+#[cfg(not(feature = "skip_bindings"))]
+fn generate_bindings() {
     let bindings = bindgen::builder()
         .header("headers/wrapper.h")
         .clang_arg(format!("-I{}", "headers/obs"))

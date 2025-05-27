@@ -14,7 +14,10 @@
 mod test;
 
 mod bindings {
+    #[cfg(not(feature = "skip_bindings"))]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    #[cfg(feature = "skip_bindings")]
+    include!("bindings.rs");
 }
 
 pub use bindings::*;
