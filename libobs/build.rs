@@ -1,8 +1,12 @@
-use std::{collections::HashSet, env, path::PathBuf};
+use std::env;
+#[cfg(not(feature = "skip_bindings"))]
+use std::{collections::HashSet, path::PathBuf};
 
+#[cfg(not(feature = "skip_bindings"))]
 #[derive(Debug)]
 struct IgnoreMacros(HashSet<String>);
 
+#[cfg(not(feature = "skip_bindings"))]
 impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     fn will_parse_macro(&self, name: &str) -> bindgen::callbacks::MacroParsingBehavior {
         if self.0.contains(name) {
@@ -13,6 +17,7 @@ impl bindgen::callbacks::ParseCallbacks for IgnoreMacros {
     }
 }
 
+#[cfg(not(feature = "skip_bindings"))]
 fn get_ignored_macros() -> IgnoreMacros {
     let mut ignored = HashSet::new();
     ignored.insert("FE_INVALID".to_string());

@@ -142,6 +142,7 @@ impl ObsContext {
         // Spawning runtime, I'll keep this as function for now
         let runtime = ObsRuntime::startup(info).await?;
 
+        #[cfg(feature = "bootstrapper")]
         if matches!(runtime, ObsRuntimeReturn::Restart) {
             return Ok(ObsContextReturn::Restart);
         }

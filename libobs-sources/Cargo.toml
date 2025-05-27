@@ -32,6 +32,7 @@ libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.4", op
 
 [features]
 default = ["window-list"]
+skip_bindings = ["libobs/skip_bindings"]
 window-list = ["dep:libobs-window-helper"]
 blocking = ["libobs-wrapper/blocking", "dep:remove-async-await"]
 

@@ -135,7 +135,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
 
     sender_supp.send(params).unwrap();
 
-    if content_len <= 0 {
+    if content_len == 0 {
         bail!("Content length is 0");
     }
 

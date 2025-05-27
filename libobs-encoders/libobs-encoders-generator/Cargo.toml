@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-libobs-wrapper = { path = "../../libobs-wrapper", features = [] }
+libobs-wrapper = { path = "../../libobs-wrapper", features = ["bootstrapper"] }
 libobs = { path = "../../libobs" }
 anyhow = "1.0.97"
 num-traits = "0.2.19"

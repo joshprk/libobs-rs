@@ -31,11 +31,11 @@ colored = { version = "3.0.0", optional = true }
 oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
 async-stream = { version = "0.3.6", optional = true }
 futures-core = { version = "0.3.31", optional = true }
-futures-util = { version = "0.3.31", optional = true }
+futures-util = { version = "0.3.31" }
 semver = { version = "1.0.26", optional = true }
-tokio = { version = "1.44.1", optional = true, features = ["full"] }
+tokio = { version = "1.44.1", features = ["full"] }
 sevenz-rust = { version = "0.6.1", optional = true }
-async-trait = { version = "0.1.88", optional = true }
+async-trait = { version = "0.1.88" }
 sha2 = { version = "0.10.8", optional = true }
 uuid = { version = "1.16.0", optional = true, features = ["v4"] }
 reqwest = { version = "0.12.15", features = [
@@ -64,24 +64,25 @@ windows = { version = "0.61.1", features = [
 duplicate = "2.0.0"
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "bootstrapper"]
-skip_bindings = ["default", "libobs/skip_bindings"]
+default = ["color-logger", "dialog_crash_handler"]
+skip_bindings = ["libobs/skip_bindings"]
 color-logger = ["dep:colored"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
 bootstrapper = [
     "dep:async-stream",
     "dep:futures-core",
-    "dep:futures-util",
     "dep:semver",
-    "dep:tokio",
     "dep:sevenz-rust",
-    "dep:async-trait",
     "dep:sha2",
     "dep:uuid",
     "dep:reqwest",
     "dep:serde",
     "dep:hex",
     "dep:libloading"
+    # These are required even without the bootstrapper feature
+    # "dep:futures-util",
+    # "dep:tokio",
+    # "dep:async-trait",
 ]
 blocking = ["dep:remove-async-await", "dep:parking_lot"]
 
