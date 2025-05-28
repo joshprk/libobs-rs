@@ -9,9 +9,10 @@ use super::{GsColorFormat, GsZstencilFormat};
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub(super) parent_window: Sendable<windows::Win32::Foundation::HWND>,
-    pub(super) x: u32,
-    pub(super) y: u32,
+    pub(super) window_handle: Sendable<windows::Win32::Foundation::HWND>,
+    pub(super) create_child: bool,
+    pub(super) x: i32,
+    pub(super) y: i32,
     pub(super) width: u32,
     pub(super) height: u32,
     pub(super) format: GsColorFormat,
@@ -23,12 +24,13 @@ pub struct ObsDisplayCreationData {
 
 impl ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub fn new(parent_window: isize, x: u32, y: u32, width: u32, height: u32) -> Self {
+    pub fn new(window_handle: isize, create_child: bool, x: i32, y: i32, width: u32, height: u32) -> Self {
         use std::os::raw::c_void;
         use windows::Win32::Foundation::HWND;
 
         Self {
-            parent_window: Sendable(HWND(parent_window as *mut c_void)),
+            window_handle: Sendable(HWND(window_handle as *mut c_void)),
+            create_child,
             format: GsColorFormat::BGRA,
             zsformat: GsZstencilFormat::ZSNone,
             x,

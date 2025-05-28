@@ -100,17 +100,21 @@ impl ObsDisplayRef {
             y,
             height,
             width,
-            parent_window,
+            window_handle,
             background_color,
+            create_child,
             ..
         } = data.clone();
 
-        let mut manager =
-            DisplayWindowManager::new(parent_window.clone(), x as i32, y as i32, width, height)?;
+        let mut manager = if create_child {
+            DisplayWindowManager::new_child(window_handle.clone(), x, y, width, height)?
+        } else {
+            DisplayWindowManager::new(window_handle.clone(), x, y, width, height)
+        };
 
-        let child_handle = Sendable(manager.get_child_handle());
+        let preview_window_handle = Sendable(manager.get_window_handle());
         let init_data = Sendable(data.build(gs_window {
-            hwnd: child_handle.0 .0,
+            hwnd: preview_window_handle.0 .0,
         }));
 
         log::trace!("Creating obs display...");
