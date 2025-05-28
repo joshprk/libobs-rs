@@ -33,6 +33,7 @@ pub enum ObsError {
     OutputAlreadyActive,
     OutputStartFailure(Option<String>),
     OutputStopFailure(Option<String>),
+    OutputPauseFailure(Option<String>),
     OutputNotFound,
     SourceNotFound,
 
@@ -77,6 +78,7 @@ impl Display for ObsError {
             ObsError::JsonParseError => write!(f, "Failed to parse JSON data."),
             ObsError::NoSenderError => write!(f, "Couldn't get the sender of the signal."),
             ObsError::NoAvailableEncoders => write!(f, "No available encoders found."),
+            ObsError::OutputPauseFailure(s) => write!(f, "Output failed to pause. Error is {:?}", s),
         }
     }
 }

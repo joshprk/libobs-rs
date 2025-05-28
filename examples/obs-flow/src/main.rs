@@ -98,14 +98,22 @@ async fn main() -> anyhow::Result<()> {
 
     output.start().await?;
 
-    sleep(Duration::from_secs(15));
+    sleep(Duration::from_secs(5));
+
+    output.pause(true).await?;
+
+    sleep(Duration::from_secs(4));
+
+    output.pause(false).await?;
+
+    sleep(Duration::from_secs(5));
 
     // Stop the recording
     output.stop().await?;
 
 
     // Remove the source from the scene
-    scene.remove_source(&source).await?;
+    // scene.remove_source(&source).await?;
 
     Ok(())
 }
