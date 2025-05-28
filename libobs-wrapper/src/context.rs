@@ -44,10 +44,10 @@ use crate::{
     run_with_obs,
     runtime::{ObsRuntime, ObsRuntimeReturn},
     scenes::ObsSceneRef,
-    sources::ObsSourceBuilder,
+    sources::{ObsFilterRef, ObsSourceBuilder},
     unsafe_send::Sendable,
     utils::{
-        ObsError, ObsModules, ObsString, OutputInfo, StartupInfo,
+        FilterInfo, ObsError, ObsModules, ObsString, OutputInfo, StartupInfo
     },
 };
 use crate::utils::async_sync::{Mutex, RwLock};
@@ -93,6 +93,10 @@ pub struct ObsContext {
 
     #[get_mut]
     pub(crate) scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
+
+    // Filters are on the level of the context because they are not scene specific
+    #[get_mut]
+    pub(crate) filters: Arc<RwLock<Vec<ObsFilterRef>>>,
 
     #[skip_getter]
     pub(crate) active_scene: Arc<RwLock<Option<Sendable<*mut obs_scene_t>>>>,
@@ -158,6 +162,7 @@ impl ObsContext {
             displays: Default::default(),
             outputs: Default::default(),
             scenes: Default::default(),
+            filters: Default::default(),
             runtime,
             startup_info: Arc::new(RwLock::new(info)),
         };
@@ -295,6 +300,21 @@ impl ObsContext {
         };
     }
 
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn obsfilter(&mut self, info: FilterInfo) -> Result<ObsFilterRef, ObsError> {
+        let filter = ObsFilterRef::new(info.id, info.name, info.settings, info.hotkey_data, self.runtime.clone()).await;
+
+        return match filter {
+            Ok(x) => {
+                let tmp = x.clone();
+                self.filters.write().await.push(x);
+                Ok(tmp)
+            }
+
+            Err(x) => Err(x),
+        };
+    }
+
     /// Creates a new display and returns its ID.
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn display(
@@ -349,6 +369,16 @@ impl ObsContext {
             Some(output) => output.update_settings(settings).await,
             None => Err(ObsError::OutputNotFound),
         }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_filter(&mut self, name: &str) -> Option<ObsFilterRef> {
+        self.filters
+            .read()
+            .await
+            .iter()
+            .find(|x| x.name().to_string().as_str() == name)
+            .map(|e| e.clone())
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]

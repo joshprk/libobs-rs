@@ -6,7 +6,7 @@ use libobs_sources::{windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMet
 use libobs_wrapper::{
     context::ObsContext, data::properties::{types::ObsListItemValue, ObsProperty, ObsPropertyObject}, sources::ObsSourceRef, utils::{
         AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo,
-    }
+    }, Vec2
 };
 
 #[tokio::main]
@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     // To get the list of all monitors
     // It has a loop hole though, somehow the monitor_id returned in property is same if we have multiple monitor of exactly same model (exactly same monitor), use `libobs-window-helper` lib for fix
     let properties = source.get_properties().await?;
-    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name").await?;
+    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name 2").await?;
 
     // Read the monitor_id from the property
     let prop = properties.get("monitor_id");
@@ -95,6 +95,15 @@ async fn main() -> anyhow::Result<()> {
         set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .await?;
+
+    let position = scene.get_source_position("Display name 2").await?;
+    println!("Position: {:?}", position);
+
+    let scale = scene.get_source_scale("Display name 2").await?;
+    println!("Scale: {:?}", scale);
+
+    scene.set_source_position("Display name 2", Vec2::new(5.0, 5.0)).await?;
+    scene.set_source_scale("Display name 2", Vec2::new(0.5, 0.5)).await?;
 
     output.start().await?;
 

@@ -234,3 +234,5 @@ struct _ObsSourceGuard {
 impl_obs_drop!(_ObsSourceGuard, (source), move || unsafe {
     obs_source_release(source);
 });
+
+pub type ObsFilterRef = ObsSourceRef;

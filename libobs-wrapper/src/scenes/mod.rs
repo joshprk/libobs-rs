@@ -4,7 +4,7 @@ use getters0::Getters;
 use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
 
 use crate::{
-    impl_obs_drop, impl_signal_manager, run_with_obs, runtime::ObsRuntime, sources::ObsSourceRef, unsafe_send::Sendable, utils::{async_sync::RwLock, ObsError, ObsString, SourceInfo}
+    impl_obs_drop, impl_signal_manager, run_with_obs, runtime::ObsRuntime, sources::{ObsFilterRef, ObsSourceRef}, unsafe_send::Sendable, utils::{async_sync::RwLock, ObsError, ObsString, SourceInfo}, Vec2
 };
 
 #[derive(Debug)]
@@ -147,6 +147,120 @@ impl ObsSceneRef {
         }).await?;
 
         Ok(())
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn add_source_filter(&self, source_name: &str, filter_ref: &ObsFilterRef) -> Result<(), ObsError> {
+        match self.sources
+            .read()
+            .await
+            .iter()
+            .find(|x| x.name() == source_name) {
+        Some(source) => {
+                let source_ptr = source.source.clone();
+                let filter_ptr = filter_ref.source.clone();
+                run_with_obs!(self.runtime, (source_ptr, filter_ptr), move || unsafe {
+                    Sendable(libobs::obs_source_filter_add(source_ptr, filter_ptr))
+                }).await?;
+                Ok(())
+            }
+        _ => Err(ObsError::SourceNotFound),
+        }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn remove_source_filter(&self, source_name: &str, filter_ref: &ObsFilterRef) -> Result<(), ObsError> {
+        match self.sources
+            .read()
+            .await
+            .iter()
+            .find(|x| x.name() == source_name) {
+        Some(source) => {
+                let source_ptr = source.source.clone();
+                let filter_ptr = filter_ref.source.clone();
+                run_with_obs!(self.runtime, (source_ptr, filter_ptr), move || unsafe {
+                    Sendable(libobs::obs_source_filter_remove(source_ptr, filter_ptr))
+                }).await?;
+                Ok(())
+            }
+        _ => Err(ObsError::SourceNotFound),
+        }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_source_position(&self, name: &str) -> Result<Vec2, ObsError> {
+        match self.sources
+                .read()
+                .await
+                .iter()
+                .find(|x| x.name() == name)
+                .map(|x| x.scene_item.clone()) {
+            Some(Some(scene_item)) => {
+                let position = run_with_obs!(self.runtime, (scene_item), move || unsafe {
+                    let mut main_pos: libobs::vec2 = std::mem::zeroed();
+                    Sendable(libobs::obs_sceneitem_get_pos(scene_item, &mut main_pos));
+                    Vec2::from(main_pos)
+                }).await?;
+                Ok(position)
+            }
+            _ => Err(ObsError::SourceNotFound),
+        }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn get_source_scale(&self, name: &str) -> Result<Vec2, ObsError> {
+        match self.sources
+                .read()
+                .await
+                .iter()
+                .find(|x| x.name() == name)
+                .map(|x| x.scene_item.clone()) {
+            Some(Some(scene_item)) => {
+                let scale = run_with_obs!(self.runtime, (scene_item), move || unsafe {
+                    let mut main_pos: libobs::vec2 = std::mem::zeroed();
+                    Sendable(libobs::obs_sceneitem_get_scale(scene_item, &mut main_pos));
+                    Vec2::from(main_pos)
+                }).await?;
+                Ok(scale)
+            }
+            _ => Err(ObsError::SourceNotFound),
+        }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn set_source_position(&self, name: &str, position: Vec2) -> Result<(), ObsError> {
+        match self.sources
+                .read()
+                .await
+                .iter()
+                .find(|x| x.name() == name)
+                .map(|x| x.scene_item.clone()) {
+            Some(Some(scene_item)) => {
+                run_with_obs!(self.runtime, (scene_item), move || unsafe {
+                    Sendable(libobs::obs_sceneitem_set_pos(scene_item, &position.into()));
+                }).await?;
+                Ok(())
+            }
+            _ => Err(ObsError::SourceNotFound),
+        }
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    pub async fn set_source_scale(&self, name: &str, scale: Vec2) -> Result<(), ObsError> {
+        match self.sources
+                .read()
+                .await
+                .iter()
+                .find(|x| x.name() == name)
+                .map(|x| x.scene_item.clone()) {
+            Some(Some(scene_item)) => {
+                run_with_obs!(self.runtime, (scene_item), move || unsafe {
+                    Sendable(libobs::obs_sceneitem_set_scale(scene_item, &scale.into()));
+                }).await?;
+                Ok(())
+            }
+            _ => Err(ObsError::SourceNotFound),
+        }
     }
 
     pub fn as_ptr(&self) -> Sendable<*mut obs_scene_t> {
