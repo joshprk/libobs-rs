@@ -43,6 +43,7 @@ use std::{fmt::Debug, thread::JoinHandle};
 use std::{ptr, thread};
 use tokio::sync::oneshot;
 
+#[cfg(feature = "bootstrapper")]
 use crate::bootstrap::bootstrap;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
@@ -156,6 +157,7 @@ impl ObsRuntime {
     /// }
     /// ```
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    #[allow(unused_mut)]
     pub(crate) async fn startup(mut options: StartupInfo) -> Result<ObsRuntimeReturn, ObsError> {
         // Check if OBS is already running on another thread
         let obs_id = OBS_THREAD_ID.lock().await;

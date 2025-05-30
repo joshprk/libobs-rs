@@ -63,8 +63,9 @@ pub async fn main() -> anyhow::Result<()> {
         .update()
         .await?;
 
-    let video_encoder = context.best_video_encoder().await?;
-    video_encoder.set_to_output(&mut output, "video_encoder", Some(video_settings), None).await?;
+    let mut video_encoder = context.best_video_encoder().await?;
+    video_encoder.set_settings(video_settings);
+    video_encoder.set_to_output(&mut output, "video_encoder").await?;
 
     // Register the audio encoder
     let mut audio_settings = context.data().await?;

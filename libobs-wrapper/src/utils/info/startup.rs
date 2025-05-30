@@ -33,6 +33,10 @@ impl StartupInfo {
         self
     }
 
+    pub fn get_video_info(&self) -> &ObsVideoInfo {
+        &self.obs_video_info
+    }
+
     pub fn set_logger(mut self, logger: Box<dyn ObsLogger + Sync + Send>) -> Self {
         self.logger = Some(logger);
         self

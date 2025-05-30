@@ -1,7 +1,7 @@
 [package]
 name = "libobs-sources"
 description = "A helper crate to create sources for OBS"
-version = "2.0.5"
+version = "2.0.6"
 repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs_sources/"
 readme = "README.md"
@@ -17,8 +17,8 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
-libobs = { package = "libobs", version = "2.0.6", path = "../libobs" }
-libobs-wrapper = { path = "../libobs-wrapper", version = "3.0.3" }
+libobs = { package = "libobs", version = "2.1.0", path = "../libobs" }
+libobs-wrapper = { path = "../libobs-wrapper", version = "4.0.0" }
 num-derive = "0.4.2"
 num-traits = "0.2.19"
 libobs-source-macro = { path = "../libobs-source-macro", version = "2.0.2" }
@@ -32,6 +32,7 @@ libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.4", op
 
 [features]
 default = ["window-list"]
+generate_bindings = ["libobs/generate_bindings"]
 window-list = ["dep:libobs-window-helper"]
 blocking = ["libobs-wrapper/blocking", "dep:remove-async-await"]
 
@@ -40,7 +41,3 @@ env_logger = "0.11.8"
 essi-ffmpeg = "0.2.0"
 lazy_static = "1.5.0"
 tokio = "1.44.1"
-
-[package.metadata.docs.rs]
-# This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

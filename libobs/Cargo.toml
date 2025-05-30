@@ -1,6 +1,6 @@
 [package]
 name = "libobs"
-version = "2.0.6"
+version = "2.1.0"
 description = "LibOBS bindings for Rust"
 repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs/"
@@ -15,9 +15,9 @@ build = "build.rs"
 [build-dependencies]
 bindgen = "0.71.1"
 
+[features]
+default = []
+generate_bindings = []
+
 [dev-dependencies]
 vsprintf = "2.0.0"
-
-[package.metadata.docs.rs]
-# This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

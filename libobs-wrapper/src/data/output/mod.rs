@@ -5,10 +5,7 @@ use std::{ffi::CStr, ptr};
 use anyhow::bail;
 use getters0::Getters;
 use libobs::{
-    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active,
-    obs_output_create, obs_output_get_last_error, obs_output_release, obs_output_set_audio_encoder,
-    obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_output_update,
-    video_output,
+    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active, obs_output_create, obs_output_get_last_error, obs_output_pause, obs_output_release, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_output_update, video_output
 };
 
 use crate::enums::ObsOutputStopSignal;
@@ -401,6 +398,51 @@ impl ObsOutputRef {
         }
 
         Err(ObsError::OutputAlreadyActive)
+    }
+
+    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    /// Pause or resume the output.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `pause` - `true` to pause the output, `false` to resume the output.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(())` - The output was paused or resumed successfully.
+    /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
+    pub async fn pause(&self, pause: bool) -> Result<(), ObsError> {
+        let output_ptr = self.output.clone();
+        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            obs_output_active(output_ptr)
+        })
+        .await?;
+
+        if output_active {
+            let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+                obs_output_pause(output_ptr, pause)
+            })
+            .await?;
+
+            if res {
+                Ok(())
+            } else {
+                let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+                    Sendable(obs_output_get_last_error(output_ptr))
+                })
+                .await?;
+    
+                let c_str = unsafe { CStr::from_ptr(err.0) };
+                let err_str = c_str.to_str().ok().map(|x| x.to_string());
+    
+                Err(ObsError::OutputPauseFailure(err_str))
+            }
+        }
+        else {
+            Err(ObsError::OutputPauseFailure(Some(
+                "Output is not active.".to_string(),
+            )))
+        }
     }
 
     /// Stops the output.

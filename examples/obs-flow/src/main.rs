@@ -6,7 +6,7 @@ use libobs_sources::{windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMet
 use libobs_wrapper::{
     context::ObsContext, data::properties::{types::ObsListItemValue, ObsProperty, ObsPropertyObject}, sources::ObsSourceRef, utils::{
         AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo,
-    }
+    }, Vec2
 };
 
 #[tokio::main]
@@ -76,16 +76,11 @@ async fn main() -> anyhow::Result<()> {
     // To get the list of all monitors
     // It has a loop hole though, somehow the monitor_id returned in property is same if we have multiple monitor of exactly same model (exactly same monitor), use `libobs-window-helper` lib for fix
     let properties = source.get_properties().await?;
-    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name").await?;
+    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name 2").await?;
 
     // Read the monitor_id from the property
-    if let Some(prop) = properties.iter().find(|p| {
-        if let ObsProperty::List(list) = p {
-            list.name().eq("monitor_id")
-        } else {
-            false
-        }
-    }) {
+    let prop = properties.get("monitor_id");
+    if let Some(prop) = prop {
         if let ObsProperty::List(list) = prop {
             if list.items().len() > 0 {
                 if let ObsListItemValue::String(value) = list.items()[0].value() {
@@ -96,21 +91,38 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // method 2 is WGC
-    builder.
+    let source = builder.
         set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .await?;
 
+    let position = scene.get_source_position(&source).await?;
+    println!("Position: {:?}", position);
+
+    let scale = scene.get_source_scale(&source).await?;
+    println!("Scale: {:?}", scale);
+
+    scene.set_source_position(&source, Vec2::new(5.0, 5.0)).await?;
+    scene.set_source_scale(&source, Vec2::new(0.5, 0.5)).await?;
+
     output.start().await?;
 
-    sleep(Duration::from_secs(15));
+    sleep(Duration::from_secs(5));
+
+    output.pause(true).await?;
+
+    sleep(Duration::from_secs(4));
+
+    output.pause(false).await?;
+
+    sleep(Duration::from_secs(5));
 
     // Stop the recording
     output.stop().await?;
 
 
     // Remove the source from the scene
-    scene.remove_source(&source).await?;
+    // scene.remove_source(&source).await?;
 
     Ok(())
 }

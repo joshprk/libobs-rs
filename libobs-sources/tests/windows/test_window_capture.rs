@@ -9,18 +9,18 @@ use std::{
 use crate::common::{initialize_obs, test_video};
 use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
-use libobs_wrapper::data::ObsObjectUpdater;
+use libobs_wrapper::{data::ObsObjectUpdater, unsafe_send::Sendable};
 use libobs_wrapper::{
     sources::ObsSourceBuilder,
     utils::{traits::ObsUpdatable, ObsPath},
 };
 
-fn find_notepad() -> Option<WindowInfo> {
+fn find_notepad() -> Option<Sendable<WindowInfo>> {
     let windows =
         WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap();
     println!("{:?}", windows);
     windows.into_iter().find(|w| {
-        w.class
+        w.0.class
             .as_ref()
             .is_some_and(|e| e.to_lowercase().contains("notepad"))
     })
@@ -65,11 +65,11 @@ pub async fn test_window_capture() {
     let windows = WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)
         .unwrap()
         .into_iter()
-        .filter(|e| e.obs_id.to_lowercase().contains("code"))
+        .filter(|e| e.0.obs_id.to_lowercase().contains("code"))
         .collect::<Vec<_>>();
     for i in 0..cmp::min(5, windows.len()) {
         let w = windows.get(i).unwrap();
-        println!("Setting to {:?}", w.obs_id);
+        println!("Setting to {:?}", w.0.obs_id);
 
         source
             .create_updater::<WindowCaptureSourceUpdater>()

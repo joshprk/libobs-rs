@@ -23,7 +23,8 @@ mod require_non_blocking {
     pub async fn record_test() {
         // Start the OBS context
         let startup_info = StartupInfo::default().set_logger(Box::new(TestLogger {}));
-        let context = ObsContext::new(startup_info).await.unwrap();
+        let mut context = ObsContext::new(startup_info).await.unwrap();
+        #[cfg(feature = "bootstrapper")]
         let mut context = match context {
             libobs_wrapper::context::ObsContextReturn::Done(c) => c,
             libobs_wrapper::context::ObsContextReturn::Restart => panic!("Restart not supported"),

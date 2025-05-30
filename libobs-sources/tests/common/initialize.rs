@@ -32,7 +32,8 @@ pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_f
         //startup_info = startup_info.set_logger(Box::new(_l));
     }
 
-    let context = ObsContext::new(startup_info).await.unwrap();
+    #[allow(unused_mut)]
+    let mut context = ObsContext::new(startup_info).await.unwrap();
     let mut context = match context {
         ObsContextReturn::Done(c) => c,
         ObsContextReturn::Restart => panic!("OBS context restarted"),

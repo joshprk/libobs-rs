@@ -35,5 +35,6 @@ impl ObjectInfo {
 
 pub type OutputInfo = ObjectInfo;
 pub type SourceInfo = ObjectInfo;
+pub type FilterInfo = ObjectInfo;
 pub type AudioEncoderInfo = ObjectInfo;
 pub type VideoEncoderInfo = ObjectInfo;

@@ -139,7 +139,7 @@ pub struct DisplayWindowManager {
 }
 
 impl DisplayWindowManager {
-    pub fn new(parent: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
+    pub fn new_child(parent: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
         let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));
@@ -259,7 +259,29 @@ impl DisplayWindowManager {
         })
     }
 
+    pub fn new(window_handle: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> Self {
+        // Should exit is not needed as the window is being managed by the sender
+        Self {
+            x,
+            y,
+            width,
+            height,
+            scale: 1.0,
+            hwnd: window_handle,
+            should_exit: Arc::new(AtomicBool::new(false)),
+            message_thread: None,
+            render_at_bottom: false,
+            is_hidden: AtomicBool::new(false),
+            obs_display: None,
+        }
+    }
+
+    #[deprecated(note = "Use `get_window_handle` instead.")]
     pub fn get_child_handle(&self) -> HWND {
+        self.get_window_handle()
+    }
+
+    pub fn get_window_handle(&self) -> HWND {
         self.hwnd.0.clone()
     }
 }

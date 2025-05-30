@@ -1,11 +1,11 @@
 [package]
 name = "libobs-encoders-generator"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 
 [dependencies]
-libobs-wrapper = { path = "../../libobs-wrapper", features = [] }
-libobs = { path = "../../libobs" }
+libobs-wrapper = { version = "4.0.0", path = "../../libobs-wrapper", features = ["bootstrapper"] }
+libobs = { version = "2.1.0", path = "../../libobs" }
 anyhow = "1.0.97"
 num-traits = "0.2.19"
 num-derive = "0.4.2"

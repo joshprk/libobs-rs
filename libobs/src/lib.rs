@@ -14,7 +14,10 @@
 mod test;
 
 mod bindings {
+    #[cfg(feature = "generate_bindings")]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+    #[cfg(not(feature = "generate_bindings"))]
+    include!("bindings.rs");
 }
 
 pub use bindings::*;
