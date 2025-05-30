@@ -86,6 +86,3 @@ bootstrapper = [
 ]
 blocking = ["dep:remove-async-await", "dep:parking_lot"]
 
-[package.metadata.docs.rs]
-# This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

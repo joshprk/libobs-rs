@@ -21,7 +21,3 @@ generate_bindings = []
 
 [dev-dependencies]
 vsprintf = "2.0.0"
-
-[package.metadata.docs.rs]
-# This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]
