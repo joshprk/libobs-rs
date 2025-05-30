@@ -41,6 +41,31 @@ impl ObsVideoInfo {
     pub fn graphics_module(&self) -> &ObsString {
         &self.graphics_module
     }
+
+    pub fn get_fps_num(&self) -> u32 {
+        self.ovi.0.fps_num
+    }
+
+    pub fn get_fps_den(&self) -> u32 {
+        self.ovi.0.fps_den
+    }
+
+    pub fn get_base_width(&self) -> u32 {
+        self.ovi.0.base_width
+    }
+
+    pub fn get_base_height(&self) -> u32 {
+        self.ovi.0.base_height
+    }
+    
+    pub fn get_output_width(&self) -> u32 {
+        self.ovi.0.output_width
+    }
+
+    pub fn get_output_height(&self) -> u32 {
+        self.ovi.0.output_height
+    }
+    
 }
 
 impl Default for ObsVideoInfo {
