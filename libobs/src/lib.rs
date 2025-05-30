@@ -14,9 +14,9 @@
 mod test;
 
 mod bindings {
-    #[cfg(not(feature = "skip_bindings"))]
+    #[cfg(feature = "generate_bindings")]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-    #[cfg(feature = "skip_bindings")]
+    #[cfg(not(feature = "generate_bindings"))]
     include!("bindings.rs");
 }
 

@@ -47,3 +47,15 @@ impl Into<libobs::vec2> for Vec2 {
         }
     }
 }
+
+#[test]
+fn test_vec2() {
+    let vec_val = Vec2::new(1.0, 2.0);
+    let libobs_vec: libobs::vec2 = vec_val.into();
+    
+    let original = Vec2::from(libobs_vec);
+    assert_eq!(original.x, 1.0);
+    assert_eq!(original.y, 2.0);
+    assert_ne!(original.x, 0.0);
+    assert_ne!(original.y, 0.0);
+}

@@ -24,13 +24,13 @@ pub struct ObsDisplayCreationData {
 
 impl ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub fn new(window_handle: isize, create_child: bool, x: i32, y: i32, width: u32, height: u32) -> Self {
+    pub fn new(window_handle: isize, x: i32, y: i32, width: u32, height: u32) -> Self {
         use std::os::raw::c_void;
         use windows::Win32::Foundation::HWND;
 
         Self {
             window_handle: Sendable(HWND(window_handle as *mut c_void)),
-            create_child,
+            create_child: true,
             format: GsColorFormat::BGRA,
             zsformat: GsZstencilFormat::ZSNone,
             x,
@@ -65,6 +65,11 @@ impl ObsDisplayCreationData {
 
     pub fn set_background_color(mut self, background_color: u32) -> Self {
         self.background_color = background_color;
+        self
+    }
+
+    pub fn set_create_child(mut self, should_create: bool) -> Self {
+        self.create_child = should_create;
         self
     }
 

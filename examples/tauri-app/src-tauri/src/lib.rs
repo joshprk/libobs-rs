@@ -80,7 +80,7 @@ async fn add_preview(handle: AppHandle, x: u32, y: u32, width: u32, height: u32)
         // Create display configuration
         // ObsDisplayCreationData contains parameters needed for OBS to create a display
         // in a specified window area
-        let display_config = ObsDisplayCreationData::new(native_handle, x, y, width, height);
+        let display_config = ObsDisplayCreationData::new(native_handle, x as i32, y as i32, width, height);
         
         // Request OBS to create a display with our configuration
         // The display will render the current OBS scene graph at the specified position

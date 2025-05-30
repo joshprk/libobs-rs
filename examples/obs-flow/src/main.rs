@@ -91,19 +91,19 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // method 2 is WGC
-    builder.
+    let source = builder.
         set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
         .add_to_scene(&mut scene)
         .await?;
 
-    let position = scene.get_source_position("Display name 2").await?;
+    let position = scene.get_source_position(&source).await?;
     println!("Position: {:?}", position);
 
-    let scale = scene.get_source_scale("Display name 2").await?;
+    let scale = scene.get_source_scale(&source).await?;
     println!("Scale: {:?}", scale);
 
-    scene.set_source_position("Display name 2", Vec2::new(5.0, 5.0)).await?;
-    scene.set_source_scale("Display name 2", Vec2::new(0.5, 0.5)).await?;
+    scene.set_source_position(&source, Vec2::new(5.0, 5.0)).await?;
+    scene.set_source_scale(&source, Vec2::new(0.5, 0.5)).await?;
 
     output.start().await?;
 

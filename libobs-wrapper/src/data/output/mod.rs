@@ -409,8 +409,7 @@ impl ObsOutputRef {
     /// 
     /// # Returns
     /// 
-    /// * `Ok(true)` - The output was paused or resumed successfully.
-    /// * `Ok(false)` - Unable to pause output (Check output type, not all outputs support pause/resume).
+    /// * `Ok(())` - The output was paused or resumed successfully.
     /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
     pub async fn pause(&self, pause: bool) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();

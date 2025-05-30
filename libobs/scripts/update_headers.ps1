@@ -12,6 +12,7 @@ function Get-LatestReleaseTag {
 # Set up paths
 $tempDir = Join-Path -Path $env:TEMP -ChildPath "obs-studio-temp"
 $targetHeaderDir = Join-Path -Path $PSScriptRoot -ChildPath "../headers/obs"
+$targetBindingsPath = Join-Path -Path $PSScriptRoot -ChildPath "../src/bindings.rs"
 
 # Determine which branch/tag to use
 if ([string]::IsNullOrEmpty($Branch)) {
@@ -80,6 +81,24 @@ try {
 }
 
 Copy-Item $tempDir/build_x64/libobs/RelWithDebInfo/obs.lib $PSScriptRoot/../
+
+# Build bindings and copy to src/bindings.rs
+Write-Host "Building bindings..."
+cargo build --target-dir $tempDir --release
+
+# Get the bindings.rs file
+$bindings = Get-ChildItem -Path $tempDir/release/build -Recurse -Filter "bindings.rs" |
+    Where-Object { $_.FullName -match "libobs-[^\\]+\\out\\bindings.rs" } |
+    Sort-Object LastWriteTime -Descending |
+    Select-Object -First 1
+
+if ($bindings) {
+    Write-Host "Found: $($bindings.FullName)"
+    Write-Host "Copying to: $targetBindingsPath"
+    Copy-Item -Path $bindings.FullName -Destination $targetBindingsPath -Force
+} else {
+    Write-Warning "No bindings.rs file found for libobs-* in $buildPath"
+}
 
 Write-Host "Cleaning up temporary directory..."
 Remove-Item -Path $tempDir -Recurse -Force

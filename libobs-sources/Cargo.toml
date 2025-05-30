@@ -31,8 +31,8 @@ display-info = "0.5.4"
 libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.4", optional = true }
 
 [features]
-default = ["window-list"]
-skip_bindings = ["libobs/skip_bindings"]
+default = ["window-list", "generate_bindings"]
+generate_bindings = ["libobs/generate_bindings"]
 window-list = ["dep:libobs-window-helper"]
 blocking = ["libobs-wrapper/blocking", "dep:remove-async-await"]
 
@@ -44,4 +44,4 @@ tokio = "1.44.1"
 
 [package.metadata.docs.rs]
 # This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc", "x86_64-pc-windows-gnu"]
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

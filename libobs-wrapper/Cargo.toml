@@ -64,8 +64,8 @@ windows = { version = "0.61.1", features = [
 duplicate = "2.0.0"
 
 [features]
-default = ["color-logger", "dialog_crash_handler"]
-skip_bindings = ["libobs/skip_bindings"]
+default = ["color-logger", "dialog_crash_handler", "generate_bindings"]
+generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
 bootstrapper = [
@@ -88,4 +88,4 @@ blocking = ["dep:remove-async-await", "dep:parking_lot"]
 
 [package.metadata.docs.rs]
 # This also sets the default target to `x86_64-pc-windows-msvc`
-targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc", "x86_64-pc-windows-gnu"]
+targets = ["x86_64-pc-windows-msvc", "i686-pc-windows-msvc"]

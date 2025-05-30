@@ -301,7 +301,7 @@ impl ObsContext {
     }
 
     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn obsfilter(&mut self, info: FilterInfo) -> Result<ObsFilterRef, ObsError> {
+    pub async fn obs_filter(&mut self, info: FilterInfo) -> Result<ObsFilterRef, ObsError> {
         let filter = ObsFilterRef::new(info.id, info.name, info.settings, info.hotkey_data, self.runtime.clone()).await;
 
         return match filter {
