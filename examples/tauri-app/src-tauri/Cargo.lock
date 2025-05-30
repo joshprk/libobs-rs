@@ -2450,7 +2450,7 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.0.6"
+version = "2.1.0"
 dependencies = [
  "bindgen",
 ]
@@ -2467,7 +2467,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.5"
+version = "2.0.6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2493,7 +2493,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "3.0.3"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "arboard",

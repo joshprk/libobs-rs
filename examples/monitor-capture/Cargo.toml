@@ -5,7 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
-libobs-wrapper = { path = "../../libobs-wrapper", features = ["bootstrapper"] }
-libobs-sources = { path = "../../libobs-sources" }
+libobs-wrapper = { version = "4.0.0", path = "../../libobs-wrapper", features = ["bootstrapper"] }
+libobs-sources = { version = "2.0.6", path = "../../libobs-sources" }
 tokio = { version = "1.44.2", features = ["full"] }
 anyhow = "1.0.98"

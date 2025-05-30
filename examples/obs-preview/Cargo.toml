@@ -7,6 +7,6 @@ publish = false
 [dependencies]
 anyhow = "1.0.86"
 env_logger = "0.11.5"
-libobs-wrapper = { path = "../../libobs-wrapper", features = ["blocking"] }
-libobs-sources = { path = "../../libobs-sources", features = ["blocking"] }
+libobs-wrapper = { version = "4.0.0", path = "../../libobs-wrapper", features = ["blocking"] }
+libobs-sources = { version = "2.0.6", path = "../../libobs-sources", features = ["blocking"] }
 winit = "0.30.9"
