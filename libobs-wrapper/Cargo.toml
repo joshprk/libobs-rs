@@ -64,7 +64,7 @@ windows = { version = "0.61.1", features = [
 duplicate = "2.0.0"
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "generate_bindings"]
+default = ["color-logger", "dialog_crash_handler"]
 generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]

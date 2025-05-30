@@ -16,7 +16,7 @@ build = "build.rs"
 bindgen = "0.71.1"
 
 [features]
-default = ["generate_bindings"]
+default = []
 generate_bindings = []
 
 [dev-dependencies]

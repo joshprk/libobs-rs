@@ -31,7 +31,7 @@ display-info = "0.5.4"
 libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.4", optional = true }
 
 [features]
-default = ["window-list", "generate_bindings"]
+default = ["window-list"]
 generate_bindings = ["libobs/generate_bindings"]
 window-list = ["dep:libobs-window-helper"]
 blocking = ["libobs-wrapper/blocking", "dep:remove-async-await"]
