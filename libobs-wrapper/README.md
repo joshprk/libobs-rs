@@ -42,13 +42,13 @@ Install OBS in your target directory:
 
 ```bash
 # For debug builds
-cargo obs-build target/debug
+cargo obs-build --out-dir target/debug
 
 # For release builds
-cargo obs-build target/release
+cargo obs-build --out-dir target/release
 
 # For testing
-cargo obs-build target/(debug|release)/deps
+cargo obs-build --out-dir target/(debug|release)/deps
 ```
 
 ### Option 2: Using the OBS Bootstrapper (Recommended for distribution)
