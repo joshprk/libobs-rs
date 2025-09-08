@@ -39,11 +39,11 @@ libobs-version="31.0.3"
 Install OBS in your target directory. This uses the original signed OBS binaries.
 ```bash
 # for debugging
-cargo obs-build target/debug
+cargo obs-build --out-dir target/debug
 # for release
-cargo obs-build target/release
+cargo obs-build --out-dir target/release
 # for testing
-cargo obs-build target/(debug|release)/deps
+cargo obs-build --out-dir target/(debug|release)/deps
 ```
 
 
