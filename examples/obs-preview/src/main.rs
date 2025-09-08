@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
 use libobs_sources::{
-    windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater},
+    windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater, GameCaptureSourceBuilder},
     ObsObjectUpdater,
 };
 use libobs_wrapper::context::ObsContextReturn;
@@ -201,8 +201,8 @@ fn main() -> anyhow::Result<()> {
     let mut scene = context.scene("Main Scene")?;
 
     let source = context
-        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor Capture")?
-        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[0])
+        .source_builder::<GameCaptureSourceBuilder, _>("Monitor Capture")?
+        //.set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[0])
         .add_to_scene(&mut scene)?;
 
     scene.set_to_channel(0)?;

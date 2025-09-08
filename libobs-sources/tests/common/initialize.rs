@@ -34,10 +34,6 @@ pub async fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(rec_f
 
     #[allow(unused_mut)]
     let mut context = ObsContext::new(startup_info).await.unwrap();
-    let mut context = match context {
-        ObsContextReturn::Done(c) => c,
-        ObsContextReturn::Restart => panic!("OBS context restarted"),
-    };
 
     // Set up output to ./recording.mp4
     let mut output_settings = context.data().await.unwrap();
