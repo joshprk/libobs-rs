@@ -6,6 +6,7 @@ use libobs_sources::{
     windows::{MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater, GameCaptureSourceBuilder},
     ObsObjectUpdater,
 };
+use libobs_sources::windows::ObsGameCaptureMode;
 use libobs_wrapper::context::ObsContextReturn;
 use libobs_wrapper::data::video::ObsVideoInfo;
 use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
@@ -112,7 +113,7 @@ impl ApplicationHandler for App {
                 if !matches!(state, ElementState::Pressed) {
                     return;
                 }
-
+/*
                 let tmp = self.source_ref.clone();
                 let monitor_index = self.monitor_index.clone();
 
@@ -130,6 +131,7 @@ impl ApplicationHandler for App {
                     .set_monitor(monitor)
                     .update()
                     .unwrap();
+ */
             }
             _ => (),
         }
@@ -201,8 +203,8 @@ fn main() -> anyhow::Result<()> {
     let mut scene = context.scene("Main Scene")?;
 
     let source = context
-        .source_builder::<GameCaptureSourceBuilder, _>("Monitor Capture")?
-        //.set_monitor(&MonitorCaptureSourceBuilder::get_monitors()?[0])
+        .source_builder::<GameCaptureSourceBuilder, _>("Game cpature")?
+        .set_capture_mode(ObsGameCaptureMode::Any)
         .add_to_scene(&mut scene)?;
 
     scene.set_to_channel(0)?;
@@ -215,7 +217,7 @@ fn main() -> anyhow::Result<()> {
 
         println!("Listening for updates");
         while let Ok(_) = x.blocking_recv() {
-            println!("Monitor Source has been updated!");
+            println!("Game Source has been updated!");
         }
     });
 
