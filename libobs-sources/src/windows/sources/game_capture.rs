@@ -1,5 +1,5 @@
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::{data::StringEnum, sources::ObsSourceRef};
+use libobs_wrapper::{data::StringEnum, sources::{ObsSourceBuilder, ObsSourceRef}};
 
 use crate::macro_helper::define_object_manager;
 
@@ -130,3 +130,5 @@ impl GameCaptureSourceBuilder {
         self.set_window_raw(window.obs_id.as_str())
     }
 }
+
+impl ObsSourceBuilder for GameCaptureSourceBuilder {}
