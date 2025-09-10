@@ -55,7 +55,7 @@ cargo obs-build --out-dir target/(debug|release)/deps
 
 The library includes a bootstrapper that can download and install OBS binaries at runtime, which is useful for distributing applications without requiring users to install OBS separately.
 
-1. Add a placeholder `obs.dll` file to your executable directory that will be replaced by the bootstrapper:
+1. Add a placeholder `obs.dll` file to your executable directory (eg. `target/release/`). That file will be replaced by the bootstrap during runtime:
    - Download a dummy DLL from [libobs-builds releases](https://github.com/sshcrack/libobs-builds/releases)
    - Use the version that matches your target OBS version
    - Rename the downloaded file to `obs.dll`
