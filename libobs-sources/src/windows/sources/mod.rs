@@ -9,3 +9,5 @@ pub use game_capture::*;
 
 mod monitor_capture;
 pub use monitor_capture::*;
+
+pub use libobs_window_helper::{WindowInfo, WindowSearchMode};
