@@ -252,7 +252,9 @@ async fn main() -> anyhow::Result<()> {
     let btd = btd
         .iter()
         .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Bloons"))
-        .unwrap();
+        .expect("Could not find Bloons TD 6 window");
+
+    println!("Is used by other instance: {}", GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?);
     let source = context
         .source_builder::<GameCaptureSourceBuilder, _>("Game capture")
         .await?

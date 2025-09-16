@@ -1,10 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
-use libobs_sources::windows::{GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, ObsGameCaptureMode};
-use libobs_wrapper::{
-    sources::ObsSourceBuilder,
-    utils::ObsPath,
-};
+use libobs_sources::windows::{GameCaptureSourceBuilder, ObsGameCaptureMode};
+use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs, test_video};
 
@@ -16,9 +13,14 @@ pub async fn game_test() {
     let (mut context, mut output) = initialize_obs(rec_file).await;
     let mut scene = context.scene("main").await.unwrap();
 
-
-    let game = GameCaptureSourceBuilder::get_windows(libobs_window_helper::WindowSearchMode::ExcludeMinimized).unwrap();
-    let game = game.iter().find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Bloons")).unwrap();
+    let game = GameCaptureSourceBuilder::get_windows(
+        libobs_window_helper::WindowSearchMode::ExcludeMinimized,
+    )
+    .unwrap();
+    let game = game
+        .iter()
+        .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Bloons"))
+        .unwrap();
 
     println!("Using window: {:?}", game);
 
@@ -38,10 +40,9 @@ pub async fn game_test() {
     std::thread::sleep(Duration::from_secs(5));
     println!("Recording stop");
 
-    let x = capture_source.id();
+    // This is just so the capture source is not dropped before stopping the output
+    let _x = capture_source.id();
     output.stop().await.unwrap();
 
-    test_video(&path_out, 1.0)
-        .await
-        .unwrap();
+    test_video(&path_out, 1.0).await.unwrap();
 }
