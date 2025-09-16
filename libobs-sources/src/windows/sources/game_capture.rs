@@ -1,5 +1,9 @@
+#[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
-use libobs_wrapper::{data::StringEnum, sources::ObsSourceRef};
+use libobs_wrapper::{
+    data::StringEnum,
+    sources::{ObsSourceBuilder, ObsSourceRef},
+};
 
 use crate::macro_helper::define_object_manager;
 
@@ -45,6 +49,15 @@ impl StringEnum for ObsGameCaptureMode {
 
 define_object_manager!(
     #[derive(Debug)]
+    /// A source to capture a game or fullscreen application.
+    ///
+    ///
+    /// Use `GameCaptureSourceBuilder::get_windows` to get a list of windows that can be captured (feature `window-list` needs to be enabled).
+    /// Requires OBS to be running with administrator privileges to capture certain games.
+    ///
+    /// ## Important Notice
+    /// This source fails to capture if another instance (OBS studio, another instance of your program, etc.) has a game capture source for the same game/application active.
+    /// If the window can be captured can be checked using `GameCaptureSourceBuilder::is_window_in_use_by_other_instance` (feature `window-list` needs to be enabled).
     struct GameCaptureSource("game_capture") for ObsSourceRef {
         /// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
         #[obs_property(type_t = "enum_string")]
@@ -117,6 +130,14 @@ impl GameCaptureSourceBuilder {
         get_all_windows(mode).map(|e| e.into_iter().filter(|x| x.is_game).collect::<Vec<_>>())
     }
 
+    /// Checks if a window with the given process ID can be captured by this source.
+    /// This does not guarantee that the window can be captured, only that it is not black
+    pub fn is_window_in_use_by_other_instance(window_pid: u32) -> std::io::Result<bool> {
+        use libobs_window_helper::is_window_in_use_by_other_instance;
+
+        is_window_in_use_by_other_instance(window_pid)
+    }
+
     /// Sets the window to capture.
     ///
     /// # Arguments
@@ -130,3 +151,5 @@ impl GameCaptureSourceBuilder {
         self.set_window_raw(window.obs_id.as_str())
     }
 }
+
+impl ObsSourceBuilder for GameCaptureSourceBuilder {}

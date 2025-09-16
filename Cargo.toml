@@ -14,7 +14,7 @@ members = [
 exclude = [
     "examples/tauri-app",
     # Exclude the preview example because it uses the "blocking" feature
-    "examples/obs-preview"
+    #"examples/obs-preview"
 ]
 
 [workspace.metadata]

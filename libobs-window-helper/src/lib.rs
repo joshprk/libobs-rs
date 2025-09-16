@@ -21,7 +21,12 @@ mod test;
 pub use game::*;
 pub use helper::*;
 use win_iterator::{first_window, next_window};
-use windows::Win32::{Foundation::HWND, System::Console::GetConsoleWindow};
+use windows::
+    Win32::{
+        Foundation::HWND,
+        System::Console::GetConsoleWindow,
+    }
+;
 
 /// Retrieves information about all windows based on the specified search mode and game check flag.
 ///
@@ -60,4 +65,25 @@ pub fn get_all_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>
     }
 
     Ok(out)
+}
+
+const OBS_PIPE_NAME: &'static str = "CaptureHook_Pipe";
+pub fn is_window_in_use_by_other_instance(window_pid: u32) -> std::io::Result<bool> {
+    #[cfg(not(windows))]
+    return false;
+
+    let pipe_name = format!("{}{}", OBS_PIPE_NAME, window_pid);
+    let paths = std::fs::read_dir(r"\\.\pipe\")?;
+
+    for path in paths {
+        let path = path?;
+        let name = path.file_name();
+        let name = name.to_string_lossy();
+
+        if name == pipe_name {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
