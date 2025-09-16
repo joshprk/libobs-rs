@@ -32,7 +32,7 @@ use windows::{
         },
     },
 };
-use windows_result::Error;
+use windows::core::Error;
 
 const SZ_STRING_FILE_INFO: &'static str = "StringFileInfo";
 const SZ_PRODUCT_NAME: &'static str = "ProductName";

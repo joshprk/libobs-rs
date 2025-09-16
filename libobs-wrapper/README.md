@@ -64,7 +64,7 @@ The library includes a bootstrapper that can download and install OBS binaries a
 
 ```toml
 [dependencies]
-libobs-wrapper = { version = "0.1", features = ["bootstrapper"] }
+libobs-wrapper = { version = "4.0.1", features = ["bootstrapper"] }
 async-trait = "0.1"  # For implementing the bootstrap status handler
 indicatif = "0.17"   # Optional: For progress bars
 ```

@@ -1,7 +1,7 @@
 [package]
 name = "libobs-sources"
 description = "A helper crate to create sources for OBS"
-version = "2.0.6"
+version = "2.0.7"
 repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs_sources/"
 readme = "README.md"
@@ -17,18 +17,19 @@ license = "GPL-3.0"
 edition = "2021"
 
 [dependencies]
-libobs = { package = "libobs", version = "2.1.0", path = "../libobs" }
-libobs-wrapper = { path = "../libobs-wrapper", version = "4.0.0" }
+libobs = { workspace = true }
+libobs-wrapper = { workspace = true }
+libobs-source-macro = { workspace = true }
 num-derive = "0.4.2"
 num-traits = "0.2.19"
-libobs-source-macro = { path = "../libobs-source-macro", version = "2.0.2" }
 anyhow = "1.0.97"
 paste = "1.0.15"
 async-trait = "0.1.88"
 log = "0.4.27"
 remove-async-await = { version = "1.0.1", optional = true }
+
 display-info = "0.5.4"
-libobs-window-helper = { path = "../libobs-window-helper", version = "0.1.4", optional = true }
+libobs-window-helper = { workspace = true, optional = true }
 
 [features]
 default = ["window-list"]
@@ -40,4 +41,4 @@ blocking = ["libobs-wrapper/blocking", "dep:remove-async-await"]
 env_logger = "0.11.8"
 essi-ffmpeg = "0.2.0"
 lazy_static = "1.5.0"
-tokio = "1.44.1"
+tokio = "1.47.1"

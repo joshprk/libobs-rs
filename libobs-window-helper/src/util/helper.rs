@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result as AnyResult};
-use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::GetWindowThreadProcessId};
-use windows_result::{Error, Result as WinResult};
+use windows::{core::{Error, Result as WinResult}, Win32::{Foundation::HWND, UI::WindowsAndMessaging::GetWindowThreadProcessId}};
 
 use crate::{
     is_blacklisted_window,

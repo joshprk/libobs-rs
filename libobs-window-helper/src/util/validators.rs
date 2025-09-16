@@ -1,11 +1,15 @@
 use std::os::raw::c_void;
-use windows::Win32::UI::WindowsAndMessaging::{GetClientRect, GetWindowLongPtrW, IsIconic, IsWindowVisible, GWL_EXSTYLE, GWL_STYLE, WS_CHILD, WS_EX_TOOLWINDOW};
-use windows::Win32::{
-    Foundation::{HWND, RECT},
-    Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED},
+use windows::Win32::UI::WindowsAndMessaging::{
+    GetClientRect, GetWindowLongPtrW, IsIconic, IsWindowVisible, GWL_EXSTYLE, GWL_STYLE, WS_CHILD,
+    WS_EX_TOOLWINDOW,
 };
-
-use windows_result::Result;
+use windows::{
+    core::Result,
+    Win32::{
+        Foundation::{HWND, RECT},
+        Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_CLOAKED},
+    },
+};
 
 const INTERNAL_MICROSOFT_EXES_EXACT: &'static [&'static str] = &[
     "startmenuexperiencehost.exe",
