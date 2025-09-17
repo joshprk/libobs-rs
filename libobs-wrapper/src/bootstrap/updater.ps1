@@ -3,7 +3,7 @@ param (
     [string]$binary,
 
     [Parameter(Mandatory = $false)]
-    [string[]]$arguments = @(),
+    [string]$argumentHex = "",
 
     [Parameter(Mandatory = $true)]
     [int]$processPid,
@@ -87,7 +87,31 @@ if (-not $restart) {
     exit 0
 }
 
-# Restart the binary with given arguments
+# Decode argumentHex to argument array
+$arguments = @()
+if ($argumentHex -ne "") {
+    try {
+        # Split the hex string into argument hex segments by '00' (null separator)
+        $hexArgs = $argumentHex -split '00'
+        $arguments = @()
+        foreach ($hexArg in $hexArgs) {
+            if ($hexArg -ne "") {
+            $bytes = @()
+            for ($i = 0; $i -lt $hexArg.Length; $i += 2) {
+                $bytes += [Convert]::ToByte($hexArg.Substring($i, 2), 16)
+            }
+            $decoded = [System.Text.Encoding]::UTF8.GetString($bytes)
+            if ($decoded -ne "") {
+                $arguments += $decoded
+            }
+            }
+        }
+    }
+    catch {
+        Write-Host "Failed to decode argumentHex: $_. Starting without arguments."
+    }
+}
+
 Write-Host "Restarting $binary with arguments: $($arguments -join ' ')"
 try {
     if ($arguments.Count -eq 0) {

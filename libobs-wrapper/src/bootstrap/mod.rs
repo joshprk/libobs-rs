@@ -10,6 +10,7 @@ use futures_util::{pin_mut, StreamExt};
 use lazy_static::lazy_static;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
 use tokio::{fs::File, io::AsyncWriteExt, process::Command};
+use hex;
 
 use crate::context::ObsContext;
 
@@ -196,10 +197,13 @@ pub(crate) async fn spawn_updater(options: options::ObsBootstrapperOptions) -> a
         command.arg("-restart");
     }
 
-    // Add arguments as an array
+    // Encode arguments as hex string (UTF-8, null-separated)
     if !args.is_empty() {
-        command.arg("-arguments");
-        command.arg(format!("({})", args.join(",").replace("\"", "`\"")));
+        let joined = args.join("\0");
+        let bytes = joined.as_bytes();
+        let hex_str = hex::encode(bytes);
+        command.arg("-argumentHex");
+        command.arg(hex_str);
     }
 
     command.spawn().context("Spawning updater process")?;
