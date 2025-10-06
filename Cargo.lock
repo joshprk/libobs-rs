@@ -1914,7 +1914,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.8"
+version = "2.0.9"
 dependencies = [
  "anyhow",
  "async-trait",
