@@ -1,17 +1,28 @@
-use std::ptr;
+use std::{boxed::Box, pin::Pin};
 
 use display_info::DisplayInfo;
 use libobs::obs_video_info;
 
-use crate::{enums::{ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoFormat, ObsVideoRange, OsEnumType}, unsafe_send::SendableComp, utils::ObsString};
+use crate::{
+    enums::{
+        ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoFormat, ObsVideoRange, OsEnumType,
+    },
+    unsafe_send::SendableComp,
+    utils::ObsString,
+};
 
 /// A wrapper for `obs_video_info`, which is used
 /// to pass information to libobs for the new OBS
 /// video context after resetting the old OBS
 /// video context.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A wrapper for `obs_video_info`, which is used
+/// to pass information to libobs for the new OBS
+/// video context after resetting the old OBS
+/// video context. The obs_video_info is pinned in memory
+/// to ensure its address never changes, as required by libobs.
+#[derive(Debug, PartialEq, Eq)]
 pub struct ObsVideoInfo {
-    ovi: SendableComp<obs_video_info>,
+    ovi: SendableComp<Pin<Box<obs_video_info>>>,
     // False positive. This is necessary to ensure
     // that the graphics module string in the
     // `obs_video_info` struct does not free.
@@ -28,14 +39,16 @@ impl ObsVideoInfo {
     /// structs is through `ObsVideoInfoBuilder`.
     pub fn new(ovi: obs_video_info, graphics_module: ObsString) -> Self {
         Self {
-            ovi: SendableComp(ovi),
+            ovi: SendableComp(Box::pin(ovi)),
             graphics_module,
         }
     }
 
-    /// Returns an `ObsVideoInfo` pointer.
-    pub fn as_ptr(&mut self) -> *mut obs_video_info {
-        ptr::addr_of_mut!(self.ovi.0)
+    /// Returns a pointer to the pinned `obs_video_info`.
+    pub fn as_ptr(&self) -> *mut obs_video_info {
+        // Safe because ovi is pinned for the lifetime of this struct
+        let ptr: *const obs_video_info = &*Pin::as_ref(&self.ovi.0);
+        ptr as *mut obs_video_info
     }
 
     pub fn graphics_module(&self) -> &ObsString {
@@ -57,7 +70,7 @@ impl ObsVideoInfo {
     pub fn get_base_height(&self) -> u32 {
         self.ovi.0.base_height
     }
-    
+
     pub fn get_output_width(&self) -> u32 {
         self.ovi.0.output_width
     }
@@ -65,7 +78,6 @@ impl ObsVideoInfo {
     pub fn get_output_height(&self) -> u32 {
         self.ovi.0.output_height
     }
-    
 }
 
 impl Default for ObsVideoInfo {
@@ -164,7 +176,7 @@ impl ObsVideoInfoBuilder {
         drop(self);
 
         ObsVideoInfo {
-            ovi: SendableComp(ovi),
+            ovi: SendableComp(Box::pin(ovi)),
             graphics_module: graphics_mod_str,
         }
     }

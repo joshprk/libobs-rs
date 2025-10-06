@@ -226,14 +226,11 @@ impl ObsContext {
         // ObsContext struct is not created yet,
         // and also because there is no need to free
         // anything tied to the OBS context.
-        let mut vid = self.startup_info.write().await;
-        let vid_ptr = Sendable(vid.obs_video_info.as_ptr());
-
+        let vid_ptr = Sendable(ovi.as_ptr());
         let reset_video_status = run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
             libobs::obs_reset_video(vid_ptr)
         }).await?;
 
-        drop(vid);
         let reset_video_status = num_traits::FromPrimitive::from_i32(reset_video_status);
 
         let reset_video_status = match reset_video_status {
