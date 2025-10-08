@@ -16,6 +16,7 @@ use http_req::{
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
 };
+use log::{debug, error, info, trace};
 use indicatif::{ProgressBar, ProgressStyle};
 use sha2::{Digest, Sha256};
 
@@ -54,10 +55,10 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         if checksum.to_lowercase() != hash.to_lowercase() {
             bail!("Checksums do not match");
         } else {
-            println!("{}", "Checksums match".on_green());
+            info!("{}", "Checksums match".on_green());
         }
     } else {
-        eprintln!("No checksum found for {}", name);
+        error!("No checksum found for {}", name);
     }
 
     Ok(download_path)
@@ -66,7 +67,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 /// Returns hash
 pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
-    println!("Downloading OBS binaries from {}", url.green());
+    debug!("Downloading OBS binaries from {}", url.green());
 
     let uri = Uri::try_from(url)?;
     let mut stream = Stream::connect(&uri, Some(timeout.clone()))?;
@@ -174,7 +175,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     }
 
     pb.finish_with_message(format!("Downloaded OBS to {}", path.display()));
-    println!("Hashing...");
+    trace!("Hashing...");
     stdout().flush().unwrap();
     return Ok(hex::encode(hasher.finalize()));
 }

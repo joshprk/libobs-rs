@@ -1,9 +1,10 @@
 use download::download_binaries;
 use git::{fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
+use log::{debug, info};
 use metadata::{fetch_latest_release_tag, get_meta_info};
 use std::{
-    env::args,
+    env::{self, args},
     fs::{self, File},
     path::{Path, PathBuf},
 };
@@ -28,7 +29,7 @@ struct RunArgs {
     out_dir: String,
 
     /// The location where the OBS Studio sources should be cloned to
-    #[arg(short = 'o', long, default_value = "obs-build")]
+    #[arg(short, long, default_value = "obs-build")]
     cache_dir: PathBuf,
 
     /// The github repository to clone OBS Studio from
@@ -48,11 +49,45 @@ struct RunArgs {
     #[arg(short, long, default_value_t = false)]
     browser: bool,
 
+    /// The tag of the OBS Studio release to build. If "latest" is specified, the latest release will be used
     #[arg(short, long, default_value = "latest")]
     tag: String,
+
+    /// If the browser should be included in the build
+    #[arg(short, long, default_value_t = false)]
+    skip_update_check: bool,
+}
+
+fn setup_logger() -> Result<(), fern::InitError> {
+    let level = env::var("RUST_LOG")
+        .ok()
+        .and_then(|val| val.parse().ok()) // Try parsing e.g. "debug", "warn", etc.
+        .unwrap_or(log::LevelFilter::Info); // Default if not set
+
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            let level_color = match record.level() {
+                log::Level::Error => "red",
+                log::Level::Warn => "yellow",
+                log::Level::Info => "green",
+                log::Level::Debug => "blue",
+                log::Level::Trace => "bright_black",
+            };
+            out.finish(format_args!(
+                "[{}] {}",
+                record.level().to_string().color(level_color),
+                message
+            ))
+        })
+        .level(level)
+        .chain(std::io::stdout())
+        .apply()?;
+    Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
+    setup_logger()?;
+
     let mut args: Vec<_> = args().collect();
     if args.get(1).is_some_and(|e| e == "obs-build") {
         args.remove(1);
@@ -67,16 +102,39 @@ fn main() -> anyhow::Result<()> {
         rebuild,
         browser,
         mut tag,
-        override_zip
+        override_zip,
+        skip_update_check,
     } = args;
 
     let target_out_dir = PathBuf::new().join(&out_dir);
 
+    let old_tag = tag.clone();
     get_meta_info(&mut cache_dir, &mut tag)?;
+    let tag_changed = old_tag != tag;
 
     let tag = if tag.trim() == "latest" {
         fetch_latest_release_tag(&repo_id)?
     } else {
+        let latest_release_tag = fetch_latest_release_tag(&repo_id)?;
+        if !skip_update_check && latest_release_tag != tag {
+            info!(
+                "A new version of OBS Studio is available: {} -> {}",
+                tag.red(),
+                latest_release_tag.green()
+            );
+            if tag_changed {
+                info!("You can update the default version by changing {} in your Cargo.toml", "libobs-version".green());
+            } else {
+                info!(
+                    "Consider updating to the latest version by using the `--tag {}` argument",
+                    latest_release_tag.green()
+                );
+            }
+
+            println!();
+            println!();
+        }
+
         tag
     };
 
@@ -96,11 +154,11 @@ fn main() -> anyhow::Result<()> {
     if !success_file.is_file() || rebuild {
         let lock = acquire_lock(&lock_file)?;
         if repo_exists || rebuild {
-            println!("Cleaning up old build...");
+            debug!("{}", "Cleaning up old build...".bright_black());
             delete_all_except(&repo_dir, None)?;
         }
 
-        println!("Fetching {} version of OBS Studio...", tag.on_blue());
+        debug!("Fetching {} version of OBS Studio...", tag.on_blue());
 
         let release = fetch_release(&repo_id, &Some(tag.clone()))?;
         build_obs(release, &build_out, browser, override_zip)?;
@@ -109,32 +167,39 @@ fn main() -> anyhow::Result<()> {
         drop(lock);
     }
 
-    println!(
+    info!(
         "Copying files from {} to {}",
         build_out.display().to_string().green(),
         target_out_dir.display().to_string().green()
     );
     copy_to_dir(&build_out, &target_out_dir, None)?;
 
-    println!("Done!");
+    info!("Done!");
 
     Ok(())
 }
 
-fn build_obs(release: ReleaseInfo, build_out: &Path, include_browser: bool, override_zip: Option<PathBuf>) -> anyhow::Result<()> {
+fn build_obs(
+    release: ReleaseInfo,
+    build_out: &Path,
+    include_browser: bool,
+    override_zip: Option<PathBuf>,
+) -> anyhow::Result<()> {
     #[cfg(not(target_family = "windows"))]
     panic!("Unsupported platform");
 
     fs::create_dir_all(&build_out)?;
 
-    let obs_path = if let Some(e) = override_zip { e } else {
+    let obs_path = if let Some(e) = override_zip {
+        e
+    } else {
         download_binaries(build_out, &release)?
     };
 
     let obs_archive = File::open(&obs_path)?;
     let mut archive = ZipArchive::new(&obs_archive)?;
 
-    println!("{} OBS Studio binaries...", "Extracting".on_blue());
+    info!("{} OBS Studio binaries...", "Extracting".on_blue());
     archive.extract(&build_out)?;
     let bin_path = build_out.join("bin").join("64bit");
     copy_to_dir(&bin_path, &build_out, None)?;
@@ -174,7 +239,7 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
         ]);
     }
 
-    println!("{} unnecessary files...", "Cleaning up".red());
+    info!("{}", "Cleaning up unnecessary files...".red());
     for entry in WalkDir::new(&build_out) {
         if let Ok(entry) = entry {
             let path = entry.path();
@@ -184,7 +249,7 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
                     x_l.contains(e) || x_l == *e
                 })
             }) {
-                println!("Deleting: {}", path.display().to_string().red());
+                debug!("Deleting: {}", path.display().to_string().red());
                 if path.is_dir() {
                     fs::remove_dir_all(path)?;
                 } else {

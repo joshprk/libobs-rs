@@ -11,8 +11,6 @@ pub struct ReleaseInfo {
 }
 
 pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<ReleaseInfo> {
-    println!("Fetching release info for {}", tag.as_ref().unwrap_or(&"latest".to_string()));
-
     let tag = tag.clone();
     let tag = if tag.is_none() { "latest" } else { &format!("tags/{}", tag.unwrap()) };
     let url = format!("https://api.github.com/repos/{}/releases/{}", repo_id, tag);
