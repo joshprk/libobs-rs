@@ -1977,7 +1977,7 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "bindgen",
  "vsprintf",
@@ -2007,7 +2007,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.9"
+version = "2.0.10"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "4.0.3"
+version = "4.0.4"
 dependencies = [
  "anyhow",
  "arboard",
