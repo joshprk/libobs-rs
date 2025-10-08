@@ -76,29 +76,13 @@ Push-Location $tempDir
 try {
     cmake -DENABLE_PLUGINS=OFF -DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_HEVC=OFF -DENABLE_FRONTEND=OFF --preset windows-x64
     cmake --build --preset windows-x64
-} finally {
+}
+finally {
     Pop-Location
 }
 
 Copy-Item $tempDir/build_x64/libobs/RelWithDebInfo/obs.lib $PSScriptRoot/../
 
-# Build bindings and copy to src/bindings.rs
-Write-Host "Building bindings..."
-cargo build --features generate_bindings --target-dir $tempDir --release
-
-# Get the bindings.rs file
-$bindings = Get-ChildItem -Path $tempDir/release/build -Recurse -Filter "bindings.rs" |
-    Where-Object { $_.FullName -match "libobs-[^\\]+\\out\\bindings.rs" } |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1
-
-if ($bindings) {
-    Write-Host "Found: $($bindings.FullName)"
-    Write-Host "Copying to: $targetBindingsPath"
-    Copy-Item -Path $bindings.FullName -Destination $targetBindingsPath -Force
-} else {
-    Write-Warning "No bindings.rs file found for libobs-* in $buildPath"
-}
 
 # Write a small version header file with fixed defines
 $versionHeaderPath = Join-Path -Path $PSScriptRoot -ChildPath "../headers/obs/obsconfig.h"
@@ -122,9 +106,29 @@ $versionHeaderContent = @'
 Write-Host "Writing version header to $versionHeaderPath"
 Set-Content -LiteralPath $versionHeaderPath -Value $versionHeaderContent -Encoding UTF8
 
+git -C $PSScriptRoot/../ apply $PSScriptRoot/patches/001_gh_action_fix_compile.patch
+
+# Build bindings and copy to src/bindings.rs
+Write-Host "Building bindings..."
+cargo build --features generate_bindings --target-dir $tempDir --release
+
+# Get the bindings.rs file
+$bindings = Get-ChildItem -Path $tempDir/release/build -Recurse -Filter "bindings.rs" |
+Where-Object { $_.FullName -match "libobs-[^\\]+\\out\\bindings.rs" } |
+Sort-Object LastWriteTime -Descending |
+Select-Object -First 1
+
+if ($bindings) {
+    Write-Host "Found: $($bindings.FullName)"
+    Write-Host "Copying to: $targetBindingsPath"
+    Copy-Item -Path $bindings.FullName -Destination $targetBindingsPath -Force
+}
+else {
+    Write-Warning "No bindings.rs file found for libobs-* in $buildPath"
+}
+
 Write-Host "Cleaning up temporary directory..."
 Remove-Item -Path $tempDir -Recurse -Force
 
-git -C $PSScriptRoot/../ apply $PSScriptRoot/patches/001_gh_action_fix_compile.patch
 
 Write-Host "Header files updated successfully!"
