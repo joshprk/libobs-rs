@@ -6,18 +6,23 @@ repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs/"
 readme = "./README.md"
 authors = ["Joshua Park <joshprk@proton.me>", "sshcrack"]
-categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
+categories = [
+    "multimedia::video",
+    "multimedia::audio",
+    "multimedia",
+    "multimedia::encoding",
+]
 keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
 license = "GPL-3.0"
 edition = "2021"
 build = "build.rs"
 
 [build-dependencies]
-bindgen = "0.71.1"
+bindgen = { version = "0.72.1", optional = true }
 
 [features]
 default = []
-generate_bindings = []
+generate_bindings = ["dep:bindgen"]
 
 [dev-dependencies]
 vsprintf = "2.0.0"
