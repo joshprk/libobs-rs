@@ -17,6 +17,8 @@ use colored::Colorize;
 
 mod download;
 mod git;
+#[cfg(feature = "lib-compatibility-check")]
+mod lib_version;
 mod lock;
 mod metadata;
 mod util;
@@ -53,9 +55,10 @@ struct RunArgs {
     #[arg(short, long, default_value = "latest")]
     tag: String,
 
+    #[cfg(feature = "lib-compatibility-check")]
     /// If the browser should be included in the build
     #[arg(short, long, default_value_t = false)]
-    skip_update_check: bool,
+    skip_compatibility_check: bool,
 }
 
 fn setup_logger() -> Result<(), fern::InitError> {
@@ -103,40 +106,63 @@ fn main() -> anyhow::Result<()> {
         browser,
         mut tag,
         override_zip,
-        skip_update_check,
+        skip_compatibility_check,
     } = args;
 
     let target_out_dir = PathBuf::new().join(&out_dir);
-
-    let old_tag = tag.clone();
     get_meta_info(&mut cache_dir, &mut tag)?;
-    let tag_changed = old_tag != tag;
 
     let tag = if tag.trim() == "latest" {
         fetch_latest_release_tag(&repo_id)?
     } else {
-        let latest_release_tag = fetch_latest_release_tag(&repo_id)?;
-        if !skip_update_check && latest_release_tag != tag {
-            info!(
-                "A new version of OBS Studio is available: {} -> {}",
-                tag.red(),
-                latest_release_tag.green()
-            );
-            if tag_changed {
-                info!("You can update the default version by changing {} in your Cargo.toml", "libobs-version".green());
-            } else {
-                info!(
-                    "Consider updating to the latest version by using the `--tag {}` argument",
-                    latest_release_tag.green()
-                );
-            }
-
-            println!();
-            println!();
-        }
-
         tag
     };
+
+    #[cfg(feature = "lib-compatibility-check")]
+    {
+        if !skip_compatibility_check {
+            use lib_version::get_lib_obs_version;
+            let (major, minor, patch) = get_lib_obs_version()?;
+            info!(
+                "Detected libobs crate version: {}.{}.{}",
+                major, minor, patch
+            );
+            let tag_parts: Vec<&str> = tag.trim_start_matches('v').split('.').collect();
+            let tag_parts = tag_parts
+                .iter()
+                .map(|e| e.parse::<u32>().unwrap_or(0))
+                .collect::<Vec<u32>>();
+
+            if tag_parts.len() < 3 {
+                info!(
+                    "{}",
+                    "Warning: Could not determine libobs compatibility, tag does not have 3 parts"
+                        .red()
+                );
+            } else {
+                let (tag_major, tag_minor, tag_patch) = (tag_parts[0], tag_parts[1], tag_parts[2]);
+                if major != tag_major || minor != tag_minor {
+                    use log::warn;
+
+                    warn!(
+                    "{}",
+                    format!("libobs (crate) version {}.{}.{} may not be compatible with libobs (binaries) {}.{}.{}",
+                        major, minor, patch, tag_major, tag_minor, tag_patch).red()
+                );
+                    warn!("{} {} {}", "Set the `libobs-version` in `[workspace.metadata]` to".red(), format!("{}.{}.{}", major, minor, patch).red(), "to avoid runtime issues");
+                } else {
+                    info!(
+                        "{}",
+                        format!(
+                            "libobs (crate) version {}.{}.{} should be compatible with libobs (binaries) {}.{}.{}",
+                            major, minor, patch, tag_major, tag_minor, tag_patch
+                        )
+                        .green()
+                    );
+                }
+            }
+        }
+    }
 
     let repo_dir = cache_dir.join(&tag);
     let repo_exists = repo_dir.is_dir();

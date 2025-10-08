@@ -24,5 +24,5 @@ libobs-source-macro = { path = "./libobs-source-macro", version = "2.0.2" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.1.5" }
 
 [workspace.metadata]
-libobs-version = "31.0.3"
+libobs-version = "latest"
 libobs-cache-dir = "../obs-build"
