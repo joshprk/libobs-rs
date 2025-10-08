@@ -37,4 +37,5 @@ pub mod encoders;
 pub mod output;
 mod macro_helper;
 
+pub use libobs_wrapper as wrapper;
 pub use libobs_wrapper::{data::ObsObjectUpdater, sources::ObsSourceBuilder};

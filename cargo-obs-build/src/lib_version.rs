@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::Context;
-use cargo_metadata::MetadataCommand;
-use log::{debug, info};
+use cargo_metadata::{MetadataCommand, Package};
+use log::{debug, info, warn};
 use regex::Regex;
 
 pub fn get_lib_obs_version() -> anyhow::Result<(u32, u32, u32)> {
@@ -11,42 +11,32 @@ pub fn get_lib_obs_version() -> anyhow::Result<(u32, u32, u32)> {
     info!("Getting libobs version from bindings...");
     let meta = MetadataCommand::new().exec()?;
 
-    let manifest = if let Some(root_pkg) = meta.root_package() {
-        let root_pkg = meta
-            .workspace_packages()
-            .into_iter()
-            .find(|p| p.name == root_pkg.name)
-            .ok_or(anyhow::anyhow!(
-                "root package not found in workspace packages"
-            ))?;
+    let pkgs = meta
+        .packages
+        .iter()
+        .filter(|p| p.name == "libobs")
+        .collect::<Vec<&Package>>();
 
-        let libobs_workspace_dep = root_pkg
-            .dependencies
-            .iter()
-            .find(|e| e.name == "libobs")
-            .ok_or(anyhow::anyhow!("libobs dependency not found"))?;
+    if pkgs.is_empty() {
+        anyhow::bail!("could not find libobs package in metadata");
+    }
 
-        let req = libobs_workspace_dep.req.clone();
-        let pkg = meta
-            .packages
-            .iter()
-            .find(|p| p.name == "libobs" && req.matches(&p.version))
-            .ok_or(anyhow::anyhow!("libobs package not found in metadata"))?;
+    // Check if every package has the same version
+    let mut pkg = &pkgs[0];
+    if pkgs.len() > 1 {
+        for p in &pkgs[1..] {
+            if p.version > pkg.version {
+                pkg = p;
+            }
+        }
 
-        PathBuf::from(pkg.manifest_path.clone())
-    } else {
-        let manifest_path = meta
-            .workspace_packages()
-            .iter()
-            .find(|p| p.name == "libobs")
-            .ok_or(anyhow::anyhow!(
-                "libobs package not found in workspace packages"
-            ))
-            .map(|e| &e.manifest_path)?;
+        warn!(
+            "multiple libobs packages found in metadata, using the one with the highest version: {}",
+            pkg.version
+        );
+    }
 
-        PathBuf::from(manifest_path.clone())
-    };
-
+    let manifest = PathBuf::from(pkg.manifest_path.clone());
     let dir = manifest
         .parent()
         .context("manifest path has no parent directory")?;

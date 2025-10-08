@@ -8,5 +8,6 @@
         "vcruntime.h": "c"
     },
     "rust-analyzer.cargo.targetDir": true,
-    "rust-analyzer.cargo.features": []
+    "rust-analyzer.cargo.features": [],
+    "idf.pythonInstallPath": "e:\\Python\\.espressif\\tools\\idf-python\\3.11.2\\python.exe"
 }

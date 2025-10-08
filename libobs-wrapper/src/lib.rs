@@ -1,5 +1,7 @@
 use getters0::Getters;
 
+pub use libobs as sys;
+
 #[cfg(not(windows))]
 compiler_error!("libobs-wrapper can only be used in windows");
 
