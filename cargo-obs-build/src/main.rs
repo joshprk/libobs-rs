@@ -106,6 +106,7 @@ fn main() -> anyhow::Result<()> {
         browser,
         mut tag,
         override_zip,
+        #[cfg(feature = "lib-compatibility-check")]
         skip_compatibility_check,
     } = args;
 
