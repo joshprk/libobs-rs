@@ -154,18 +154,12 @@ try {
         throw "Failed to publish libobs"
     }
 
-    Write-Host "`nWaiting for libobs to be available on crates.io..."
-    Start-Sleep -Seconds 30
-
     Write-Host "`nPublishing libobs-wrapper..."
     Set-Location (Join-Path $rootDir "libobs-wrapper")
     cargo publish
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to publish libobs-wrapper"
     }
-
-    Write-Host "`nWaiting for libobs-wrapper to be available on crates.io..."
-    Start-Sleep -Seconds 30
 
     Write-Host "`nPublishing libobs-sources..."
     Set-Location (Join-Path $rootDir "libobs-sources")
