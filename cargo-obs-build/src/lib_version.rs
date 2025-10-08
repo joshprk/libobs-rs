@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use cargo_metadata::MetadataCommand;
-use log::info;
+use log::{debug, info};
 use regex::Regex;
 
 pub fn get_lib_obs_version() -> anyhow::Result<(u32, u32, u32)> {
@@ -55,6 +55,7 @@ pub fn get_lib_obs_version() -> anyhow::Result<(u32, u32, u32)> {
     let bindings = std::fs::read_to_string(&bindings_file)
         .with_context(|| format!("failed to read bindings file: {}", bindings_file.display()))?;
 
+    debug!("bindings file: {}", bindings_file.display());
     let version_parts = bindings
         .lines()
         .filter_map(|line| {

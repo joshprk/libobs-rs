@@ -1,7 +1,7 @@
 use download::download_binaries;
-use git::{fetch_release, ReleaseInfo};
+use git::{fetch_latest_patch_release, fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
-use log::{debug, info};
+use log::{debug, info, warn};
 use metadata::{fetch_latest_release_tag, get_meta_info};
 use std::{
     env::{self, args},
@@ -15,9 +15,10 @@ use zip::ZipArchive;
 use clap::Parser;
 use colored::Colorize;
 
+use crate::lib_version::get_lib_obs_version;
+
 mod download;
 mod git;
-#[cfg(feature = "lib-compatibility-check")]
 mod lib_version;
 mod lock;
 mod metadata;
@@ -51,11 +52,12 @@ struct RunArgs {
     #[arg(short, long, default_value_t = false)]
     browser: bool,
 
-    /// The tag of the OBS Studio release to build. If "latest" is specified, the latest release will be used
-    #[arg(short, long, default_value = "latest")]
-    tag: String,
+    /// The tag of the OBS Studio release to build.
+    /// If none is specified, the matching release for the libobs crate will be used.
+    /// Use `latest` for the latest obs release. If a version in the `workspace.metadata` is set, that version will be used.
+    #[arg(short, long)]
+    tag: Option<String>,
 
-    #[cfg(feature = "lib-compatibility-check")]
     /// If the browser should be included in the build
     #[arg(short, long, default_value_t = false)]
     skip_compatibility_check: bool,
@@ -106,10 +108,50 @@ fn main() -> anyhow::Result<()> {
         browser,
         mut tag,
         override_zip,
-        #[cfg(feature = "lib-compatibility-check")]
         skip_compatibility_check,
     } = args;
 
+    let mut obs_ver = None;
+    if tag.is_none() {
+        obs_ver = Some(get_lib_obs_version()?);
+        let (major, minor, patch) = obs_ver.as_ref().unwrap();
+        let lib_tag = format!("{}.{}.{}", major, minor, patch);
+
+        // Check if a newer version of libobs (same major/minor, higher patch) exists in releases.
+        // If found, use that tag; otherwise fall back to the crate version tag.
+        match fetch_latest_patch_release(&repo_id, *major, *minor) {
+            Ok(Some(found_tag)) => {
+                let parts: Vec<&str> = found_tag.trim_start_matches('v').split('.').collect();
+                let found_patch = parts
+                    .get(2)
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .unwrap_or(0);
+                if found_patch > *patch {
+                    info!(
+                        "Found newer libobs binaries release {} (crate: {}). Using {}",
+                        found_tag.green(),
+                        lib_tag,
+                        found_tag.green()
+                    );
+                    tag = Some(found_tag);
+                } else {
+                    // no newer patch found -> use crate version
+                    tag = Some(lib_tag);
+                }
+            }
+            Ok(None) => {
+                // none found -> use crate version
+                tag = Some(lib_tag);
+            }
+            Err(e) => {
+                // On error, log debug and fall back to crate version
+                warn!("Failed to check for newer compatible libobs release: {}", e);
+                tag = Some(lib_tag);
+            }
+        }
+    }
+
+    let mut tag = tag.unwrap();
     let target_out_dir = PathBuf::new().join(&out_dir);
     get_meta_info(&mut cache_dir, &mut tag)?;
 
@@ -119,40 +161,47 @@ fn main() -> anyhow::Result<()> {
         tag
     };
 
-    #[cfg(feature = "lib-compatibility-check")]
-    {
-        if !skip_compatibility_check {
-            use lib_version::get_lib_obs_version;
-            let (major, minor, patch) = get_lib_obs_version()?;
+    if !skip_compatibility_check {
+        let (major, minor, patch) = if let Some(v) = obs_ver {
+            v
+        } else {
+            get_lib_obs_version()?
+        };
+
+        info!(
+            "Detected libobs crate version: {}.{}.{}",
+            major, minor, patch
+        );
+        let tag_parts: Vec<&str> = tag.trim_start_matches('v').split('.').collect();
+        let tag_parts = tag_parts
+            .iter()
+            .map(|e| e.parse::<u32>().unwrap_or(0))
+            .collect::<Vec<u32>>();
+
+        if tag_parts.len() < 3 {
             info!(
-                "Detected libobs crate version: {}.{}.{}",
-                major, minor, patch
+                "{}",
+                "Warning: Could not determine libobs compatibility, tag does not have 3 parts"
+                    .red()
             );
-            let tag_parts: Vec<&str> = tag.trim_start_matches('v').split('.').collect();
-            let tag_parts = tag_parts
-                .iter()
-                .map(|e| e.parse::<u32>().unwrap_or(0))
-                .collect::<Vec<u32>>();
+        } else {
+            let (tag_major, tag_minor, tag_patch) = (tag_parts[0], tag_parts[1], tag_parts[2]);
+            if major != tag_major || minor != tag_minor {
+                use log::warn;
 
-            if tag_parts.len() < 3 {
-                info!(
-                    "{}",
-                    "Warning: Could not determine libobs compatibility, tag does not have 3 parts"
-                        .red()
-                );
-            } else {
-                let (tag_major, tag_minor, tag_patch) = (tag_parts[0], tag_parts[1], tag_parts[2]);
-                if major != tag_major || minor != tag_minor {
-                    use log::warn;
-
-                    warn!(
+                warn!(
                     "{}",
                     format!("libobs (crate) version {}.{}.{} may not be compatible with libobs (binaries) {}.{}.{}",
                         major, minor, patch, tag_major, tag_minor, tag_patch).red()
                 );
-                    warn!("{} {} {}", "Set the `libobs-version` in `[workspace.metadata]` to".red(), format!("{}.{}.{}", major, minor, patch).red(), "to avoid runtime issues");
-                } else {
-                    info!(
+                warn!(
+                    "{} {} {}",
+                    "Set the `libobs-version` in `[workspace.metadata]` to".red(),
+                    format!("{}.{}.{}", major, minor, patch).red(),
+                    "to avoid runtime issues"
+                );
+            } else {
+                info!(
                         "{}",
                         format!(
                             "libobs (crate) version {}.{}.{} should be compatible with libobs (binaries) {}.{}.{}",
@@ -160,7 +209,6 @@ fn main() -> anyhow::Result<()> {
                         )
                         .green()
                     );
-                }
             }
         }
     }

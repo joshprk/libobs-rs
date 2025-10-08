@@ -1,7 +1,7 @@
 [package]
 name = "cargo-obs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
-version = "1.1.2"
+version = "1.2.0"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/joshprk/libobs-rs"
@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.86", features = ["backtrace"] }
-cargo_metadata = { version = "0.23.0", optional = true }
+cargo_metadata = { version = "0.23.0" }
 clap = { version = "4.5.11", features = ["derive"] }
 colored = "3.0.0"
 fern = { version = "0.7.1", features = ["colored"] }
@@ -20,7 +20,7 @@ http_req = "0.14.1"
 indicatif = "0.18.0"
 log = "0.4.28"
 process_alive = "0.1.1"
-regex = { version = "1.11.3", optional = true }
+regex = { version = "1.11.3" }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.121"
 sha2 = "0.10.8"
@@ -29,7 +29,3 @@ walkdir = "2.5.0"
 zip = "5.1.1"
 
 #TODO separate windows deps from others
-
-[features]
-default = [ "lib-compatibility-check"]
-lib-compatibility-check = ["dep:cargo_metadata", "dep:regex"]
