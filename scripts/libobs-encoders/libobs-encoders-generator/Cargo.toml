@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 libobs-wrapper = { workspace = true, features = ["bootstrapper"] }
-libobs = { version = "2.1.0", path = "../../libobs" }
+libobs = { workspace = true }
 anyhow = "1.0.97"
 num-traits = "0.2.19"
 num-derive = "0.4.2"

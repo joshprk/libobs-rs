@@ -84,7 +84,7 @@ Copy-Item $tempDir/build_x64/libobs/RelWithDebInfo/obs.lib $PSScriptRoot/../
 
 # Build bindings and copy to src/bindings.rs
 Write-Host "Building bindings..."
-cargo build --target-dir $tempDir --release
+cargo build --features generate_bindings --target-dir $tempDir --release
 
 # Get the bindings.rs file
 $bindings = Get-ChildItem -Path $tempDir/release/build -Recurse -Filter "bindings.rs" |
@@ -99,6 +99,28 @@ if ($bindings) {
 } else {
     Write-Warning "No bindings.rs file found for libobs-* in $buildPath"
 }
+
+# Write a small version header file with fixed defines
+$versionHeaderPath = Join-Path -Path $PSScriptRoot -ChildPath "../headers/obs/obsconfig.h"
+$versionHeaderDir = Split-Path -Path $versionHeaderPath -Parent
+if (-not (Test-Path -Path $versionHeaderDir)) {
+    New-Item -Path $versionHeaderDir -ItemType Directory -Force | Out-Null
+}
+
+$versionHeaderContent = @'
+#pragma once
+
+#define OBS_VERSION "unknown"
+#define OBS_DATA_PATH "../../data"
+#define OBS_INSTALL_PREFIX ""
+#define OBS_PLUGIN_DESTINATION "obs-plugins"
+#define OBS_RELATIVE_PREFIX "../../"
+#define OBS_RELEASE_CANDIDATE 0
+#define OBS_BETA 0
+'@
+
+Write-Host "Writing version header to $versionHeaderPath"
+Set-Content -LiteralPath $versionHeaderPath -Value $versionHeaderContent -Encoding UTF8
 
 Write-Host "Cleaning up temporary directory..."
 Remove-Item -Path $tempDir -Recurse -Force

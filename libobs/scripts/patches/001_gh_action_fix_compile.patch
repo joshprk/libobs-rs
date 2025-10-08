@@ -1,8 +1,8 @@
 diff --git a/libobs/headers/obs/util/util_uint64.h b/libobs/headers/obs/util/util_uint64.h
-index 81f6592..d297102 100644
+index 19a9a07a7..a7cfa075a 100644
 --- a/libobs/headers/obs/util/util_uint64.h
 +++ b/libobs/headers/obs/util/util_uint64.h
-@@ -23,7 +23,7 @@
+@@ -22,7 +22,7 @@
  
  static inline uint64_t util_mul_div64(uint64_t num, uint64_t mul, uint64_t div)
  {

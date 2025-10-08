@@ -7,7 +7,7 @@ members = [
     "libobs-sources",
     "libobs-window-helper",
     "libobs-wrapper",
-    "libobs-encoders/*",
+    "scripts/libobs-encoders/libobs-encoders-generator",
 
     "examples/*",
 ]
