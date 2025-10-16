@@ -223,7 +223,8 @@ impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSource
     "media_stopped": {},
     "media_next": {},
     "media_previous": {},
-    /// This is just for sources that are of the "game-capture" type. Other sources will never emit this signal.
+    /// This is just for sources that are of the `game-capture`, `window-capture` or `win-wasapi` type. Other sources will never emit this signal.
+    //TODO Add support for the `linux-capture` type as it does not contain the `title` field (its 'name' instead)
     "hooked": {struct HookedSignal {
         title: String,
         class: String,
@@ -232,7 +233,8 @@ impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSource
             source: *mut libobs::obs_source_t,
         }
     }},
-    /// This is just for sources that are of the "game-capture" type. Other sources will never emit this signal.
+    /// This is just for sources that are of the `game-capture`, `window-capture` or `win-wasapi` type. Other sources will never emit this signal.
+    //TODO Add support for the `linux-capture` type as it does not contain the `title` field (its 'name' instead)
     "unhooked": {struct UnhookedSignal {
         POINTERS {
             source: *mut libobs::obs_source_t,
