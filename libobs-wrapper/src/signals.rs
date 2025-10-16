@@ -191,7 +191,7 @@ macro_rules! __signals_impl_signal {
 #[macro_export]
 macro_rules! impl_signal_manager {
     ($handler_getter: expr, $name: ident for $ref: ident<$ptr: ty>, [
-        $($signal_name: literal: { $($inner_def:tt)* }),* $(,)*
+        $($(#[$attr:meta])* $signal_name: literal: { $($inner_def:tt)* }),* $(,)*
     ]) => {
         paste::paste! {
             $(crate::__signals_impl_signal!($ptr, $signal_name, $($inner_def)*);)*
@@ -259,6 +259,7 @@ macro_rules! impl_signal_manager {
                 }
 
                 $(
+                    $(#[$attr])*
                     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
                     pub async fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
                         let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;

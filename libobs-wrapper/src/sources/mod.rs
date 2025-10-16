@@ -222,7 +222,22 @@ impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSource
     "media_restart": {},
     "media_stopped": {},
     "media_next": {},
-    "media_previous": {}
+    "media_previous": {},
+    /// This is just for sources that are of the "game-capture" type. Other sources will never emit this signal.
+    "hooked": {struct HookedSignal {
+        title: String,
+        class: String,
+        executable: String;
+        POINTERS {
+            source: *mut libobs::obs_source_t,
+        }
+    }},
+    /// This is just for sources that are of the "game-capture" type. Other sources will never emit this signal.
+    "unhooked": {struct UnhookedSignal {
+        POINTERS {
+            source: *mut libobs::obs_source_t,
+        }
+    }}
 ]);
 
 #[derive(Debug)]
