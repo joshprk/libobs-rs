@@ -16,8 +16,8 @@ use http_req::{
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
 };
-use log::{debug, error, info, trace};
 use indicatif::{ProgressBar, ProgressStyle};
+use log::{debug, error, info, trace};
 use sha2::{Digest, Sha256};
 
 use crate::git::ReleaseInfo;
@@ -25,6 +25,11 @@ use crate::git::ReleaseInfo;
 const DEFAULT_REQ_TIMEOUT: u64 = 60 * 60;
 
 pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result<PathBuf> {
+    let architecture = if cfg!(target_arch = "x86_64") {
+        "x64"
+    } else {
+        "arm64"
+    };
     let to_download = &info.assets.iter().find(|e| {
         let name = e["name"].as_str().unwrap_or("").to_lowercase();
 
@@ -33,6 +38,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
             && (name.contains("windows") || name.contains("full"))
             && name.contains(".zip")
             && !name.contains("pdb")
+            && name.contains(architecture)
     });
 
     if to_download.is_none() {
@@ -46,6 +52,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 
     let download_path = build_dir.join("obs-prebuilt-windows.zip");
 
+    println!("Downloading OBS from {}", url.green());
     let hash = download_file(url, &download_path)?;
 
     let name = to_download["name"].as_str().unwrap_or("");
