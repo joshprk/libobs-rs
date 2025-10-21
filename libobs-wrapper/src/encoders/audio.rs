@@ -21,8 +21,7 @@ pub struct ObsAudioEncoder {
 }
 
 impl ObsAudioEncoder {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
+    pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
         id: T,
         name: K,
         settings: Option<ObsData>,
@@ -53,7 +52,7 @@ impl ObsAudioEncoder {
                 let ptr = obs_audio_encoder_create(id_ptr, name_ptr, settings_ptr, mixer_idx, hotkey_data_ptr);
                 Sendable(ptr)
             }
-        ).await?;
+        )?;
 
         if encoder.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
@@ -70,8 +69,7 @@ impl ObsAudioEncoder {
     }
 
     /// This is only needed once for global audio context
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn set_audio_context(
+    pub fn set_audio_context(
         &mut self,
         handler: Sendable<*mut audio_output>,
     ) -> Result<(), ObsError> {
@@ -79,7 +77,7 @@ impl ObsAudioEncoder {
 
         run_with_obs!(self.runtime, (handler, encoder_ptr), move || unsafe {
             obs_encoder_set_audio(encoder_ptr, handler)
-        }).await
+        })
     }
 }
 

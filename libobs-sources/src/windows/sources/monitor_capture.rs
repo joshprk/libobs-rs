@@ -71,10 +71,8 @@ impl MonitorCaptureSourceBuilder {
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn add_to_scene<'a>(
+    fn add_to_scene<'a>(
         mut self,
         scene: &'a mut ObsSceneRef,
     ) -> Result<ObsSourceRef, ObsError>
@@ -90,15 +88,13 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
         let method_to_set = self.capture_method.clone();
         let runtime = self.runtime.clone();
 
-        let b = self.build().await?;
-        let mut res = scene.add_source(b).await?;
+        let b = self.build()?;
+        let mut res = scene.add_source(b)?;
 
         if let Some(method) = method_to_set {
-            MonitorCaptureSourceUpdater::create_update(runtime, &mut res)
-                .await?
+            MonitorCaptureSourceUpdater::create_update(runtime, &mut res)?
                 .set_capture_method(method)
-                .update()
-                .await?;
+                .update()?;
         }
 
         Ok(res)

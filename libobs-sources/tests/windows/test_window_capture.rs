@@ -26,9 +26,9 @@ fn find_notepad() -> Option<Sendable<WindowInfo>> {
     })
 }
 
-#[tokio::test]
+#[test]
 // For this test to work, notepad must be open
-pub async fn test_window_capture() {
+pub fn test_window_capture() {
     let rec_file = ObsPath::from_relative("window_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -44,22 +44,20 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-    let (mut context, mut output) = initialize_obs(rec_file).await;
-    let mut scene = context.scene("main").await.unwrap();
-    scene.set_to_channel(0).await.unwrap();
+    let (mut context, mut output) = initialize_obs(rec_file);
+    let mut scene = context.scene("main").unwrap();
+    scene.set_to_channel(0).unwrap();
 
     let source_name = "test_capture";
     let mut source = context
         .source_builder::<WindowCaptureSourceBuilder, _>(source_name)
-        .await
         .unwrap()
         .set_capture_method(ObsWindowCaptureMethod::MethodAuto)
         .set_window(&window)
         .add_to_scene(&mut scene)
-        .await
         .unwrap();
 
-    output.start().await.unwrap();
+    output.start().unwrap();
     println!("Recording started");
 
     let windows = WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)
@@ -73,18 +71,18 @@ pub async fn test_window_capture() {
 
         source
             .create_updater::<WindowCaptureSourceUpdater>()
-            .await.unwrap()
+            .unwrap()
             .set_window(w)
             .update()
-            .await.unwrap();
+            .unwrap();
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_secs(5));
     }
     println!("Recording stop");
 
-    output.stop().await.unwrap();
+    output.stop().unwrap();
 
-    test_video(&path_out, 1.0).await.unwrap();
+    test_video(&path_out, 1.0).unwrap();
 }

@@ -23,7 +23,6 @@ use super::ObsOutputRef;
 /// This trait provides methods for working with replay buffers in OBS,
 /// which are special outputs that continuously record content and allow
 /// on-demand saving of recent footage.
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ReplayBufferOutput {
     /// Saves the current replay buffer content to disk.
     ///
@@ -33,15 +32,13 @@ pub trait ReplayBufferOutput {
     /// # Returns
     /// * `Result<Box<Path>, ObsError>` - On success, returns the path to the saved
     ///   replay file. On failure, returns an error describing what went wrong.
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn save_buffer(&self) -> Result<Box<Path>, ObsError>;
+    fn save_buffer(&self) -> Result<Box<Path>, ObsError>;
 }
 
 /// Implementation of the ReplayBufferOutput trait for ObsOutputRef.
 ///
 /// This implementation allows any ObsOutputRef configured as a replay buffer
 /// to save its content to disk via a simple API call.
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ReplayBufferOutput for ObsOutputRef {
     /// Saves the current replay buffer content to disk.
     ///
@@ -59,8 +56,7 @@ impl ReplayBufferOutput for ObsOutputRef {
     ///   - Failure to call "save" procedure
     ///   - Failure to call "get_last_replay" procedure
     ///   - Failure to extract the path from calldata
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn save_buffer(&self) -> Result<Box<Path>, ObsError> {
+    fn save_buffer(&self) -> Result<Box<Path>, ObsError> {
         let output_ptr = self.output.clone();
 
         let path = run_with_obs!(self.runtime, (output_ptr), move || {
@@ -113,8 +109,7 @@ impl ReplayBufferOutput for ObsOutputRef {
             let path = unsafe { std::ffi::CStr::from_ptr(s) }.to_str().unwrap();
 
             Ok(PathBuf::from(path))
-        })
-        .await??;
+        })??;
 
         Ok(path.into_boxed_path())
     }

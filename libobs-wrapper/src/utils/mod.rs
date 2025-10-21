@@ -93,14 +93,7 @@ impl Drop for ObsModules {
         let paths = self.paths.clone();
         let runtime = self.runtime.take().unwrap();
 
-        #[cfg(not(feature="blocking"))]
-        let r = futures::executor::block_on(async {
-            return run_with_obs!(runtime, move || unsafe {
-                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
-            }).await
-        });
-
-        #[cfg(feature="blocking")]
+        //TODO fix blocking here
         let r = run_with_obs!(runtime, move || unsafe {
             libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
         });

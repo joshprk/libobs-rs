@@ -10,11 +10,10 @@
 //! The `ObsRuntime` struct creates a dedicated thread for all OBS operations and manages
 //! message passing between application threads and the OBS thread.
 //!
-//! # Async and Blocking APIs
+//! # Blocking APIs
 //!
-//! The runtime supports both async and blocking APIs:
-//! - By default, all operations are asynchronous
-//! - With the `blocking` feature enabled, operations are synchronous
+//! The runtime locking APIs:
+//! - By default all operations are synchronous
 //!
 //! # Example
 //!
@@ -22,7 +21,7 @@
 //! use libobs_wrapper::runtime::ObsRuntime;
 //! use libobs_wrapper::utils::StartupInfo;
 //!
-//! async fn example() {
+//! fn example() {
 //!     // Assuming that the OBS context is already initialized
 //!
 //!     // Run an operation on the OBS thread
@@ -31,7 +30,7 @@
 //!     runtime.run_with_obs(|| {
 //!         // This code runs on the OBS thread
 //!         println!("Running on OBS thread");
-//!     }).await.unwrap();
+//!     }).unwrap();
 //! }
 //! ```
 
@@ -101,9 +100,9 @@ pub enum ObsRuntimeReturn {
 /// use libobs_wrapper::runtime::{ObsRuntimeReturn, ObsRuntime};
 /// use libobs_wrapper::utils::StartupInfo;
 ///
-/// async fn example() {
+/// fn example() {
 ///     let startup_info = StartupInfo::default();
-///     let (runtime, _, _) = match ObsRuntime::startup(startup_info).await.unwrap() {
+///     let (runtime, _, _) = match ObsRuntime::startup(startup_info).unwrap() {
 ///         ObsRuntimeReturn::Done(res) => res,
 ///         _ => panic!("OBS initialization failed"),
 ///     };
@@ -141,9 +140,9 @@ impl ObsRuntime {
     /// use libobs_wrapper::runtime::{ObsRuntime, ObsRuntimeReturn};
     /// use libobs_wrapper::utils::StartupInfo;
     ///
-    /// async fn initialize() {
+    /// fn initialize() {
     ///     let startup_info = StartupInfo::default();
-    ///     match ObsRuntime::startup(startup_info).await {
+    ///     match ObsRuntime::startup(startup_info) {
     ///         Ok(ObsRuntimeReturn::Done(runtime_components)) => {
     ///             // Use the initialized runtime
     ///         },
@@ -156,11 +155,11 @@ impl ObsRuntime {
     ///     }
     /// }
     /// ```
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+    
     #[allow(unused_mut)]
     pub(crate) async fn startup(mut options: StartupInfo) -> Result<ObsRuntimeReturn, ObsError> {
         // Check if OBS is already running on another thread
-        let obs_id = OBS_THREAD_ID.lock().await;
+        let obs_id = OBS_THREAD_ID.lock();
         if obs_id.is_some() {
             return Err(ObsError::ThreadFailure);
         }
@@ -172,28 +171,24 @@ impl ObsRuntime {
         if options.bootstrap_handler.is_some() {
             use crate::bootstrap::BootstrapStatus;
             use futures_util::pin_mut;
-            #[cfg(not(feature = "blocking"))]
-            use futures_util::stream::StreamExt;
 
             log::trace!("Starting bootstrapper");
             let stream = bootstrap(&options.bootstrapper_options)
-                .await
                 .map_err(|e| {
                     ObsError::BootstrapperFailure(ObsBootstrapError::GeneralError(e.to_string()))
                 })?;
             if let Some(stream) = stream {
                 pin_mut!(stream);
-                #[cfg(feature = "blocking")]
+                //TODO is this fine for async context?
                 let mut stream = futures::executor::block_on_stream(stream);
 
                 log::trace!("Waiting for bootstrapper to finish");
-                while let Some(item) = stream.next().await {
+                while let Some(item) = stream.next() {
                     match item {
                         BootstrapStatus::Downloading(progress, message) => {
                             if let Some(handler) = &mut options.bootstrap_handler {
                                 handler
                                     .handle_downloading(progress, message)
-                                    .await
                                     .map_err(|e| {
                                         ObsError::BootstrapperFailure(
                                             ObsBootstrapError::DownloadError(e.to_string()),
@@ -203,7 +198,7 @@ impl ObsRuntime {
                         }
                         BootstrapStatus::Extracting(progress, message) => {
                             if let Some(handler) = &mut options.bootstrap_handler {
-                                handler.handle_extraction(progress, message).await.map_err(
+                                handler.handle_extraction(progress, message).map_err(
                                     |e| {
                                         ObsError::BootstrapperFailure(
                                             ObsBootstrapError::ExtractError(e.to_string()),
@@ -227,7 +222,7 @@ impl ObsRuntime {
 
         log::trace!("Initializing OBS context");
         return Ok(ObsRuntimeReturn::Done(
-            ObsRuntime::init(options).await.map_err(|e| {
+            ObsRuntime::init(options).map_err(|e| {
                 ObsError::BootstrapperFailure(ObsBootstrapError::GeneralError(e.to_string()))
             })?,
         ));
@@ -236,8 +231,7 @@ impl ObsRuntime {
     /// Internal initialization method
     ///
     /// Creates the OBS thread and performs core initialization.
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
+    fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
         let (command_sender, command_receiver) = channel();
         let (init_tx, init_rx) = oneshot::channel();
         let queued_commands = Arc::new(AtomicUsize::new(0));
@@ -321,71 +315,21 @@ impl ObsRuntime {
     ///     }).await.unwrap();
     /// }
     /// ```
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn run_with_obs<F>(&self, operation: F) -> anyhow::Result<()>
+    pub fn run_with_obs<F>(&self, operation: F) -> anyhow::Result<()>
     where
         F: FnOnce() -> () + Send + 'static,
     {
         self.run_with_obs_result(move || {
             operation();
             Result::<(), anyhow::Error>::Ok(())
-        })
-        .await??;
+        })??;
 
         Ok(())
     }
 
-    /// Executes an operation on the OBS thread and returns a result (blocking version)
+    /// Executes an operation on the OBS thread and returns a result
     ///
-    /// This method blocks the current thread until the operation completes.
-    ///
-    /// # Parameters
-    ///
-    /// * `operation` - A function to execute on the OBS thread
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the value returned by the operation
-    ///
-    /// # Panics
-    ///
-    /// This function panics if called within an asynchronous execution context.
-    pub fn run_with_obs_result_blocking<F, T>(&self, operation: F) -> anyhow::Result<T>
-    where
-        F: FnOnce() -> T + Send + 'static,
-        T: Send + 'static,
-    {
-        let (tx, rx) = oneshot::channel();
-
-        // Create a wrapper closure that boxes the result as Any
-        let wrapper = move || -> Box<dyn std::any::Any + Send> {
-            let result = operation();
-            Box::new(result)
-        };
-
-        let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
-        if val > 50 {
-            log::warn!("More than 50 queued commands. Try to batch them together.");
-        }
-
-        self.command_sender
-            .send(ObsCommand::Execute(Box::new(wrapper), tx))
-            .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
-
-        let result = rx
-            .blocking_recv()
-            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
-
-        // Downcast the Any type back to T
-        result
-            .downcast::<T>()
-            .map(|boxed| *boxed)
-            .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))
-    }
-
-    /// Executes an operation on the OBS thread and returns a result (async version)
-    ///
-    /// This method dispatches a task to the OBS thread and asynchronously waits for the result.
+    /// This method dispatches a task to the OBS thread and blocks and waits for the result.
     ///
     /// # Parameters
     ///
@@ -409,8 +353,7 @@ impl ObsRuntime {
     ///     println!("OBS Version: {:?}", version);
     /// }
     /// ```
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn run_with_obs_result<F, T>(&self, operation: F) -> anyhow::Result<T>
+    pub fn run_with_obs_result<F, T>(&self, operation: F) -> anyhow::Result<T>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
@@ -636,8 +579,7 @@ impl _ObsRuntimeGuard {
     /// # Returns
     ///
     /// A `Result` indicating success or failure
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn shutdown(&mut self) -> anyhow::Result<()> {
+    fn shutdown(&mut self) -> anyhow::Result<()> {
         // Theoretically the queued_commands is zero and should be increased but because
         // we are shutting down, we don't care about that.
         self.command_sender
@@ -645,7 +587,7 @@ impl _ObsRuntimeGuard {
             .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"))?;
 
         // Wait for the thread to finish
-        let mut handle = self.handle.lock().await;
+        let mut handle = self.handle.lock();
         let handle = handle.take().expect("Handle can not be empty");
 
         if let Err(err) = handle.join() {
@@ -658,11 +600,8 @@ impl _ObsRuntimeGuard {
 impl Drop for _ObsRuntimeGuard {
     /// Ensures the OBS thread is properly shut down when the runtime is dropped
     fn drop(&mut self) {
-        #[cfg(feature = "blocking")]
+        //TODO make this in tokio spawn_blocking
         let r = self.shutdown();
-
-        #[cfg(not(feature = "blocking"))]
-        let r = futures::executor::block_on(self.shutdown());
 
         if thread::panicking() {
             return;

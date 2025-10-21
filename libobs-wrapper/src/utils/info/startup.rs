@@ -56,9 +56,8 @@ impl StartupInfo {
         self
     }
 
-    #[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
-    pub async fn start(self) -> Result<ObsContextReturn, ObsError> {
-        ObsContext::new(self).await
+    pub fn start(self) -> Result<ObsContextReturn, ObsError> {
+        ObsContext::new(self)
     }
 }
 

@@ -81,8 +81,7 @@ impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         data: creation_data::ObsDisplayCreationData,
         runtime: ObsRuntime,
     ) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
@@ -120,7 +119,7 @@ impl ObsDisplayRef {
         log::trace!("Creating obs display...");
         let display = run_with_obs!(runtime, (init_data), move || unsafe {
             Sendable(libobs::obs_display_create(&init_data, background_color))
-        }).await?;
+        })?;
 
         if display.0.is_null() {
             bail!("OBS failed to create display");
@@ -143,9 +142,9 @@ impl ObsDisplayRef {
         let instance_ptr =
             Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
 
-        instance._guard.write().await.self_ptr = Some(instance_ptr.clone());
+        instance._guard.write().self_ptr = Some(instance_ptr.clone());
 
-        let pos = instance.get_pos().await;
+        let pos = instance.get_pos();
         log::trace!(
             "Adding draw callback with display {:?} and draw callback params at {:?} (pos is {:?})...",
             instance.display,
@@ -155,7 +154,7 @@ impl ObsDisplayRef {
         let display_ptr = instance.display.clone();
         run_with_obs!(runtime, (display_ptr, instance_ptr), move || unsafe {
             libobs::obs_display_add_draw_callback(display_ptr, Some(render_display), instance_ptr);
-        }).await?;
+        })?;
 
         Ok(instance)
     }
@@ -173,7 +172,6 @@ struct _DisplayDropGuard {
 }
 
 impl _DisplayDropGuard {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     pub async fn inner_drop(
         r: ObsRuntime,
         display: Sendable<*mut libobs::obs_display_t>,
@@ -186,7 +184,7 @@ impl _DisplayDropGuard {
             }
 
             libobs::obs_display_destroy(display);
-        }).await
+        })
     }
 }
 
@@ -195,11 +193,6 @@ impl Drop for _DisplayDropGuard {
         let display = self.display.clone();
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();
-        #[cfg(not(feature = "blocking"))]
-        let r = futures::executor::block_on(async {
-            _DisplayDropGuard::inner_drop(r, display, self_ptr).await
-        });
-        #[cfg(feature = "blocking")]
         let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
 
         if std::thread::panicking() {

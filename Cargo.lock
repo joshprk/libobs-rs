@@ -2023,7 +2023,6 @@ dependencies = [
  "num-derive",
  "num-traits",
  "paste",
- "remove-async-await",
  "tokio",
 ]
 
@@ -2045,7 +2044,6 @@ dependencies = [
  "anyhow",
  "arboard",
  "async-stream",
- "async-trait",
  "chrono",
  "colored 3.0.0",
  "dialog",
@@ -2065,7 +2063,6 @@ dependencies = [
  "oneshot",
  "parking_lot",
  "paste",
- "remove-async-await",
  "reqwest 0.12.23",
  "semver",
  "serde",
@@ -3169,16 +3166,6 @@ name = "regex-syntax"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caf4aa5b0f434c91fe5c7f1ecb6a5ece2130b02ad2a590589dda5146df959001"
-
-[[package]]
-name = "remove-async-await"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0993102a683d0fb29c6053ad44d7ed7555f69b2fa5fe0fa3bba959a9aa4cd1"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
 
 [[package]]
 name = "reqwest"

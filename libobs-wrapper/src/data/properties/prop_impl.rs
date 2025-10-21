@@ -10,19 +10,15 @@ use crate::{
 
 use super::{get_properties_inner, ObsProperty, ObsPropertyObject, ObsPropertyObjectPrivate};
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObject for ObsSourceRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
-        let properties_raw = self.get_properties_raw().await?;
-        get_properties_inner(properties_raw, self.runtime.clone()).await
+    fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
+        let properties_raw = self.get_properties_raw()?;
+        get_properties_inner(properties_raw, self.runtime.clone())
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObjectPrivate for ObsSourceRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_raw(
+    fn get_properties_raw(
         &self,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let source_ptr = self.source.clone();
@@ -32,11 +28,10 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
 
                 Sendable(libobs::obs_source_properties(source_ptr.0))
             })
-            .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+
+    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
         id: T,
         runtime: ObsRuntime,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
@@ -47,24 +42,19 @@ impl ObsPropertyObjectPrivate for ObsSourceRef {
                 let id_ptr = id_ptr;
                 Sendable(libobs::obs_get_source_properties(id_ptr.0))
             })
-            .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObject for ObsOutputRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
-        let properties_raw = self.get_properties_raw().await?;
-        get_properties_inner(properties_raw, self.runtime.clone()).await
+    fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
+        let properties_raw = self.get_properties_raw()?;
+        get_properties_inner(properties_raw, self.runtime.clone())
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObjectPrivate for ObsOutputRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_raw(
+    fn get_properties_raw(
         &self,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let output_ptr = self.output.clone();
@@ -74,12 +64,10 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
 
                 Sendable(libobs::obs_output_properties(output_ptr.0))
             })
-            .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
         id: T,
         runtime: ObsRuntime,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
@@ -91,7 +79,6 @@ impl ObsPropertyObjectPrivate for ObsOutputRef {
 
                 Sendable(libobs::obs_get_output_properties(id_ptr.0))
             })
-            .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))
     }
 }

@@ -9,16 +9,15 @@ use libobs_wrapper::{
 };
 use num_traits::FromPrimitive;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let context = ObsContext::new(Default::default()).await?;
+fn main() -> anyhow::Result<()> {
+    let context = ObsContext::new(Default::default())?;
     let context = match context {
         ObsContextReturn::Done(c) => c,
         ObsContextReturn::Restart => panic!("OBS context restarted"),
     };
 
     let r = context.runtime().clone();
-    for encoder in context.get_available_video_encoders().await? {
+    for encoder in context.get_available_video_encoders()? {
         r.run_with_obs(|| {
             let encoder_name: ObsString = encoder.into();
             let properties = unsafe { obs_get_encoder_properties(encoder_name.as_ptr().0) };
@@ -69,8 +68,7 @@ async fn main() -> anyhow::Result<()> {
 
             unsafe { libobs::obs_properties_destroy(properties) };
             println!("=============================");
-        })
-        .await.unwrap()
+        }).unwrap()
     }
 
     Ok(())

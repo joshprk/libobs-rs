@@ -2,7 +2,6 @@ use std::{env, path::PathBuf, process};
 
 use anyhow::Context;
 use async_stream::stream;
-use async_trait::async_trait;
 use download::DownloadStatus;
 use extract::ExtractStatus;
 use futures_core::Stream;
@@ -38,7 +37,6 @@ pub enum BootstrapStatus {
     RestartRequired,
 }
 
-#[async_trait]
 /// A trait for bootstrapping OBS Studio.
 ///
 /// This trait provides functionality to download, extract, and set up OBS Studio
@@ -78,8 +76,7 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
     Ok(obs_dll)
 }
 
-#[cfg_attr(feature="blocking", remove_async_await::remove_async_await)]
-pub(crate) async fn bootstrap(
+pub(crate) fn bootstrap(
     options: &options::ObsBootstrapperOptions,
 ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {
     let repo = options.repository.to_string();

@@ -83,7 +83,6 @@ pub struct ObsOutputRef {
 }
 
 impl ObsOutputRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Creates a new output reference from the given output info and runtime.
     ///
     /// # Arguments
@@ -92,7 +91,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result containing the new ObsOutputRef or an error
-    pub(crate) async fn new(output: OutputInfo, runtime: ObsRuntime) -> Result<Self, ObsError> {
+    pub(crate) fn new(output: OutputInfo, runtime: ObsRuntime) -> Result<Self, ObsError> {
         let (output, id, name, settings, hotkey_data) = runtime
             .run_with_obs_result(|| {
                 let OutputInfo {
@@ -127,11 +126,10 @@ impl ObsOutputRef {
 
                 return Ok((Sendable(output), id, name, settings, hotkey_data));
             })
-            .await
             .map_err(|e| ObsError::InvocationError(e.to_string()))?
             .map_err(|_| ObsError::NullPointer)?;
 
-        let signal_manager = ObsOutputSignals::new(&output, runtime.clone()).await?;
+        let signal_manager = ObsOutputSignals::new(&output, runtime.clone())?;
         Ok(Self {
             settings: Arc::new(RwLock::new(settings)),
             hotkey_data: Arc::new(RwLock::new(hotkey_data)),
@@ -153,16 +151,14 @@ impl ObsOutputRef {
         })
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Returns a list of all video encoders attached to this output.
     ///
     /// # Returns
     /// A vector of Arc-wrapped ObsVideoEncoder instances
-    pub async fn get_video_encoders(&self) -> Vec<Arc<ObsVideoEncoder>> {
-        self.video_encoders.read().await.clone()
+    pub fn get_video_encoders(&self) -> Vec<Arc<ObsVideoEncoder>> {
+        self.video_encoders.read().clone()
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Creates and attaches a new video encoder to this output.
     ///
     /// This method creates a new video encoder using the provided information,
@@ -174,7 +170,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result containing an Arc-wrapped ObsVideoEncoder or an error
-    pub async fn video_encoder(
+    pub fn video_encoder(
         &mut self,
         info: VideoEncoderInfo,
         handler: Sendable<*mut video_output>,
@@ -185,8 +181,7 @@ impl ObsOutputRef {
             info.settings,
             info.hotkey_data,
             self.runtime.clone(),
-        )
-        .await?;
+        )?;
 
         let encoder_ptr = video_enc.encoder.clone();
         let output_ptr = self.output.clone();
@@ -199,16 +194,14 @@ impl ObsOutputRef {
                 obs_encoder_set_video(encoder_ptr, handler.0);
                 obs_output_set_video_encoder(output_ptr, encoder_ptr);
             }
-        )
-        .await?;
+        )?;
 
         let tmp = Arc::new(video_enc);
-        self.video_encoders.write().await.push(tmp.clone());
+        self.video_encoders.write().push(tmp.clone());
 
         Ok(tmp)
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Attaches an existing video encoder to this output.
     ///
     /// # Arguments
@@ -216,7 +209,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error
-    pub async fn set_video_encoder(&mut self, encoder: ObsVideoEncoder) -> Result<(), ObsError> {
+    pub fn set_video_encoder(&mut self, encoder: ObsVideoEncoder) -> Result<(), ObsError> {
         if encoder.encoder.0.is_null() {
             return Err(ObsError::NullPointer);
         }
@@ -226,25 +219,22 @@ impl ObsOutputRef {
 
         run_with_obs!(self.runtime, (output, encoder_ptr), move || unsafe {
             obs_output_set_video_encoder(output, encoder_ptr);
-        })
-        .await?;
+        })?;
 
         if !self
             .video_encoders
             .read()
-            .await
             .iter()
             .any(|x| x.encoder.0 == encoder.as_ptr().0)
         {
             let tmp = Arc::new(encoder);
 
-            self.video_encoders.write().await.push(tmp.clone());
+            self.video_encoders.write().push(tmp.clone());
         }
 
         Ok(())
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Updates the settings of this output.
     ///
     /// Note: This can only be done when the output is not active.
@@ -254,29 +244,26 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error
-    pub async fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
+    pub fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
         let output = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
             obs_output_active(output)
-        })
-        .await?;
+        })?;
 
         if !output_active {
             let settings_ptr = settings.as_ptr();
 
             run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
                 obs_output_update(output, settings_ptr)
-            })
-            .await?;
+            })?;
 
-            self.settings.write().await.replace(settings);
+            self.settings.write().replace(settings);
             Ok(())
         } else {
             Err(ObsError::OutputAlreadyActive)
         }
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Creates and attaches a new audio encoder to this output.
     ///
     /// This method creates a new audio encoder using the provided information,
@@ -289,7 +276,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
-    pub async fn audio_encoder(
+    pub fn audio_encoder(
         &mut self,
         info: AudioEncoderInfo,
         mixer_idx: usize,
@@ -302,8 +289,7 @@ impl ObsOutputRef {
             mixer_idx,
             info.hotkey_data,
             self.runtime.clone(),
-        )
-        .await?;
+        )?;
 
         let encoder_ptr = audio_enc.encoder.clone();
         let output_ptr = self.output.clone();
@@ -315,15 +301,13 @@ impl ObsOutputRef {
                 obs_encoder_set_audio(encoder_ptr, handler);
                 obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
             }
-        )
-        .await?;
+        )?;
 
         let x = Arc::new(audio_enc);
-        self.audio_encoders.write().await.push(x.clone());
+        self.audio_encoders.write().push(x.clone());
         Ok(x)
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Attaches an existing audio encoder to this output at the specified mixer index.
     ///
     /// # Arguments
@@ -332,7 +316,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error
-    pub async fn set_audio_encoder(
+    pub fn set_audio_encoder(
         &mut self,
         encoder: ObsAudioEncoder,
         mixer_idx: usize,
@@ -345,42 +329,37 @@ impl ObsOutputRef {
         let output_ptr = self.output.clone();
         run_with_obs!(self.runtime, (output_ptr, encoder_ptr), move || unsafe {
             obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
-        })
-        .await?;
+        })?;
 
         if !self
             .audio_encoders
             .read()
-            .await
             .iter()
             .any(|x| x.encoder.0 == encoder.encoder.0)
         {
             let tmp = Arc::new(encoder);
-            self.audio_encoders.write().await.push(tmp.clone());
+            self.audio_encoders.write().push(tmp.clone());
         }
 
         Ok(())
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Starts the output.
     ///
     /// This begins the encoding and streaming/recording process.
     ///
     /// # Returns
     /// A Result indicating success or an error (e.g., if the output is already active)
-    pub async fn start(&self) -> Result<(), ObsError> {
+    pub fn start(&self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
-        })
-        .await?;
+        })?;
 
         if !output_active {
             let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_start(output_ptr)
-            })
-            .await?;
+            })?;
 
             if res {
                 return Ok(());
@@ -388,8 +367,7 @@ impl ObsOutputRef {
 
             let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 Sendable(obs_output_get_last_error(output_ptr))
-            })
-            .await?;
+            })?;
 
             let c_str = unsafe { CStr::from_ptr(err.0) };
             let err_str = c_str.to_str().ok().map(|x| x.to_string());
@@ -400,7 +378,6 @@ impl ObsOutputRef {
         Err(ObsError::OutputAlreadyActive)
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
     /// Pause or resume the output.
     /// 
     /// # Arguments
@@ -411,26 +388,23 @@ impl ObsOutputRef {
     /// 
     /// * `Ok(())` - The output was paused or resumed successfully.
     /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
-    pub async fn pause(&self, pause: bool) -> Result<(), ObsError> {
+    pub fn pause(&self, pause: bool) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
-        })
-        .await?;
+        })?;
 
         if output_active {
             let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_pause(output_ptr, pause)
-            })
-            .await?;
+            })?;
 
             if res {
                 Ok(())
             } else {
                 let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                     Sendable(obs_output_get_last_error(output_ptr))
-                })
-                .await?;
+                })?;
     
                 let c_str = unsafe { CStr::from_ptr(err.0) };
                 let err_str = c_str.to_str().ok().map(|x| x.to_string());
@@ -452,20 +426,17 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error with details about why stopping failed
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn stop(&mut self) -> Result<(), ObsError> {
+    pub fn stop(&mut self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             obs_output_active(output_ptr)
-        })
-        .await?;
+        })?;
 
         if output_active {
-            let mut rx = self.signal_manager.on_stop().await?;
+            let mut rx = self.signal_manager.on_stop()?;
             run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                 obs_output_stop(output_ptr)
-            })
-            .await?;
+            })?;
 
             let signal = rx_recv!(rx).map_err(|_| ObsError::NoSenderError)?;
             log::debug!("Signal: {:?}", signal);

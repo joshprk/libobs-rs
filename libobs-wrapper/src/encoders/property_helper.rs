@@ -81,8 +81,7 @@ impl StructName {
 }
 
 impl ObsAudioEncoderBuilder {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn apply_to_context(
+    pub fn apply_to_context(
         self,
         output: &mut ObsOutputRef,
         name: &str,
@@ -98,15 +97,14 @@ impl ObsAudioEncoderBuilder {
             hotkey_data,
         );
 
-        let audio_handler = self.context.get_audio_ptr().await?;
-        output.audio_encoder(info, mixer_idx, audio_handler).await
+        let audio_handler = self.context.get_audio_ptr()?;
+        output.audio_encoder(info, mixer_idx, audio_handler)
     }
 }
 
 
 impl ObsVideoEncoderBuilder {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn set_to_output(
+    pub fn set_to_output(
         self,
         output: &mut ObsOutputRef,
         name: &str
@@ -119,8 +117,8 @@ impl ObsVideoEncoderBuilder {
             self.hotkey_data,
         );
 
-        let video_handler = self.context.get_video_ptr().await?;
-        output.video_encoder(info, video_handler).await
+        let video_handler = self.context.get_video_ptr()?;
+        output.video_encoder(info, video_handler)
     }
 }
 
@@ -129,12 +127,10 @@ impl ObsVideoEncoderBuilder {
     [ObsAudioEncoderBuilder];
     [ObsVideoEncoderBuilder]
 )]
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObject for StructName {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
-        let properties_raw = self.get_properties_raw().await?;
-        get_properties_inner(properties_raw, self.runtime.clone()).await
+    fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError> {
+        let properties_raw = self.get_properties_raw()?;
+        get_properties_inner(properties_raw, self.runtime.clone())
     }
 }
 
@@ -143,10 +139,8 @@ impl ObsPropertyObject for StructName {
     [ObsAudioEncoderBuilder];
     [ObsVideoEncoderBuilder]
 )]
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsPropertyObjectPrivate for StructName {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_raw(
+    fn get_properties_raw(
         &self,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let encoder_name: ObsString = self.encoder_id.clone().into();
@@ -155,11 +149,9 @@ impl ObsPropertyObjectPrivate for StructName {
         run_with_obs!(self.runtime, (encoder_name_ptr), move || unsafe {
             Sendable(libobs::obs_get_encoder_properties(encoder_name_ptr))
         })
-        .await
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
         id: T,
         runtime: ObsRuntime,
     ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
@@ -168,6 +160,5 @@ impl ObsPropertyObjectPrivate for StructName {
         run_with_obs!(runtime, (id_ptr), move || unsafe {
             Sendable(libobs::obs_get_encoder_properties(id_ptr))
         })
-        .await
     }
 }

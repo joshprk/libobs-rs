@@ -5,13 +5,13 @@ use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs, test_video};
 
-#[tokio::test]
-pub async fn game_test() {
+#[test]
+pub fn game_test() {
     let rec_file = ObsPath::from_relative("game_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
-    let (mut context, mut output) = initialize_obs(rec_file).await;
-    let mut scene = context.scene("main").await.unwrap();
+    let (mut context, mut output) = initialize_obs(rec_file);
+    let mut scene = context.scene("main").unwrap();
 
     let game = GameCaptureSourceBuilder::get_windows(
         libobs_window_helper::WindowSearchMode::ExcludeMinimized,
@@ -26,15 +26,13 @@ pub async fn game_test() {
 
     let capture_source = context
         .source_builder::<GameCaptureSourceBuilder, _>("game_capture")
-        .await
         .unwrap()
         .set_capture_mode(ObsGameCaptureMode::Any)
         .add_to_scene(&mut scene)
-        .await
         .unwrap();
 
-    scene.set_to_channel(0).await.unwrap();
-    output.start().await.unwrap();
+    scene.set_to_channel(0).unwrap();
+    output.start().unwrap();
 
     println!("Recording started");
     std::thread::sleep(Duration::from_secs(5));
@@ -42,7 +40,7 @@ pub async fn game_test() {
 
     // This is just so the capture source is not dropped before stopping the output
     let _x = capture_source.id();
-    output.stop().await.unwrap();
+    output.stop().unwrap();
 
-    test_video(&path_out, 1.0).await.unwrap();
+    test_video(&path_out, 1.0).unwrap();
 }

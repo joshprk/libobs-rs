@@ -7,7 +7,7 @@ use futures_util::StreamExt;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER};
 use semver::Version;
 use sha2::{Digest, Sha256};
-use tokio::{fs::File, io::AsyncWriteExt};
+use tokio::fs::File;
 use uuid::Uuid;
 
 use super::{github_types, LIBRARY_OBS_VERSION};
@@ -21,7 +21,7 @@ pub enum DownloadStatus {
 pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item = DownloadStatus>> {
     // Fetch latest OBS release
     let client = reqwest::ClientBuilder::new()
-        .user_agent("clipture-rs")
+        .user_agent("libobs-rs")
         .build()?;
 
     let releases_url = format!("https://api.github.com/repos/{}/releases", repo);

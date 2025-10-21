@@ -206,10 +206,7 @@ macro_rules! impl_signal_manager {
                 }
 
                 let res = res.unwrap();
-                #[cfg(feature="blocking")]
                 let senders = [<$signal_name:snake:upper _SENDERS>].read();
-                #[cfg(not(feature="blocking"))]
-                let senders = futures::executor::block_on([<$signal_name:snake:upper _SENDERS>].read());
                 let senders = senders.get(&$crate::unsafe_send::SendableComp(obj_ptr as $ptr));
                 if senders.is_none() {
                     log::warn!("No sender found for signal {}", stringify!($signal_name));
@@ -227,14 +224,13 @@ macro_rules! impl_signal_manager {
             }
 
             impl $name {
-                #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-                pub(crate) async fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, crate::utils::ObsError> {
+                pub(crate) fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, crate::utils::ObsError> {
                     use crate::{utils::ObsString, unsafe_send::SendableComp};
                     let pointer =  SendableComp(ptr.0);
 
                     $(
                         let senders = [<$signal_name:snake:upper _SENDERS>].clone();
-                        let mut senders = senders.write().await;
+                        let mut senders = senders.write();
                         let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
                         senders.insert(pointer.clone(), tx);
                     )*
@@ -250,7 +246,7 @@ macro_rules! impl_signal_manager {
                                     pointer as *mut std::ffi::c_void,
                                 );
                             )*
-                    }).await?;
+                    })?;
 
                     Ok(Self {
                         pointer,
@@ -260,9 +256,8 @@ macro_rules! impl_signal_manager {
 
                 $(
                     $(#[$attr])*
-                    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-                    pub async fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
-                        let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;
+                    pub fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
+                        let handlers = [<$signal_name:snake:upper _SENDERS>].read();
                         let rx = handlers.get(&self.pointer)
                             .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
                             .subscribe();
@@ -293,19 +288,6 @@ macro_rules! impl_signal_manager {
                         )*
                     });
 
-                    #[allow(unused_variables)]
-                    let tmp_ptr = self.pointer.clone();
-                    #[cfg(not(feature="blocking"))]
-                    let r = futures::executor::block_on(async move {
-                        $(
-                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write().await;
-                            handlers.remove(&tmp_ptr);
-                        )*
-
-                        future.await
-                    });
-
-                    #[cfg(feature="blocking")]
                     let r = {
                         $(
                             let mut handlers = [<$signal_name:snake:upper _SENDERS>].write();
