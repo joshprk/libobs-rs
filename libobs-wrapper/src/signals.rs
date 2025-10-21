@@ -114,7 +114,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = $gen_type;
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$gen_type>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$gen_type>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$gen_type> {
@@ -129,7 +129,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = ();
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<()>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<()>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](_cd: *mut libobs::calldata_t) -> anyhow::Result<()> {
@@ -162,7 +162,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = $name;
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$name>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$name>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             #[derive(Debug, Clone)]
@@ -206,10 +206,13 @@ macro_rules! impl_signal_manager {
                 }
 
                 let res = res.unwrap();
-                #[cfg(feature="blocking")]
                 let senders = [<$signal_name:snake:upper _SENDERS>].read();
-                #[cfg(not(feature="blocking"))]
-                let senders = futures::executor::block_on([<$signal_name:snake:upper _SENDERS>].read());
+                if senders.is_err() {
+                    log::warn!("RwLock poisoned when handling signal {}", stringify!($signal_name));
+                    return;
+                }
+
+                let senders = senders.unwrap();
                 let senders = senders.get(&$crate::unsafe_send::SendableComp(obj_ptr as $ptr));
                 if senders.is_none() {
                     log::warn!("No sender found for signal {}", stringify!($signal_name));
@@ -228,13 +231,15 @@ macro_rules! impl_signal_manager {
 
             impl $name {
                 #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
+                /// Caution: This function MAY block
                 pub(crate) async fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, crate::utils::ObsError> {
                     use crate::{utils::ObsString, unsafe_send::SendableComp};
                     let pointer =  SendableComp(ptr.0);
 
                     $(
                         let senders = [<$signal_name:snake:upper _SENDERS>].clone();
-                        let mut senders = senders.write().await;
+                        let mut senders = senders.write()
+                            .map_err(|e| crate::utils::ObsError::RwLockPoisonedError(e.to_string()))?;
                         let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
                         senders.insert(pointer.clone(), tx);
                     )*
@@ -261,8 +266,10 @@ macro_rules! impl_signal_manager {
                 $(
                     $(#[$attr])*
                     #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-                    pub async fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
-                        let handlers = [<$signal_name:snake:upper _SENDERS>].read().await;
+                    /// Caution: This function MAY block
+                    pub fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
+                        let handlers = [<$signal_name:snake:upper _SENDERS>].read()
+                            .map_err(|e| crate::utils::ObsError::RwLockPoisonedError(e.to_string()))?;
                         let rx = handlers.get(&self.pointer)
                             .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
                             .subscribe();
@@ -279,47 +286,35 @@ macro_rules! impl_signal_manager {
                     #[allow(unused_variables)]
                     let runtime = self.runtime.clone();
 
-                    let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
-                        #[allow(unused_variables)]
-                        let handler = ($handler_getter)(ptr);
-                        $(
-                            let signal = crate::utils::ObsString::new($signal_name);
-                            libobs::signal_handler_disconnect(
-                                handler,
-                                signal.as_ptr().0,
-                                Some([< $signal_name:snake _handler>]),
-                                ptr as *mut std::ffi::c_void,
-                            );
-                        )*
-                    });
-
                     #[allow(unused_variables)]
                     let tmp_ptr = self.pointer.clone();
-                    #[cfg(not(feature="blocking"))]
-                    let r = futures::executor::block_on(async move {
-                        $(
-                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write().await;
-                            handlers.remove(&tmp_ptr);
-                        )*
+                    tokio::task::spawn_blocking(move || {
+                        let r = crate::run_with_obs_blocking!(runtime, (ptr), move || unsafe {
+                            #[allow(unused_variables)]
+                            let handler = ($handler_getter)(ptr);
+                            $(
+                                let signal = crate::utils::ObsString::new($signal_name);
+                                libobs::signal_handler_disconnect(
+                                    handler,
+                                    signal.as_ptr().0,
+                                    Some([< $signal_name:snake _handler>]),
+                                    ptr as *mut std::ffi::c_void,
+                                );
+                            )*
+                        });
+                        r.unwrap();
 
-                        future.await
-                    });
-
-                    #[cfg(feature="blocking")]
-                    let r = {
                         $(
                             let mut handlers = [<$signal_name:snake:upper _SENDERS>].write();
-                            handlers.remove(&self.pointer);
+                            if let Ok(handlers) = &mut handlers {
+                                handlers.remove(&tmp_ptr);
+                            } else {
+                                log::warn!("RwLock poisoned when dropping signal {}", stringify!($signal_name));
+                            }
                         )*
 
-                        future
-                    };
-
-                    if std::thread::panicking() {
-                        return;
-                    }
-
-                    r.unwrap();
+                        //TODO error handling
+                    });
                 }
             }
         }

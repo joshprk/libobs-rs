@@ -21,10 +21,7 @@ use libobs::{
 };
 
 use crate::{
-    run_with_obs,
-    runtime::ObsRuntime,
-    unsafe_send::Sendable,
-    utils::{async_sync::RwLock, ObsError},
+    run_with_obs, run_with_obs_blocking, runtime::ObsRuntime, unsafe_send::Sendable, utils::{async_sync::RwLock, ObsError}
 };
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -173,20 +170,19 @@ struct _DisplayDropGuard {
 }
 
 impl _DisplayDropGuard {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn inner_drop(
+    pub fn inner_drop(
         r: ObsRuntime,
         display: Sendable<*mut libobs::obs_display_t>,
         self_ptr: Option<Sendable<*mut c_void>>,
     ) -> Result<(), ObsError> {
-        run_with_obs!(r, (display), move || unsafe {
+        run_with_obs_blocking!(r, (display), move || unsafe {
             if let Some(ptr) = &self_ptr {
                 log::trace!("Destroying display with callback at {:?}...", ptr.0);
                 libobs::obs_display_remove_draw_callback(display, Some(render_display), ptr.0);
             }
 
             libobs::obs_display_destroy(display);
-        }).await
+        })
     }
 }
 
@@ -195,17 +191,12 @@ impl Drop for _DisplayDropGuard {
         let display = self.display.clone();
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();
-        #[cfg(not(feature = "blocking"))]
-        let r = futures::executor::block_on(async {
-            _DisplayDropGuard::inner_drop(r, display, self_ptr).await
+        tokio::task::spawn_blocking(move || {
+            _DisplayDropGuard::inner_drop(r, display, self_ptr).unwrap();
         });
-        #[cfg(feature = "blocking")]
-        let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
 
         if std::thread::panicking() {
             return;
         }
-
-        r.unwrap();
     }
 }

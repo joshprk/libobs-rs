@@ -49,6 +49,9 @@ pub enum ObsError {
     /// Couldn't get the sender of the signal
     NoSenderError,
     NoAvailableEncoders,
+
+    /// The RwLock protecting some data got poisoned
+    RwLockPoisonedError(String),
 }
 
 impl Display for ObsError {
@@ -79,6 +82,7 @@ impl Display for ObsError {
             ObsError::NoSenderError => write!(f, "Couldn't get the sender of the signal."),
             ObsError::NoAvailableEncoders => write!(f, "No available encoders found."),
             ObsError::OutputPauseFailure(s) => write!(f, "Output failed to pause. Error is {:?}", s),
+            ObsError::RwLockPoisonedError(s) => write!(f, "The RwLock protecting some data got poisoned: {:?}", s),
         }
     }
 }

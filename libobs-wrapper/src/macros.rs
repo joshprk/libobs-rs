@@ -64,17 +64,23 @@ macro_rules! impl_obs_drop {
                 //TODO Make sure that we are not blocking when dropping the object
                 $(let $var = self.$var.clone();)*
                 #[cfg(not(feature="blocking"))]
-                let r = futures::executor::block_on(async {
-                    return crate::run_with_obs!(self.runtime, ($($var),*), $operation).await
-                });
-
-                #[cfg(feature="blocking")]
-                let r = crate::run_with_obs!(self.runtime, ($($var),*), $operation);
-                if std::thread::panicking() {
-                    return;
+                {
+                    let __runtime = self.runtime.clone();
+                    tokio::task::spawn_blocking(move || {
+                        crate::run_with_obs_blocking!(__runtime, ($($var),*), $operation).unwrap();
+                    });
+                    //TODO error handling
                 }
 
-                r.unwrap();
+                #[cfg(feature="blocking")]
+                {
+                    let r = crate::run_with_obs!(self.runtime, ($($var),*), $operation);
+                    if std::thread::panicking() {
+                        return;
+                    }
+
+                    r.unwrap();
+                }
             }
         }
     };

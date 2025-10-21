@@ -423,7 +423,6 @@ impl ObsRuntime {
             Box::new(result)
         };
 
-
         let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
         if val > 50 {
             log::warn!("More than 50 queued commands. Try to batch them together.");
@@ -433,8 +432,8 @@ impl ObsRuntime {
             .send(ObsCommand::Execute(Box::new(wrapper), tx))
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
 
-        let result =
-            oneshot_rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+        let result = oneshot_rx_recv!(rx)
+            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         let res = result
@@ -449,9 +448,9 @@ impl ObsRuntime {
     ///
     /// This method handles core OBS initialization including:
     /// - Starting up the OBS core (`obs_startup`)
-    /// - Resetting video and audio subsystems 
+    /// - Resetting video and audio subsystems
     /// - Loading OBS modules
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `info` - The startup configuration for OBS
@@ -597,7 +596,10 @@ impl ObsRuntime {
                 };
                 // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
                 // even when obs_remove_data_path is called. This is a bug in OBS.
-                logger.log(level, format!("Number of memory leaks: {}{}", allocs, notice))
+                logger.log(
+                    level,
+                    format!("Number of memory leaks: {}{}", allocs, notice),
+                )
             }
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");
@@ -662,7 +664,56 @@ impl Drop for _ObsRuntimeGuard {
         let r = self.shutdown();
 
         #[cfg(not(feature = "blocking"))]
-        let r = futures::executor::block_on(self.shutdown());
+        let r: anyhow::Result<()> = {
+            let cmd = self.command_sender.clone();
+            let handle_arc = self.handle.clone();
+
+            // REVIEW: is this the best way to do this?
+            match tokio::runtime::Handle::try_current() {
+                // We're inside a Tokio runtime: spawn an async task to perform shutdown so we don't block the runtime.
+                Ok(handle) => {
+                    handle.spawn(async move {
+                        // best-effort send termination signal
+                        let _ = cmd.send(ObsCommand::Terminate);
+
+                        // await the mutex and join the thread
+                        let mut guard = handle_arc.lock().await;
+                        if let Some(join_handle) = guard.take() {
+                            if let Err(err) = join_handle.join() {
+                                log::error!("OBS thread panicked: {:?}", err);
+                            }
+                        }
+                    });
+                    Ok(())
+                }
+
+                // No current Tokio runtime: create a temporary current-thread runtime and block_on the shutdown.
+                Err(_) => {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|e| {
+                            anyhow::anyhow!("failed to create tokio runtime for shutdown: {}", e)
+                        });
+                    if thread::panicking() {
+                        return;
+                    }
+
+                    rt.unwrap().block_on(async move {
+                        let _ = cmd.send(ObsCommand::Terminate);
+
+                        let mut guard = handle_arc.lock().await;
+                        if let Some(join_handle) = guard.take() {
+                            if let Err(err) = join_handle.join() {
+                                log::error!("OBS thread panicked: {:?}", err);
+                            }
+                        }
+                    });
+
+                    Ok(())
+                }
+            }
+        };
 
         if thread::panicking() {
             return;

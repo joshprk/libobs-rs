@@ -1,9 +1,9 @@
+pub(crate) mod async_sync;
 mod error;
 mod info;
 pub(crate) mod initialization;
 mod obs_string;
 mod path;
-pub(crate) mod async_sync;
 pub mod traits;
 
 use std::ffi::CStr;
@@ -15,7 +15,8 @@ pub use obs_string::*;
 pub use path::*;
 
 use crate::{
-    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable
+    enums::ObsLogLevel, logger::internal_log_global, run_with_obs, runtime::ObsRuntime,
+    unsafe_send::Sendable,
 };
 
 #[derive(Debug)]
@@ -93,23 +94,30 @@ impl Drop for ObsModules {
         let paths = self.paths.clone();
         let runtime = self.runtime.take().unwrap();
 
-        #[cfg(not(feature="blocking"))]
-        let r = futures::executor::block_on(async {
-            return run_with_obs!(runtime, move || unsafe {
+        #[cfg(not(feature = "blocking"))]
+        tokio::task::spawn_blocking(move || {
+            use crate::run_with_obs_blocking;
+
+            run_with_obs_blocking!(runtime, move || unsafe {
                 libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
-            }).await
+            })
+            .unwrap();
+
+            //TODO error handling
         });
 
-        #[cfg(feature="blocking")]
-        let r = run_with_obs!(runtime, move || unsafe {
-            libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
-        });
+        #[cfg(feature = "blocking")]
+        {
+            let r = run_with_obs!(runtime, move || unsafe {
+                libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
+            });
 
-        if std::thread::panicking() {
-            return;
+            if std::thread::panicking() {
+                return;
+            }
+
+            r.unwrap();
         }
-
-        r.unwrap();
     }
 }
 
