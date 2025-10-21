@@ -87,3 +87,23 @@ macro_rules! rw_lock_blocking_write {
         $lock.write()
     };
 }
+
+#[macro_export]
+#[cfg(not(feature="blocking"))]
+macro_rules! wrap_with_spawn_blocking {
+    ($operation:expr) => {
+        tokio::task::spawn_blocking(move || {
+            $operation
+        })
+    };
+}
+
+#[macro_export]
+#[cfg(feature="blocking")]
+macro_rules! wrap_with_spawn_blocking {
+    ($operation:expr) => {
+        {
+            $operation
+        }
+    };
+}
