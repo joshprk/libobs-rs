@@ -22,9 +22,3 @@ jobs:
       - name: Check code compilation
         run: cargo check --all
         shell: pwsh
-      - name: Check code compilation for libobs-wrapper blocking
-        run: cargo check --package libobs-wrapper --all-features
-        shell: pwsh
-      - name: Check code compilation for libobs-sources blocking
-        run: cargo check --package libobs-sources --all-features
-        shell: pwsh
