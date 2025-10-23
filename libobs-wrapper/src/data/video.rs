@@ -7,7 +7,7 @@ use crate::{
     enums::{
         ObsColorspace, ObsGraphicsModule, ObsScaleType, ObsVideoFormat, ObsVideoRange, OsEnumType,
     },
-    unsafe_send::SendableComp,
+    unsafe_send::Sendable,
     utils::ObsString,
 };
 
@@ -20,9 +20,9 @@ use crate::{
 /// video context after resetting the old OBS
 /// video context. The obs_video_info is pinned in memory
 /// to ensure its address never changes, as required by libobs.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct ObsVideoInfo {
-    ovi: SendableComp<Pin<Box<obs_video_info>>>,
+    ovi: Sendable<Pin<Box<obs_video_info>>>,
     // False positive. This is necessary to ensure
     // that the graphics module string in the
     // `obs_video_info` struct does not free.
@@ -39,7 +39,7 @@ impl ObsVideoInfo {
     /// structs is through `ObsVideoInfoBuilder`.
     pub fn new(ovi: obs_video_info, graphics_module: ObsString) -> Self {
         Self {
-            ovi: SendableComp(Box::pin(ovi)),
+            ovi: Sendable(Box::pin(ovi)),
             graphics_module,
         }
     }
@@ -176,7 +176,7 @@ impl ObsVideoInfoBuilder {
         drop(self);
 
         ObsVideoInfo {
-            ovi: SendableComp(Box::pin(ovi)),
+            ovi: Sendable(Box::pin(ovi)),
             graphics_module: graphics_mod_str,
         }
     }

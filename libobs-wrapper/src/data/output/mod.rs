@@ -1,19 +1,21 @@
 use std::ffi::CString;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::{ffi::CStr, ptr};
 
 use anyhow::bail;
 use getters0::Getters;
 use libobs::{
-    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active, obs_output_create, obs_output_get_last_error, obs_output_pause, obs_output_release, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_output_update, video_output
+    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active,
+    obs_output_create, obs_output_get_last_error, obs_output_pause, obs_output_release,
+    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop,
+    obs_output_update, video_output,
 };
 
 use crate::enums::ObsOutputStopSignal;
 use crate::runtime::ObsRuntime;
 use crate::unsafe_send::Sendable;
-use crate::utils::async_sync::RwLock;
 use crate::utils::{AudioEncoderInfo, OutputInfo, VideoEncoderInfo};
-use crate::{impl_obs_drop, impl_signal_manager, run_with_obs, rx_recv};
+use crate::{impl_obs_drop, impl_signal_manager, run_with_obs};
 
 use crate::{
     encoders::{audio::ObsAudioEncoder, video::ObsVideoEncoder},
@@ -155,8 +157,11 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A vector of Arc-wrapped ObsVideoEncoder instances
-    pub fn get_video_encoders(&self) -> Vec<Arc<ObsVideoEncoder>> {
-        self.video_encoders.read().clone()
+    pub fn get_video_encoders(&self) -> Result<Vec<Arc<ObsVideoEncoder>>, ObsError> {
+        self.video_encoders
+            .read()
+            .map_err(|e| ObsError::LockError(e.to_string()))
+            .map(|x| x.clone())
     }
 
     /// Creates and attaches a new video encoder to this output.
@@ -197,7 +202,10 @@ impl ObsOutputRef {
         )?;
 
         let tmp = Arc::new(video_enc);
-        self.video_encoders.write().push(tmp.clone());
+        self.video_encoders
+            .write()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
+            .push(tmp.clone());
 
         Ok(tmp)
     }
@@ -224,12 +232,16 @@ impl ObsOutputRef {
         if !self
             .video_encoders
             .read()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
             .iter()
             .any(|x| x.encoder.0 == encoder.as_ptr().0)
         {
             let tmp = Arc::new(encoder);
 
-            self.video_encoders.write().push(tmp.clone());
+            self.video_encoders
+                .write()
+                .map_err(|e| ObsError::LockError(e.to_string()))?
+                .push(tmp.clone());
         }
 
         Ok(())
@@ -257,7 +269,10 @@ impl ObsOutputRef {
                 obs_output_update(output, settings_ptr)
             })?;
 
-            self.settings.write().replace(settings);
+            self.settings
+                .write()
+                .map_err(|e| ObsError::LockError(e.to_string()))?
+                .replace(settings);
             Ok(())
         } else {
             Err(ObsError::OutputAlreadyActive)
@@ -304,7 +319,10 @@ impl ObsOutputRef {
         )?;
 
         let x = Arc::new(audio_enc);
-        self.audio_encoders.write().push(x.clone());
+        self.audio_encoders
+            .write()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
+            .push(x.clone());
         Ok(x)
     }
 
@@ -334,11 +352,15 @@ impl ObsOutputRef {
         if !self
             .audio_encoders
             .read()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
             .iter()
             .any(|x| x.encoder.0 == encoder.encoder.0)
         {
             let tmp = Arc::new(encoder);
-            self.audio_encoders.write().push(tmp.clone());
+            self.audio_encoders
+                .write()
+                .map_err(|e| ObsError::LockError(e.to_string()))?
+                .push(tmp.clone());
         }
 
         Ok(())
@@ -379,13 +401,13 @@ impl ObsOutputRef {
     }
 
     /// Pause or resume the output.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `pause` - `true` to pause the output, `false` to resume the output.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(())` - The output was paused or resumed successfully.
     /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
     pub fn pause(&self, pause: bool) -> Result<(), ObsError> {
@@ -405,14 +427,13 @@ impl ObsOutputRef {
                 let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
                     Sendable(obs_output_get_last_error(output_ptr))
                 })?;
-    
+
                 let c_str = unsafe { CStr::from_ptr(err.0) };
                 let err_str = c_str.to_str().ok().map(|x| x.to_string());
-    
+
                 Err(ObsError::OutputPauseFailure(err_str))
             }
-        }
-        else {
+        } else {
             Err(ObsError::OutputPauseFailure(Some(
                 "Output is not active.".to_string(),
             )))
@@ -438,7 +459,7 @@ impl ObsOutputRef {
                 obs_output_stop(output_ptr)
             })?;
 
-            let signal = rx_recv!(rx).map_err(|_| ObsError::NoSenderError)?;
+            let signal = rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;
             log::debug!("Signal: {:?}", signal);
             if signal == ObsOutputStopSignal::Success {
                 return Ok(());

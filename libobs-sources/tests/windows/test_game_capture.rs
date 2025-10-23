@@ -5,8 +5,8 @@ use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
 use crate::common::{initialize_obs, test_video};
 
-#[test]
-pub fn game_test() {
+#[tokio::test]
+pub async fn game_test() {
     let rec_file = ObsPath::from_relative("game_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -42,5 +42,5 @@ pub fn game_test() {
     let _x = capture_source.id();
     output.stop().unwrap();
 
-    test_video(&path_out, 1.0).unwrap();
+    test_video(&path_out, 1.0).await.unwrap();
 }

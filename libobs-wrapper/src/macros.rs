@@ -27,8 +27,7 @@ macro_rules! run_with_obs_impl {
                         $operation
                     };
                     return e()
-                })
-                //TODO error handling
+                }).unwrap()
             })
         }
     };
@@ -76,7 +75,8 @@ macro_rules! impl_obs_drop {
     ($struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
         impl Drop for $struct_name {
             fn drop(&mut self) {
-                #[cfg(feature="blocking_drops")]
+                $(let $var = self.$var.clone();)*
+                #[cfg(not(feature="no_blocking_drops"))]
                 {
                     let r = crate::run_with_obs!(self.runtime, ($($var),*), $operation);
                     if std::thread::panicking() {
@@ -86,7 +86,7 @@ macro_rules! impl_obs_drop {
                     r.unwrap();
                 }
 
-                #[cfg(not(feature="blocking_drops"))]
+                #[cfg(feature="no_blocking_drops")]
                 {
                     let __runtime = self.runtime.clone();
                     crate::run_with_obs_blocking!(SEPARATE_THREAD, __runtime, ($($var),*), $operation);

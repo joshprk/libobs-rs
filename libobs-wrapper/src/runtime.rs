@@ -37,24 +37,17 @@
 use std::ffi::CStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::{fmt::Debug, thread::JoinHandle};
 use std::{ptr, thread};
-use tokio::sync::oneshot;
 
-#[cfg(feature = "bootstrapper")]
-use crate::bootstrap::bootstrap;
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
 use crate::unsafe_send::Sendable;
 use crate::utils::initialization::load_debug_privilege;
-use crate::utils::{ObsBootstrapError, ObsError, ObsModules, ObsString};
-use crate::{
-    context::OBS_THREAD_ID,
-    utils::{async_sync::Mutex, StartupInfo},
-};
-use crate::{mutex_blocking_lock, oneshot_rx_recv};
+use crate::utils::{ObsError, ObsModules, ObsString};
+use crate::{context::OBS_THREAD_ID, utils::StartupInfo};
 
 /// Command type for operations to perform on the OBS thread
 enum ObsCommand {
@@ -65,15 +58,6 @@ enum ObsCommand {
     ),
     /// Signal the OBS thread to terminate
     Terminate,
-}
-
-/// Return type for OBS runtime initialization
-pub enum ObsRuntimeReturn {
-    /// The OBS context is ready to use
-    Done((ObsRuntime, ObsModules, StartupInfo)),
-
-    /// The application must be restarted to apply OBS updates
-    Restart,
 }
 
 /// Core runtime that manages the OBS thread
@@ -155,77 +139,22 @@ impl ObsRuntime {
     ///     }
     /// }
     /// ```
-    
+
     #[allow(unused_mut)]
-    pub(crate) async fn startup(mut options: StartupInfo) -> Result<ObsRuntimeReturn, ObsError> {
+    pub(crate) fn startup(
+        mut options: StartupInfo,
+    ) -> Result<(ObsRuntime, ObsModules, StartupInfo), ObsError> {
         // Check if OBS is already running on another thread
-        let obs_id = OBS_THREAD_ID.lock();
+        let obs_id = OBS_THREAD_ID.lock().map_err(|_e| ObsError::MutexFailure)?;
         if obs_id.is_some() {
             return Err(ObsError::ThreadFailure);
         }
 
         drop(obs_id);
 
-        // Handle bootstrapping if enabled and configured
-        #[cfg(feature = "bootstrapper")]
-        if options.bootstrap_handler.is_some() {
-            use crate::bootstrap::BootstrapStatus;
-            use futures_util::pin_mut;
-
-            log::trace!("Starting bootstrapper");
-            let stream = bootstrap(&options.bootstrapper_options)
-                .map_err(|e| {
-                    ObsError::BootstrapperFailure(ObsBootstrapError::GeneralError(e.to_string()))
-                })?;
-            if let Some(stream) = stream {
-                pin_mut!(stream);
-                //TODO is this fine for async context?
-                let mut stream = futures::executor::block_on_stream(stream);
-
-                log::trace!("Waiting for bootstrapper to finish");
-                while let Some(item) = stream.next() {
-                    match item {
-                        BootstrapStatus::Downloading(progress, message) => {
-                            if let Some(handler) = &mut options.bootstrap_handler {
-                                handler
-                                    .handle_downloading(progress, message)
-                                    .map_err(|e| {
-                                        ObsError::BootstrapperFailure(
-                                            ObsBootstrapError::DownloadError(e.to_string()),
-                                        )
-                                    })?;
-                            }
-                        }
-                        BootstrapStatus::Extracting(progress, message) => {
-                            if let Some(handler) = &mut options.bootstrap_handler {
-                                handler.handle_extraction(progress, message).map_err(
-                                    |e| {
-                                        ObsError::BootstrapperFailure(
-                                            ObsBootstrapError::ExtractError(e.to_string()),
-                                        )
-                                    },
-                                )?;
-                            }
-                        }
-                        BootstrapStatus::Error(err) => {
-                            return Err(ObsError::BootstrapperFailure(
-                                ObsBootstrapError::GeneralError(err.to_string()),
-                            ));
-                        }
-                        BootstrapStatus::RestartRequired => {
-                            return Ok(ObsRuntimeReturn::Restart);
-                        }
-                    }
-                }
-            }
-        }
-
         log::trace!("Initializing OBS context");
-        return Ok(ObsRuntimeReturn::Done(
-            ObsRuntime::init(options).map_err(|e| {
-                ObsError::BootstrapperFailure(ObsBootstrapError::GeneralError(e.to_string()))
-            })?,
-        ));
+        ObsRuntime::init(options)
+            .map_err(|e| ObsError::Unexpected(format!("Failed to initialize OBS runtime: {:?}", e)))
     }
 
     /// Internal initialization method
@@ -262,7 +191,10 @@ impl ObsRuntime {
                         }
                     }
 
-                    Self::shutdown_inner();
+                    let r = Self::shutdown_inner();
+                    if let Err(err) = r {
+                        log::error!("Failed to shut down OBS context: {:?}", err);
+                    }
                 }
                 Err(err) => {
                     log::error!("Failed to initialize OBS context: {:?}", err);
@@ -273,7 +205,7 @@ impl ObsRuntime {
 
         log::trace!("Waiting for OBS thread to initialize");
         // Wait for initialization to complete
-        let (mut m, info) = oneshot_rx_recv!(init_rx)??;
+        let (mut m, info) = init_rx.recv()??;
 
         let handle = Arc::new(Mutex::new(Some(handle)));
         let command_sender = Arc::new(command_sender);
@@ -366,7 +298,6 @@ impl ObsRuntime {
             Box::new(result)
         };
 
-
         let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
         if val > 50 {
             log::warn!("More than 50 queued commands. Try to batch them together.");
@@ -376,8 +307,9 @@ impl ObsRuntime {
             .send(ObsCommand::Execute(Box::new(wrapper), tx))
             .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
 
-        let result =
-            oneshot_rx_recv!(rx).map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+        let result = rx
+            .recv()
+            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
 
         // Downcast the Any type back to T
         let res = result
@@ -392,9 +324,9 @@ impl ObsRuntime {
     ///
     /// This method handles core OBS initialization including:
     /// - Starting up the OBS core (`obs_startup`)
-    /// - Resetting video and audio subsystems 
+    /// - Resetting video and audio subsystems
     /// - Loading OBS modules
-    /// 
+    ///
     /// # Parameters
     ///
     /// * `info` - The startup configuration for OBS
@@ -416,7 +348,7 @@ impl ObsRuntime {
         // Since this function is not meant to be
         // high-performance or called a thousand times,
         // a Mutex is fine here.#
-        let mut mutex_value = mutex_blocking_lock!(OBS_THREAD_ID);
+        let mut mutex_value = OBS_THREAD_ID.lock().map_err(|_e| ObsError::MutexFailure)?;
 
         // Directly checks if the value of the
         // Mutex is false. If true, then error.
@@ -516,7 +448,7 @@ impl ObsRuntime {
     /// - Calling `obs_shutdown` to clean up OBS resources
     /// - Removing log and crash handlers
     /// - Checking for memory leaks
-    fn shutdown_inner() {
+    fn shutdown_inner() -> Result<(), ObsError> {
         // Clean up sources
         for i in 0..libobs::MAX_CHANNELS {
             unsafe { libobs::obs_set_output_source(i, ptr::null_mut()) };
@@ -540,7 +472,10 @@ impl ObsRuntime {
                 };
                 // One memory leak is expected here because OBS does not free array elements of the obs_data_path when calling obs_add_data_path
                 // even when obs_remove_data_path is called. This is a bug in OBS.
-                logger.log(level, format!("Number of memory leaks: {}{}", allocs, notice))
+                logger.log(
+                    level,
+                    format!("Number of memory leaks: {}{}", allocs, notice),
+                )
             }
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");
@@ -553,8 +488,10 @@ impl ObsRuntime {
             libobs::base_set_log_handler(None, std::ptr::null_mut());
         }
 
-        let mut mutex_value = mutex_blocking_lock!(OBS_THREAD_ID);
+        let mut mutex_value = OBS_THREAD_ID.lock().map_err(|_e| ObsError::MutexFailure)?;
+
         *mutex_value = None;
+        Ok(())
     }
 }
 
@@ -570,43 +507,34 @@ pub struct _ObsRuntimeGuard {
     command_sender: Arc<Sender<ObsCommand>>,
 }
 
-impl _ObsRuntimeGuard {
-    /// Shutdown the OBS runtime and terminate the thread
-    ///
-    /// This method sends a terminate command to the OBS thread and waits
-    /// for it to complete its shutdown process.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` indicating success or failure
-    fn shutdown(&mut self) -> anyhow::Result<()> {
-        // Theoretically the queued_commands is zero and should be increased but because
-        // we are shutting down, we don't care about that.
-        self.command_sender
-            .send(ObsCommand::Terminate)
-            .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"))?;
-
-        // Wait for the thread to finish
-        let mut handle = self.handle.lock();
-        let handle = handle.take().expect("Handle can not be empty");
-
-        if let Err(err) = handle.join() {
-            return Err(anyhow::anyhow!("OBS thread panicked: {:?}", err));
-        }
-        Ok(())
-    }
-}
-
 impl Drop for _ObsRuntimeGuard {
     /// Ensures the OBS thread is properly shut down when the runtime is dropped
     fn drop(&mut self) {
-        //TODO make this in tokio spawn_blocking
-        let r = self.shutdown();
+        // Theoretically the queued_commands is zero and should be increased but because
+        // we are shutting down, we don't care about that.
+        let r = self
+            .command_sender
+            .send(ObsCommand::Terminate)
+            .map_err(|_| anyhow::anyhow!("Failed to send termination command to OBS thread"));
 
         if thread::panicking() {
             return;
         }
 
         r.unwrap();
+        #[cfg(not(feature = "no_blocking_drops"))]
+        {
+            // Wait for the thread to finish
+            let handle = self.handle.lock();
+            if handle.is_err() {
+                log::error!("Failed to lock OBS thread handle for shutdown");
+                return;
+            }
+
+            let mut handle = handle.unwrap();
+            let handle = handle.take().expect("Handle can not be empty");
+
+            handle.join().expect("Failed to join OBS thread");
+        }
     }
 }

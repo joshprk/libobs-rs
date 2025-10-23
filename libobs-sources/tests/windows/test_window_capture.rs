@@ -26,9 +26,9 @@ fn find_notepad() -> Option<Sendable<WindowInfo>> {
     })
 }
 
-#[test]
+#[tokio::test]
 // For this test to work, notepad must be open
-pub fn test_window_capture() {
+pub async fn test_window_capture() {
     let rec_file = ObsPath::from_relative("window_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -78,11 +78,11 @@ pub fn test_window_capture() {
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
-        tokio::time::sleep(Duration::from_secs(5));
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
     println!("Recording stop");
 
     output.stop().unwrap();
 
-    test_video(&path_out, 1.0).unwrap();
+    test_video(&path_out, 1.0).await.unwrap();
 }

@@ -12,7 +12,7 @@ pub use window_manager::*;
 use std::{
     ffi::c_void,
     marker::PhantomPinned,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
 use libobs::{
@@ -20,12 +20,7 @@ use libobs::{
     gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
-use crate::{
-    run_with_obs,
-    runtime::ObsRuntime,
-    unsafe_send::Sendable,
-    utils::{async_sync::RwLock, ObsError},
-};
+use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -52,8 +47,13 @@ pub struct ObsDisplayRef {
 unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     let s = &*(data as *mut ObsDisplayRef);
 
-    let (width, height) = s.get_size_blocking();
+    let r = s.get_size();
+    if r.is_err() {
+        log::error!("Failed to get display size: {:?}", r.err());
+        return;
+    }
 
+    let (width, height) = r.unwrap();
     let mut ovi: obs_video_info = std::mem::zeroed();
     obs_get_video_info(&mut ovi);
 
@@ -142,7 +142,11 @@ impl ObsDisplayRef {
         let instance_ptr =
             Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
 
-        instance._guard.write().self_ptr = Some(instance_ptr.clone());
+        instance
+            ._guard
+            .write()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
+            .self_ptr = Some(instance_ptr.clone());
 
         let pos = instance.get_pos();
         log::trace!(
@@ -172,7 +176,7 @@ struct _DisplayDropGuard {
 }
 
 impl _DisplayDropGuard {
-    pub async fn inner_drop(
+    pub fn inner_drop(
         r: ObsRuntime,
         display: Sendable<*mut libobs::obs_display_t>,
         self_ptr: Option<Sendable<*mut c_void>>,
@@ -193,12 +197,22 @@ impl Drop for _DisplayDropGuard {
         let display = self.display.clone();
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();
-        let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
 
-        if std::thread::panicking() {
-            return;
+        #[cfg(not(feature = "no_blocking_drops"))]
+        {
+            let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
+            if std::thread::panicking() {
+                return;
+            }
+
+            r.unwrap();
         }
 
-        r.unwrap();
+        #[cfg(feature = "no_blocking_drops")]
+        {
+            tokio::task::spawn_blocking(move || {
+                _DisplayDropGuard::inner_drop(r, display, self_ptr).unwrap();
+            });
+        }
     }
 }

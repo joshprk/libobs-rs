@@ -19,8 +19,8 @@ pub fn monitor_list_check() {
 /// DXGI is not supported for now
 const ENABLE_DXGI_TEST: bool = false;
 
-#[test]
-pub fn monitor_test() {
+#[tokio::test]
+pub async fn monitor_test() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -57,6 +57,5 @@ pub fn monitor_test() {
 
     output.stop().unwrap();
 
-    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 })
-        .unwrap();
+    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 }).await.unwrap();
 }

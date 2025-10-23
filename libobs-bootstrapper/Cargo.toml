@@ -1,0 +1,27 @@
+[package]
+name = "libobs-bootstrapper"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+async-stream = "0.3.6"
+futures-core = "0.3.31"
+futures-util = "0.3.31"
+hex = "0.4.3"
+lazy_static = "1.5.0"
+tokio = "1.48.0"
+libobs = { workspace = true }
+libobs-wrapper = { workspace = true }
+semver = "1.0.27"
+sevenz-rust = "0.6.1"
+sha2 = "0.10.9"
+uuid = { version = "1.18.1", features = ["v4"] }
+reqwest = { version = "0.12.24", features = ["stream", "json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+libloading = "0.8.9"
+async-trait = "0.1.89"
+log = "0.4.28"
+
+[features]
+generate_bindings = ["libobs/generate_bindings"]

@@ -1,16 +1,11 @@
 use crate::{
-    context::{ObsContext, ObsContextReturn}, data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsError, ObsPath, ObsString}
+    context::ObsContext, data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsError, ObsPath, ObsString}
 };
 
 /// Contains information to start a libobs context.
 /// This is passed to the creation of `ObsContext`.
 #[derive(Debug)]
 pub struct StartupInfo {
-    #[cfg(feature = "bootstrapper")]
-    pub(crate) bootstrap_handler: Option<Box<dyn crate::bootstrap::status_handler::ObsBootstrapStatusHandler>>,
-    #[cfg(feature = "bootstrapper")]
-    pub(crate) bootstrapper_options: crate::bootstrap::ObsBootstrapperOptions,
-
     pub(crate) startup_paths: StartupPaths,
     pub(crate) obs_video_info: ObsVideoInfo,
     pub(crate) obs_audio_info: ObsAudioInfo,
@@ -42,21 +37,7 @@ impl StartupInfo {
         self
     }
 
-    #[cfg(feature = "bootstrapper")]
-    pub fn enable_bootstrapper<T>(
-        mut self,
-        handler: T,
-        options: crate::bootstrap::ObsBootstrapperOptions,
-    ) -> Self
-    where
-        T: crate::bootstrap::status_handler::ObsBootstrapStatusHandler + 'static,
-    {
-        self.bootstrap_handler = Some(Box::new(handler));
-        self.bootstrapper_options = options;
-        self
-    }
-
-    pub fn start(self) -> Result<ObsContextReturn, ObsError> {
+    pub fn start(self) -> Result<ObsContext, ObsError> {
         ObsContext::new(self)
     }
 }
@@ -67,12 +48,7 @@ impl Default for StartupInfo {
             startup_paths: StartupPaths::default(),
             obs_video_info: ObsVideoInfo::default(),
             obs_audio_info: ObsAudioInfo::default(),
-            logger: Some(Box::new(ConsoleLogger::new())),
-            #[cfg(feature = "bootstrapper")]
-            bootstrap_handler: None,
-
-            #[cfg(feature = "bootstrapper")]
-            bootstrapper_options: Default::default()
+            logger: Some(Box::new(ConsoleLogger::new()))
         }
     }
 }

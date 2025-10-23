@@ -35,6 +35,8 @@ pub(crate) struct _ObsDataDropGuard {
 /// this struct prevents string pointers from being freed
 /// by keeping them owned.
 /// Cloning `ObsData` is blocking and will create a new `ObsData` instance. Recommended is to use `ObsData::full_clone()` instead.
+/// ## Panics
+/// If the underlying JSON representation can not be parsed.
 //NOTE: Update: The strings are actually copied by obs itself, we don't need to store them
 #[derive(Debug)]
 pub struct ObsData {
@@ -207,7 +209,7 @@ impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
 
 impl Clone for ObsData {
     fn clone(&self) -> Self {
-        let json = self.get_json()?;
-        Self::from_json(json.as_str(), self.runtime.clone())
+        let json = self.get_json().unwrap();
+        Self::from_json(json.as_str(), self.runtime.clone()).unwrap()
     }
 }

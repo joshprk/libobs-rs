@@ -114,7 +114,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = $gen_type;
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$gen_type>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$gen_type>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$gen_type> {
@@ -129,7 +129,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = ();
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<()>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<()>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](_cd: *mut libobs::calldata_t) -> anyhow::Result<()> {
@@ -162,7 +162,7 @@ macro_rules! __signals_impl_signal {
         paste::paste! {
             type [<__Private $signal_name:camel Type >] = $name;
             lazy_static::lazy_static! {
-                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<$crate::utils::async_sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$name>>>> = std::sync::Arc::new($crate::utils::async_sync::RwLock::new(std::collections::HashMap::new()));
+                static ref [<$signal_name:snake:upper _SENDERS>]: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<$crate::unsafe_send::SendableComp<$ptr>, tokio::sync::broadcast::Sender<$name>>>> = std::sync::Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
             }
 
             #[derive(Debug, Clone)]
@@ -207,6 +207,12 @@ macro_rules! impl_signal_manager {
 
                 let res = res.unwrap();
                 let senders = [<$signal_name:snake:upper _SENDERS>].read();
+                if let Err(e) = senders {
+                    log::warn!("Failed to acquire read lock for signal {}: {}", stringify!($signal_name), e);
+                    return;
+                }
+
+                let senders = senders.unwrap();
                 let senders = senders.get(&$crate::unsafe_send::SendableComp(obj_ptr as $ptr));
                 if senders.is_none() {
                     log::warn!("No sender found for signal {}", stringify!($signal_name));
@@ -230,8 +236,13 @@ macro_rules! impl_signal_manager {
 
                     $(
                         let senders = [<$signal_name:snake:upper _SENDERS>].clone();
-                        let mut senders = senders.write();
+                        let senders = senders.write();
+                        if senders.is_err() {
+                            return Err(crate::utils::ObsError::LockError("Failed to acquire write lock for signal senders".to_string()));
+                        }
+
                         let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
+                        let mut senders = senders.unwrap();
                         senders.insert(pointer.clone(), tx);
                     )*
 
@@ -258,6 +269,11 @@ macro_rules! impl_signal_manager {
                     $(#[$attr])*
                     pub fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
                         let handlers = [<$signal_name:snake:upper _SENDERS>].read();
+                        if handlers.is_err() {
+                            return Err(crate::utils::ObsError::LockError("Failed to acquire read lock for signal senders".to_string()));
+                        }
+
+                        let handlers = handlers.unwrap();
                         let rx = handlers.get(&self.pointer)
                             .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
                             .subscribe();
@@ -274,6 +290,7 @@ macro_rules! impl_signal_manager {
                     #[allow(unused_variables)]
                     let runtime = self.runtime.clone();
 
+                    //TODO make this non blocking
                     let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
                         #[allow(unused_variables)]
                         let handler = ($handler_getter)(ptr);
@@ -290,7 +307,13 @@ macro_rules! impl_signal_manager {
 
                     let r = {
                         $(
-                            let mut handlers = [<$signal_name:snake:upper _SENDERS>].write();
+                            let handlers = [<$signal_name:snake:upper _SENDERS>].write();
+                            if handlers.is_err() {
+                                log::warn!("Failed to acquire write lock for signal {} senders during drop", stringify!($signal_name));
+                                return;
+                            }
+
+                            let mut handlers = handlers.unwrap();
                             handlers.remove(&self.pointer);
                         )*
 

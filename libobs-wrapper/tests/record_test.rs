@@ -1,4 +1,3 @@
-#[cfg(not(feature = "blocking"))]
 mod require_non_blocking {
     use std::thread;
     use std::time::Duration;
@@ -19,16 +18,11 @@ mod require_non_blocking {
         }
     }
 
-    #[tokio::test]
-    pub async fn record_test() {
+    #[test]
+    pub fn record_test() {
         // Start the OBS context
         let startup_info = StartupInfo::default().set_logger(Box::new(TestLogger {}));
         let mut context = ObsContext::new(startup_info).unwrap();
-        let mut context = match context {
-            libobs_wrapper::context::ObsContextReturn::Done(c) => c,
-            libobs_wrapper::context::ObsContextReturn::Restart => panic!("Restart not supported"),
-        };
-
         let mut scene = context.scene("main").unwrap();
 
         // Create the video source using game capture

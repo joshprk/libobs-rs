@@ -7,9 +7,8 @@ members = [
     "libobs-sources",
     "libobs-window-helper",
     "libobs-wrapper",
-    "scripts/libobs-encoders/libobs-encoders-generator",
-
-    "examples/*",
+    "libobs-bootstrapper",
+    #"examples/*",
 ]
 exclude = [
     "examples/tauri-app",

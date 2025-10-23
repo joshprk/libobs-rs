@@ -65,7 +65,7 @@ impl ObsDataUpdater {
     }
 
 
-    pub async fn update(self) -> Result<(), ObsError> {
+    pub fn update(self) -> Result<(), ObsError> {
         let ObsDataUpdater {
             changes,
             obs_data,
