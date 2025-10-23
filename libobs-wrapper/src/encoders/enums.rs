@@ -9,7 +9,7 @@ macro_rules! encoder_enum {
         pub enum $name {
             $(
                 $(
-                    #[doc = concat!("From plugin: `", $plugin, "`")]
+                    #[doc = "From plugin: `" $plugin "`"]
                     $(#[$attr])*
                     [<$variant:upper>],
                 )*
