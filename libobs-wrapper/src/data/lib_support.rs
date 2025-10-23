@@ -1,7 +1,9 @@
 //! Use the `libobs-source` crate to create sources like `window_capture` for obs
 
 use crate::{
-    data::ObsData, runtime::ObsRuntime, utils::{traits::ObsUpdatable, ObjectInfo, ObsError, ObsString}
+    data::ObsData,
+    runtime::ObsRuntime,
+    utils::{traits::ObsUpdatable, ObjectInfo, ObsError, ObsString},
 };
 
 use super::updater::ObsDataUpdater;
@@ -13,7 +15,10 @@ pub trait StringEnum {
 //TODO Use generics to make the build function return a trait rather than a struct
 /// Trait for building OBS sources.
 pub trait ObsObjectBuilder {
-    fn new<T: Into<ObsString> + Send + Sync>(name: T, runtime: ObsRuntime) -> Result<Self, ObsError>
+    fn new<T: Into<ObsString> + Send + Sync>(
+        name: T,
+        runtime: ObsRuntime,
+    ) -> Result<Self, ObsError>
     where
         Self: Sized;
 
@@ -36,7 +41,10 @@ pub trait ObsObjectBuilder {
 
 pub trait ObsObjectUpdater<'a> {
     type ToUpdate: ObsUpdatable;
-    fn create_update(runtime: ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, ObsError>
+    fn create_update(
+        runtime: ObsRuntime,
+        updatable: &'a mut Self::ToUpdate,
+    ) -> Result<Self, ObsError>
     where
         Self: Sized;
 

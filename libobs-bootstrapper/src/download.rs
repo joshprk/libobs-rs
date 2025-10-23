@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use tokio::{fs::File, io::AsyncWriteExt};
 use uuid::Uuid;
 
-use super::{github_types, LIBRARY_OBS_VERSION};
+use super::{LIBRARY_OBS_VERSION, github_types};
 
 pub enum DownloadStatus {
     Error(anyhow::Error),

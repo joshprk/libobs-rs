@@ -22,8 +22,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-libobs-wrapper = { path = "../../../libobs-wrapper", features = ["bootstrapper"] }
-libobs-sources = { path = "../../../libobs-sources" }
+libobs-bootstrapper = { workspace = true }
+libobs-sources = { path = "../../libobs-sources" }
 lazy_static = "1.5.0"
 async-trait = "0.1.88"
 anyhow = "1.0.97"

@@ -6,7 +6,11 @@ macro_rules! assert_type {
         let p_type = unsafe { libobs::obs_property_get_type($name) };
         let p_type = ObsPropertyType::from_i32(p_type);
         if p_type.is_none_or(|e| !matches!(e, ObsPropertyType::$prop_type)) {
-            panic!("Invalid property type: expected {:?}, got {:?}", ObsPropertyType::$prop_type, p_type);
+            panic!(
+                "Invalid property type: expected {:?}, got {:?}",
+                ObsPropertyType::$prop_type,
+                p_type
+            );
         }
     }};
 }
@@ -55,27 +59,25 @@ macro_rules! get_enum {
 }
 
 macro_rules! get_opt_str {
-    ($pointer_name: ident, $name: ident) => {
-        {
-            paste::paste! {
-                let v = unsafe { libobs::[<obs_property_ $name>]($pointer_name) };
-            }
-            if v.is_null() {
+    ($pointer_name: ident, $name: ident) => {{
+        paste::paste! {
+            let v = unsafe { libobs::[<obs_property_ $name>]($pointer_name) };
+        }
+        if v.is_null() {
+            None
+        } else {
+            let v = unsafe { std::ffi::CStr::from_ptr(v as _) };
+            let v = v.to_str().expect("OBS returned invalid string").to_string();
+            if v.is_empty() {
                 None
             } else {
-                let v = unsafe { std::ffi::CStr::from_ptr(v as _) };
-                let v = v.to_str().expect("OBS returned invalid string").to_string();
-                if v.is_empty() {
-                    None
-                } else {
-                    Some(v)
-                }
+                Some(v)
             }
         }
-    };
+    }};
 }
 
-pub(super) use impl_general_property;
-pub(super) use get_opt_str;
 pub(super) use assert_type;
 pub(super) use get_enum;
+pub(super) use get_opt_str;
+pub(super) use impl_general_property;

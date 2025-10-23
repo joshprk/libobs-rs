@@ -62,10 +62,14 @@ impl ObsPropertyType {
             ObsPropertyType::Color => ObsProperty::Color(ObsColorProperty::from(info)),
             ObsPropertyType::Button => ObsProperty::Button(ObsButtonProperty::from(info)),
             ObsPropertyType::Font => ObsProperty::Font(ObsFontProperty::from(info)),
-            ObsPropertyType::EditableList => ObsProperty::EditableList(ObsEditableListProperty::from(info)),
+            ObsPropertyType::EditableList => {
+                ObsProperty::EditableList(ObsEditableListProperty::from(info))
+            }
             ObsPropertyType::FrameRate => ObsProperty::FrameRate(ObsFrameRateProperty::from(info)),
             ObsPropertyType::Group => ObsProperty::Group(ObsGroupProperty::from(info)),
-            ObsPropertyType::ColorAlpha => ObsProperty::ColorAlpha(ObsColorAlphaProperty::from(info))
+            ObsPropertyType::ColorAlpha => {
+                ObsProperty::ColorAlpha(ObsColorAlphaProperty::from(info))
+            }
         }
     }
 }

@@ -57,7 +57,7 @@ pub enum ObsTextType {
 pub enum ObsTextInfoType {
     Normal = libobs::obs_text_info_type_OBS_TEXT_INFO_NORMAL,
     Warning = libobs::obs_text_info_type_OBS_TEXT_INFO_WARNING,
-    Error = libobs::obs_text_info_type_OBS_TEXT_INFO_ERROR
+    Error = libobs::obs_text_info_type_OBS_TEXT_INFO_ERROR,
 }
 
 #[cfg_attr(target_os = "windows", repr(i32))]

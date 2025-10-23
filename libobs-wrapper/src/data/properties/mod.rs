@@ -12,7 +12,12 @@ pub use enums::*;
 use num_traits::FromPrimitive;
 use types::*;
 
-use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}};
+use crate::{
+    run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{ObsError, ObsString},
+};
 
 #[derive(Debug, Clone)]
 pub enum ObsProperty {
@@ -48,9 +53,11 @@ pub enum ObsProperty {
 
 pub trait ObsPropertyObjectPrivate {
     fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
-    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+        id: T,
+        runtime: ObsRuntime,
+    ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
-
 
 pub(crate) fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
@@ -100,7 +107,10 @@ pub(crate) fn get_properties_inner(
 pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
     fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError>;
-    fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<HashMap<String, ObsProperty>, ObsError> {
+    fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(
+        id: T,
+        runtime: &ObsRuntime,
+    ) -> Result<HashMap<String, ObsProperty>, ObsError> {
         let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone())?;
         get_properties_inner(properties_raw, runtime.clone())
     }

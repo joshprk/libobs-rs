@@ -8,12 +8,10 @@ members = [
     "libobs-window-helper",
     "libobs-wrapper",
     "libobs-bootstrapper",
-    #"examples/*",
+    "examples/*",
 ]
 exclude = [
     "examples/tauri-app",
-    # Exclude the preview example because it uses the "blocking" feature
-    #"examples/obs-preview"
 ]
 
 [workspace.dependencies]
@@ -21,6 +19,7 @@ libobs = { path = "./libobs", version = "2.1.1" }
 libobs-wrapper = { path = "./libobs-wrapper", version = "4.0.6" }
 libobs-source-macro = { path = "./libobs-source-macro", version = "2.0.2" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.1.5" }
+libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.1.0" }
 
 [workspace.metadata]
 libobs-cache-dir = "../obs-build"

@@ -12,19 +12,17 @@ use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
 use tokio::{fs::File, io::AsyncWriteExt, process::Command};
 
 mod download;
+mod error;
 mod extract;
 mod github_types;
 mod options;
 pub mod status_handler;
 mod version;
-mod error;
 pub use error::ObsBootstrapError;
 
-pub use libobs;
-pub use libobs_wrapper;
 pub use options::ObsBootstrapperOptions;
 
-use crate::status_handler::ObsBootstrapStatusHandler;
+use crate::status_handler::{ObsBootstrapConsoleHandler, ObsBootstrapStatusHandler};
 
 pub enum BootstrapStatus {
     /// Downloading status (first is progress from 0.0 to 1.0 and second is message)
@@ -37,7 +35,6 @@ pub enum BootstrapStatus {
     /// This is because the obs.dll file is in use by the application and can not be replaced while running.
     /// Therefore the "updater" is spawned to watch for the application to exit and rename the "obs_new.dll" file to "obs.dll".
     /// The updater will start the application again with the same arguments as the original application.
-    /// Call `ObsBootstrapper::spawn_updater()`
     RestartRequired,
 }
 
@@ -216,13 +213,47 @@ pub enum ObsBootstrapperResult {
     Restart,
 }
 
+/// A convenience type that exposes high-level helpers to detect, update and
+/// bootstrap an OBS installation.
+///
+/// The bootstrapper coordinates version checks and the streaming bootstrap
+/// process. It does not itself perform low-level network or extraction work;
+/// instead it delegates to internal modules (version checking and the
+/// bootstrap stream) and surfaces a simple API for callers.
 impl ObsBootstrapper {
+    /// Returns true if a valid OBS installation (as determined by locating the
+    /// OBS DLL and querying the installed version) is present on the system.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(true)` if an installed OBS version could be detected.
+    /// - `Ok(false)` if no installed OBS version was found.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` (anyhow) if there was an error locating the OBS DLL or
+    /// reading the installed version information.
     pub fn is_valid_installation() -> anyhow::Result<bool> {
         let installed = version::get_installed_version(&get_obs_dll_path()?)?;
-
         Ok(installed.is_some())
     }
 
+    /// Returns true when an update to OBS should be performed.
+    ///
+    /// The function first checks whether OBS is installed. If no installation
+    /// is found it treats that as an available update (returns `Ok(true)`).
+    /// Otherwise it consults the internal version logic to determine whether
+    /// the installed version should be updated.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(true)` when an update is recommended or when OBS is not installed.
+    /// - `Ok(false)` when the installed version is up-to-date.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` (anyhow) if there was an error locating the OBS DLL or
+    /// determining the currently installed version or update necessity.
     pub fn is_update_available() -> anyhow::Result<bool> {
         let installed = version::get_installed_version(&get_obs_dll_path()?)?;
         if installed.is_none() {
@@ -233,14 +264,77 @@ impl ObsBootstrapper {
         Ok(version::should_update(&installed)?)
     }
 
+    /// Bootstraps OBS using the provided options and a default console status
+    /// handler.
+    ///
+    /// This is a convenience wrapper around `bootstrap_with_handler` that
+    /// supplies an `ObsBootstrapConsoleHandler` as the status consumer.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(ObsBootstrapperResult::None)` if no action was necessary.
+    /// - `Ok(ObsBootstrapperResult::Restart)` if the bootstrap completed and a
+    ///   restart is required.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(ObsBootstrapError)` for any failure that prevents the
+    /// bootstrap from completing (download failures, extraction failures,
+    /// general errors).
     pub async fn bootstrap(
         options: &options::ObsBootstrapperOptions,
-        handler: &mut Option<Box<dyn ObsBootstrapStatusHandler>>,
     ) -> Result<ObsBootstrapperResult, ObsBootstrapError> {
-        log::trace!("Starting bootstrapper");
-        let stream = bootstrap(options).map_err(|e| {
-            ObsBootstrapError::GeneralError(e.to_string())
-        })?;
+        ObsBootstrapper::bootstrap_with_handler(
+            options,
+            Box::new(ObsBootstrapConsoleHandler::default()),
+        )
+        .await
+    }
+
+    /// Bootstraps OBS using the provided options and a custom status handler.
+    ///
+    /// The handler will receive progress updates as the bootstrap stream emits
+    /// statuses. The method drives the bootstrap stream to completion and maps
+    /// stream statuses into handler calls or final results:
+    ///
+    /// - `BootstrapStatus::Downloading(progress, message)` → calls
+    ///   `handler.handle_downloading(progress, message)`. Handler errors are
+    ///   mapped to `ObsBootstrapError::DownloadError`.
+    /// - `BootstrapStatus::Extracting(progress, message)` → calls
+    ///   `handler.handle_extraction(progress, message)`. Handler errors are
+    ///   mapped to `ObsBootstrapError::ExtractError`.
+    /// - `BootstrapStatus::Error(err)` → returns `Err(ObsBootstrapError::GeneralError(_))`.
+    /// - `BootstrapStatus::RestartRequired` → returns `Ok(ObsBootstrapperResult::Restart)`.
+    ///
+    /// If the underlying `bootstrap(options)` call returns `None` there is
+    /// nothing to do and the function returns `Ok(ObsBootstrapperResult::None)`.
+    ///
+    /// # Parameters
+    ///
+    /// - `options`: configuration that controls download/extraction behavior.
+    /// - `handler`: user-provided boxed trait object that receives progress
+    ///   notifications; it is called on each progress update and can fail.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(ObsBootstrapperResult::None)` when no work was required or the
+    ///   stream completed without requiring a restart.
+    /// - `Ok(ObsBootstrapperResult::Restart)` when the bootstrap succeeded and
+    ///   a restart is required.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(ObsBootstrapError)` when:
+    /// - the bootstrap pipeline could not be started,
+    /// - the handler returns an error while handling a download or extraction
+    ///   update (mapped respectively to `DownloadError` / `ExtractError`),
+    /// - or when the bootstrap stream yields a general error.
+    pub async fn bootstrap_with_handler(
+        options: &options::ObsBootstrapperOptions,
+        mut handler: Box<dyn ObsBootstrapStatusHandler>,
+    ) -> Result<ObsBootstrapperResult, ObsBootstrapError> {
+        let stream =
+            bootstrap(options).map_err(|e| ObsBootstrapError::GeneralError(e.to_string()))?;
 
         if let Some(stream) = stream {
             pin_mut!(stream);
@@ -249,22 +343,14 @@ impl ObsBootstrapper {
             while let Some(item) = stream.next().await {
                 match item {
                     BootstrapStatus::Downloading(progress, message) => {
-                        if let Some(handler) = handler {
-                            handler.handle_downloading(progress, message).map_err(|e| {
-                                ObsBootstrapError::DownloadError(
-                                    e.to_string(),
-                                )
-                            })?;
-                        }
+                        handler
+                            .handle_downloading(progress, message)
+                            .map_err(|e| ObsBootstrapError::DownloadError(e.to_string()))?;
                     }
                     BootstrapStatus::Extracting(progress, message) => {
-                        if let Some(handler) = handler {
-                            handler.handle_extraction(progress, message).map_err(|e| {
-                                ObsBootstrapError::ExtractError(
-                                    e.to_string(),
-                                )
-                            })?;
-                        }
+                        handler
+                            .handle_extraction(progress, message)
+                            .map_err(|e| ObsBootstrapError::ExtractError(e.to_string()))?;
                     }
                     BootstrapStatus::Error(err) => {
                         return Err(ObsBootstrapError::GeneralError(err.to_string()));

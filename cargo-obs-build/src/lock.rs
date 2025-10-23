@@ -1,4 +1,8 @@
-use std::{fs::{self, File}, io::{stdout, Read, Write}, path::{Path, PathBuf}};
+use std::{
+    fs::{self, File},
+    io::{stdout, Read, Write},
+    path::{Path, PathBuf},
+};
 
 use process_alive::Pid;
 
@@ -11,7 +15,9 @@ pub fn wait_for_lock(lock: &Path) -> anyhow::Result<()> {
     let mut pid = String::new();
 
     f.read_to_string(&mut pid)?;
-    let pid = pid.trim().parse::<u32>()
+    let pid = pid
+        .trim()
+        .parse::<u32>()
         .map_err(|e| anyhow::anyhow!("Failed to parse PID from lock file: {}", e));
 
     if pid.is_err() {

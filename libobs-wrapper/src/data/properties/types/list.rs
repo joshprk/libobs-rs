@@ -27,7 +27,7 @@ pub enum ObsListItemValue {
     Int(i64),
     Float(f64),
     Bool(bool),
-    Invalid
+    Invalid,
 }
 
 impl ObsListItem {

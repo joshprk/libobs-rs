@@ -18,9 +18,7 @@ impl ObsPropertyObject for ObsSourceRef {
 }
 
 impl ObsPropertyObjectPrivate for ObsSourceRef {
-    fn get_properties_raw(
-        &self,
-    ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+    fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let source_ptr = self.source.clone();
         self.runtime
             .run_with_obs_result(move || unsafe {
@@ -54,9 +52,7 @@ impl ObsPropertyObject for ObsOutputRef {
 }
 
 impl ObsPropertyObjectPrivate for ObsOutputRef {
-    fn get_properties_raw(
-        &self,
-    ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+    fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let output_ptr = self.output.clone();
         self.runtime
             .run_with_obs_result(move || unsafe {

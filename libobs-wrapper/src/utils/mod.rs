@@ -111,7 +111,8 @@ impl Drop for ObsModules {
             let _ = tokio::task::spawn_blocking(move || unsafe {
                 run_with_obs!(runtime, move || unsafe {
                     libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
-                }).unwrap();
+                })
+                .unwrap();
             });
         }
     }

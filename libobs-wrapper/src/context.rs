@@ -329,7 +329,7 @@ impl ObsContext {
         Ok(display_clone)
     }
 
-    pub fn remove_display(&mut self, display: &ObsDisplayRef)  -> Result<(), ObsError> {
+    pub fn remove_display(&mut self, display: &ObsDisplayRef) -> Result<(), ObsError> {
         self.remove_display_by_id(display.id())
     }
 
@@ -344,10 +344,16 @@ impl ObsContext {
         Ok(())
     }
 
-    pub fn get_display_by_id(&self, id: usize) -> Result<Option<Arc<Pin<Box<ObsDisplayRef>>>>, ObsError> {
-        let d = self.displays
+    pub fn get_display_by_id(
+        &self,
+        id: usize,
+    ) -> Result<Option<Arc<Pin<Box<ObsDisplayRef>>>>, ObsError> {
+        let d = self
+            .displays
             .read()
-            .map_err(|_| ObsError::LockError("Failed to acquire read lock on displays".to_string()))?
+            .map_err(|_| {
+                ObsError::LockError("Failed to acquire read lock on displays".to_string())
+            })?
             .get(&id)
             .cloned();
 
@@ -355,7 +361,8 @@ impl ObsContext {
     }
 
     pub fn get_output(&mut self, name: &str) -> Result<Option<ObsOutputRef>, ObsError> {
-        let o = self.outputs
+        let o = self
+            .outputs
             .read()
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on outputs".to_string()))?
             .iter()
@@ -381,7 +388,8 @@ impl ObsContext {
     }
 
     pub fn get_filter(&mut self, name: &str) -> Result<Option<ObsFilterRef>, ObsError> {
-        let f = self.filters
+        let f = self
+            .filters
             .read()
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on filters".to_string()))?
             .iter()
@@ -407,7 +415,8 @@ impl ObsContext {
     }
 
     pub fn get_scene(&mut self, name: &str) -> Result<Option<ObsSceneRef>, ObsError> {
-        let r = self.scenes
+        let r = self
+            .scenes
             .read()
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on scenes".to_string()))?
             .iter()

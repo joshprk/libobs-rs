@@ -32,7 +32,6 @@ impl ObjectInfo {
     }
 }
 
-
 pub type OutputInfo = ObjectInfo;
 pub type SourceInfo = ObjectInfo;
 pub type FilterInfo = ObjectInfo;

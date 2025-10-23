@@ -34,8 +34,7 @@ compiler_error!("libobs-sources can only be used in windows");
 pub mod windows;
 
 pub mod encoders;
-pub mod output;
 mod macro_helper;
+pub mod output;
 
-pub use libobs_wrapper as wrapper;
 pub use libobs_wrapper::{data::ObsObjectUpdater, sources::ObsSourceBuilder};

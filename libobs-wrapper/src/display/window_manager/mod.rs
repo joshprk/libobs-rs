@@ -29,9 +29,9 @@ use windows::{
 
 use crate::unsafe_send::Sendable;
 
+mod misc;
 mod position_trait;
 mod show_hide;
-mod misc;
 pub use misc::*;
 pub use position_trait::WindowPositionTrait;
 pub use show_hide::ShowHideTrait;
@@ -139,7 +139,13 @@ pub struct DisplayWindowManager {
 }
 
 impl DisplayWindowManager {
-    pub fn new_child(parent: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> anyhow::Result<Self> {
+    pub fn new_child(
+        parent: Sendable<HWND>,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+    ) -> anyhow::Result<Self> {
         let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));

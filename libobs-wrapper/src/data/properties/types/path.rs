@@ -15,7 +15,13 @@ pub struct ObsPathProperty {
 }
 
 impl From<PropertyCreationInfo> for ObsPathProperty {
-    fn from(PropertyCreationInfo { name, description, pointer }: PropertyCreationInfo) -> Self {
+    fn from(
+        PropertyCreationInfo {
+            name,
+            description,
+            pointer,
+        }: PropertyCreationInfo,
+    ) -> Self {
         assert_type!(Path, pointer);
 
         let path_type = get_enum!(pointer, path_type, ObsPathType);

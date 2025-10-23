@@ -21,12 +21,7 @@ mod test;
 pub use game::*;
 pub use helper::*;
 use win_iterator::{first_window, next_window};
-use windows::
-    Win32::{
-        Foundation::HWND,
-        System::Console::GetConsoleWindow,
-    }
-;
+use windows::Win32::{Foundation::HWND, System::Console::GetConsoleWindow};
 
 /// Retrieves information about all windows based on the specified search mode and game check flag.
 ///

@@ -7,7 +7,9 @@ use std::{
 };
 
 use crate::common::{initialize_obs, test_video};
-use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
+use libobs_sources::windows::{
+    ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater,
+};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::{data::ObsObjectUpdater, unsafe_send::Sendable};
 use libobs_wrapper::{

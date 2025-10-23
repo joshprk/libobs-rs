@@ -1,11 +1,6 @@
-use std::{
-    fs,
-    path::Path
-};
+use std::{fs, path::Path};
 
 use walkdir::WalkDir;
-
-
 
 pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow::Result<()> {
     for entry in WalkDir::new(&src) {

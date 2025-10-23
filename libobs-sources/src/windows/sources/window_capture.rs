@@ -2,7 +2,11 @@ use libobs_source_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use libobs_wrapper::{
-    data::{ObsObjectBuilder, ObsObjectUpdater}, scenes::ObsSceneRef, sources::{ObsSourceBuilder, ObsSourceRef}, unsafe_send::Sendable, utils::ObsError
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    scenes::ObsSceneRef,
+    sources::{ObsSourceBuilder, ObsSourceRef},
+    unsafe_send::Sendable,
+    utils::ObsError,
 };
 use num_traits::ToPrimitive;
 
@@ -98,7 +102,6 @@ impl<'a> WindowCaptureSourceUpdater<'a> {
     }
 }
 
-
 impl WindowCaptureSourceBuilder {
     /// Sets the capture method for the window capture source.
     pub fn set_capture_method(mut self, method: ObsWindowCaptureMethod) -> Self {
@@ -108,10 +111,7 @@ impl WindowCaptureSourceBuilder {
 }
 
 impl ObsSourceBuilder for WindowCaptureSourceBuilder {
-    fn add_to_scene<'a>(
-        mut self,
-        scene: &'a mut ObsSceneRef,
-    ) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene<'a>(mut self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {

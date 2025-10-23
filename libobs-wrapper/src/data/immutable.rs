@@ -50,7 +50,8 @@ impl ImmutableObsData {
             Sendable(libobs::obs_data_get_json(ptr))
         })?;
 
-        let json = unsafe { CStr::from_ptr(json.0) }.to_str()
+        let json = unsafe { CStr::from_ptr(json.0) }
+            .to_str()
             .map_err(|_| ObsError::JsonParseError)?
             .to_string();
 

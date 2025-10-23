@@ -64,7 +64,6 @@ impl ObsDataUpdater {
         self
     }
 
-
     pub fn update(self) -> Result<(), ObsError> {
         let ObsDataUpdater {
             changes,

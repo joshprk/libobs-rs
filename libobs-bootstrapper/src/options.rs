@@ -4,7 +4,7 @@ pub const GITHUB_REPO: &'static str = "sshcrack/libobs-builds";
 pub struct ObsBootstrapperOptions {
     pub(crate) repository: String,
     pub(crate) update: bool,
-    pub(crate) restart_after_update: bool
+    pub(crate) restart_after_update: bool,
 }
 
 impl ObsBootstrapperOptions {
@@ -12,7 +12,7 @@ impl ObsBootstrapperOptions {
         ObsBootstrapperOptions {
             repository: GITHUB_REPO.to_string(),
             update: true,
-            restart_after_update: true
+            restart_after_update: true,
         }
     }
 

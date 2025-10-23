@@ -1,8 +1,4 @@
-use crate::{
-    data::ObsObjectBuilder,
-    scenes::ObsSceneRef,
-    utils::ObsError,
-};
+use crate::{data::ObsObjectBuilder, scenes::ObsSceneRef, utils::ObsError};
 
 use super::ObsSourceRef;
 

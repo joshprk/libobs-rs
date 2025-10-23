@@ -49,7 +49,13 @@ impl ObsAudioEncoder {
             runtime,
             (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
             move || unsafe {
-                let ptr = obs_audio_encoder_create(id_ptr, name_ptr, settings_ptr, mixer_idx, hotkey_data_ptr);
+                let ptr = obs_audio_encoder_create(
+                    id_ptr,
+                    name_ptr,
+                    settings_ptr,
+                    mixer_idx,
+                    hotkey_data_ptr,
+                );
                 Sendable(ptr)
             }
         )?;

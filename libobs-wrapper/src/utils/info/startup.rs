@@ -1,5 +1,8 @@
 use crate::{
-    context::ObsContext, data::{audio::ObsAudioInfo, video::ObsVideoInfo}, logger::{ConsoleLogger, ObsLogger}, utils::{ObsError, ObsPath, ObsString}
+    context::ObsContext,
+    data::{audio::ObsAudioInfo, video::ObsVideoInfo},
+    logger::{ConsoleLogger, ObsLogger},
+    utils::{ObsError, ObsPath, ObsString},
 };
 
 /// Contains information to start a libobs context.
@@ -48,7 +51,7 @@ impl Default for StartupInfo {
             startup_paths: StartupPaths::default(),
             obs_video_info: ObsVideoInfo::default(),
             obs_audio_info: ObsAudioInfo::default(),
-            logger: Some(Box::new(ConsoleLogger::new()))
+            logger: Some(Box::new(ConsoleLogger::new())),
         }
     }
 }

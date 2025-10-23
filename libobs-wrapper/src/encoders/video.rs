@@ -73,7 +73,10 @@ impl ObsVideoEncoder {
     }
 
     /// This is only needed once for global video context
-    pub fn set_video_context(&mut self, handler: Sendable<*mut video_output>) -> Result<(), ObsError> {
+    pub fn set_video_context(
+        &mut self,
+        handler: Sendable<*mut video_output>,
+    ) -> Result<(), ObsError> {
         let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
             Sendable(obs_encoder_set_video(self_ptr, handler));

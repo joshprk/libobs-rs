@@ -6,9 +6,7 @@ mod require_non_blocking {
     use libobs_wrapper::encoders::ObsContextEncoders;
     use libobs_wrapper::enums::ObsLogLevel;
     use libobs_wrapper::logger::ObsLogger;
-    use libobs_wrapper::utils::{
-        AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo,
-    };
+    use libobs_wrapper::utils::{AudioEncoderInfo, ObsPath, OutputInfo, SourceInfo, StartupInfo};
 
     #[derive(Debug)]
     struct TestLogger;
@@ -75,7 +73,9 @@ mod require_non_blocking {
             .unwrap();
 
         video_encoder.set_settings(video_settings);
-        video_encoder.set_to_output(&mut output, "video_encoder").unwrap();
+        video_encoder
+            .set_to_output(&mut output, "video_encoder")
+            .unwrap();
 
         // Register the audio encoder
         let mut audio_settings = context.data().unwrap();
@@ -85,9 +85,7 @@ mod require_non_blocking {
             AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
         let audio_handler = context.get_audio_ptr().unwrap();
-        output
-            .audio_encoder(audio_info, 0, audio_handler)
-            .unwrap();
+        output.audio_encoder(audio_info, 0, audio_handler).unwrap();
 
         output.start().unwrap();
 

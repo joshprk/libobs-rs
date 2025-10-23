@@ -17,7 +17,9 @@ use crate::{
     utils::{ObjectInfo, ObsError, ObsString},
 };
 
-use super::{audio::ObsAudioEncoder, video::ObsVideoEncoder, ObsAudioEncoderType, ObsVideoEncoderType};
+use super::{
+    audio::ObsAudioEncoder, video::ObsVideoEncoder, ObsAudioEncoderType, ObsVideoEncoderType,
+};
 
 #[duplicate_item(
     StructName EncoderType;
@@ -45,7 +47,7 @@ impl StructName {
             runtime: context.runtime().clone(),
             context,
             settings: None,
-            hotkey_data: None
+            hotkey_data: None,
         }
     }
 
@@ -90,32 +92,21 @@ impl ObsAudioEncoderBuilder {
         mixer_idx: usize,
     ) -> Result<Arc<ObsAudioEncoder>, ObsError> {
         let e_id: ObsString = self.encoder_id.into();
-        let info = ObjectInfo::new(
-            e_id,
-            ObsString::new(name),
-            settings,
-            hotkey_data,
-        );
+        let info = ObjectInfo::new(e_id, ObsString::new(name), settings, hotkey_data);
 
         let audio_handler = self.context.get_audio_ptr()?;
         output.audio_encoder(info, mixer_idx, audio_handler)
     }
 }
 
-
 impl ObsVideoEncoderBuilder {
     pub fn set_to_output(
         self,
         output: &mut ObsOutputRef,
-        name: &str
+        name: &str,
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
         let e_id: ObsString = self.encoder_id.into();
-        let info = ObjectInfo::new(
-            e_id,
-            ObsString::new(name),
-            self.settings,
-            self.hotkey_data,
-        );
+        let info = ObjectInfo::new(e_id, ObsString::new(name), self.settings, self.hotkey_data);
 
         let video_handler = self.context.get_video_ptr()?;
         output.video_encoder(info, video_handler)
@@ -140,9 +131,7 @@ impl ObsPropertyObject for StructName {
     [ObsVideoEncoderBuilder]
 )]
 impl ObsPropertyObjectPrivate for StructName {
-    fn get_properties_raw(
-        &self,
-    ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
+    fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError> {
         let encoder_name: ObsString = self.encoder_id.clone().into();
         let encoder_name_ptr = encoder_name.as_ptr();
 

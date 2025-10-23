@@ -18,14 +18,12 @@ impl MiscDisplayTrait for ObsDisplayRef {
         })
     }
 
-
     fn is_enabled(&self) -> Result<bool, ObsError> {
         let display_ptr = self.display.clone();
         run_with_obs!(self.runtime, (display_ptr), move || unsafe {
             libobs::obs_display_enabled(display_ptr)
         })
     }
-
 
     fn set_enabled(&self, enabled: bool) -> Result<(), ObsError> {
         let display_ptr = self.display.clone();

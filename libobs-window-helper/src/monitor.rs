@@ -1,5 +1,5 @@
-use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFOEXW};
 use anyhow::Result;
+use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFOEXW};
 
 use crate::string_conv::ToUtf8String;
 

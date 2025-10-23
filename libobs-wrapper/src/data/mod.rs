@@ -162,7 +162,6 @@ impl ObsData {
         Ok(self)
     }
 
-
     pub fn from_json(json: &str, runtime: ObsRuntime) -> Result<Self, ObsError> {
         let cstr = CString::new(json).map_err(|_| ObsError::JsonParseError)?;
 
@@ -184,7 +183,6 @@ impl ObsData {
             }),
         })
     }
-
 
     pub fn get_json(&self) -> Result<String, ObsError> {
         let data_ptr = self.obs_data.clone();

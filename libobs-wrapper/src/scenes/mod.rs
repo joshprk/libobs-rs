@@ -123,7 +123,8 @@ impl ObsSceneRef {
     }
 
     pub fn get_source_by_index(&self, index: usize) -> Result<Option<ObsSourceRef>, ObsError> {
-        let r = self.sources
+        let r = self
+            .sources
             .read()
             .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
             .get(index)
@@ -132,7 +133,8 @@ impl ObsSceneRef {
     }
 
     pub fn get_source_mut(&self, name: &str) -> Result<Option<ObsSourceRef>, ObsError> {
-        let r = self.sources
+        let r = self
+            .sources
             .read()
             .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
             .iter()

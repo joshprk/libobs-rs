@@ -44,7 +44,7 @@ pub unsafe fn get_uwp_actual_window(parent: HWND) -> Result<Option<HWND>> {
         }
 
         child = FindWindowExW(Some(parent), Some(child), PWSTR::null(), PWSTR::null())
-        .unwrap_or(HWND::default());
+            .unwrap_or(HWND::default());
     }
 
     return Ok(None);
@@ -66,10 +66,16 @@ pub unsafe fn next_window(
 
     loop {
         window = if use_find_window_ex {
-            FindWindowExW(Some(GetDesktopWindow()), Some(window), PWSTR::null(), PWSTR::null())
+            FindWindowExW(
+                Some(GetDesktopWindow()),
+                Some(window),
+                PWSTR::null(),
+                PWSTR::null(),
+            )
         } else {
             GetWindow(window, GW_HWNDNEXT)
-        }.unwrap_or(HWND::default());
+        }
+        .unwrap_or(HWND::default());
 
         let valid = is_window_valid(window, mode).ok().unwrap_or(false);
         if window.is_invalid() || valid {
@@ -103,13 +109,8 @@ pub unsafe fn first_window(
     parent: &mut Option<HWND>,
     use_find_window_ex: &mut bool,
 ) -> anyhow::Result<HWND> {
-    let mut window = FindWindowExW(
-        Some(GetDesktopWindow()),
-        None,
-        PWSTR::null(),
-        PWSTR::null(),
-    )
-    .ok();
+    let mut window =
+        FindWindowExW(Some(GetDesktopWindow()), None, PWSTR::null(), PWSTR::null()).ok();
 
     if window.is_none() {
         *use_find_window_ex = false;

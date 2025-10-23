@@ -2,7 +2,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{punctuated::Punctuated, token::Comma, Field};
 
-pub fn generate_struct_fields(fields: &Punctuated<Field, Comma>) -> (Vec<TokenStream>, Vec<TokenStream>) {
+pub fn generate_struct_fields(
+    fields: &Punctuated<Field, Comma>,
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let maybe_obs_properties = fields
         .iter()
         .map(|f| {

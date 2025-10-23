@@ -17,14 +17,16 @@ pub trait ShowHideTrait {
 }
 
 impl ShowHideTrait for ObsDisplayRef {
-
     /// Shows the window.
     ///
     /// # Panics
     /// Panics if the internal lock is poisoned.
     fn show(&mut self) -> Result<(), ObsError> {
         log::trace!("show");
-        let m = self.manager.read().map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
+        let m = self
+            .manager
+            .read()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
         unsafe {
             let _ = ShowWindow(m.hwnd.0, SW_SHOWNA);
         }
@@ -35,7 +37,10 @@ impl ShowHideTrait for ObsDisplayRef {
 
     fn hide(&mut self) -> Result<(), ObsError> {
         log::trace!("hide");
-        let m = self.manager.read().map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
+        let m = self
+            .manager
+            .read()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
         unsafe {
             let _ = ShowWindow(m.hwnd.0, SW_HIDE);
         }
@@ -45,7 +50,10 @@ impl ShowHideTrait for ObsDisplayRef {
     }
 
     fn is_visible(&self) -> Result<bool, ObsError> {
-        let m = self.manager.read().map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
+        let m = self
+            .manager
+            .read()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
         Ok(!m.is_hidden.load(Ordering::Relaxed))
     }
 }

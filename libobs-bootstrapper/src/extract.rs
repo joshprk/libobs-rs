@@ -5,8 +5,8 @@ use std::{
 
 use async_stream::stream;
 use futures_core::Stream;
-use futures_util::{pin_mut, StreamExt};
-use sevenz_rust::{default_entry_extract_fn, Password, SevenZReader};
+use futures_util::{StreamExt, pin_mut};
+use sevenz_rust::{Password, SevenZReader, default_entry_extract_fn};
 use tokio::task;
 pub enum ExtractStatus {
     Error(anyhow::Error),

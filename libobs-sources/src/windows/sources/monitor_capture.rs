@@ -72,10 +72,7 @@ impl MonitorCaptureSourceBuilder {
 }
 
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
-    fn add_to_scene<'a>(
-        mut self,
-        scene: &'a mut ObsSceneRef,
-    ) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene<'a>(mut self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {

@@ -2,11 +2,17 @@
 
 use std::{thread::sleep, time::Duration};
 
-use libobs_sources::{windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod}, ObsSourceBuilder};
+use libobs_sources::{
+    ObsSourceBuilder,
+    windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod},
+};
 use libobs_wrapper::{
-    context::ObsContext, data::properties::{types::ObsListItemValue, ObsProperty, ObsPropertyObject}, sources::ObsSourceRef, utils::{
-        AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo,
-    }, Vec2
+    Vec2,
+    context::ObsContext,
+    data::properties::{ObsProperty, ObsPropertyObject, types::ObsListItemValue},
+    encoders::{ObsAudioEncoderType, ObsVideoEncoderType},
+    sources::ObsSourceRef,
+    utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo},
 };
 
 #[tokio::main]
@@ -14,69 +20,61 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let startup_info = StartupInfo::new();
-    let context = ObsContext::new(startup_info).await?;
-    let mut context = match context {
-        libobs_wrapper::context::ObsContextReturn::Done(c) => c,
-        libobs_wrapper::context::ObsContextReturn::Restart => {
-            return Ok(());
-        }
-    };
+    let mut context = ObsContext::new(startup_info)?;
 
     // Create a new main scene
-    let mut scene = context.scene("MAIN").await?;
+    let mut scene = context.scene("MAIN")?;
     // Set the scene as main channel for video and audio output
-    scene.set_to_channel(0).await?;
-    scene.set_to_channel(1).await?;
+    scene.set_to_channel(0)?;
+    scene.set_to_channel(1)?;
 
     // Add a ffmpeg_muxer output
-    let mut output = context
-        .output(OutputInfo::new("ffmpeg_muxer", "MAIN", None, None))
-        .await?;
+    let mut output = context.output(OutputInfo::new("ffmpeg_muxer", "MAIN", None, None))?;
 
     // Read all the properties of source type or encoders
     let source = context
-        .source_builder::<MonitorCaptureSourceBuilder, _>("Display name")
-        .await?
-        .add_to_scene(&mut scene)
-        .await?;
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Display name")?
+        .add_to_scene(&mut scene)?;
 
-    let properties = ObsSourceRef::get_properties_by_id("monitor_capture", context.runtime()).await?;
+    let properties = ObsSourceRef::get_properties_by_id("monitor_capture", context.runtime())?;
     println!("Properties: {:?}", properties);
 
     // Property name as key and its value can be passed as settings to the encoder while creating or updating the encoder
 
     // Adding a default video and audio encoder
-    let vid_ptr = context.get_video_ptr().await?;
-    let audio_ptr = context.get_audio_ptr().await?;
+    let vid_ptr = context.get_video_ptr()?;
+    let audio_ptr = context.get_audio_ptr()?;
 
-    output
-        .video_encoder(
-            VideoEncoderInfo::new("obs_x264", "video_encoder", None, None),
-            vid_ptr,
-        )
-        .await?;
-    output
-        .audio_encoder(
-            AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", None, None),
-            0,
-            audio_ptr,
-        )
-        .await?;
+    output.video_encoder(
+        VideoEncoderInfo::new(ObsVideoEncoderType::OBS_X264, "video_encoder", None, None),
+        vid_ptr,
+    )?;
+    output.audio_encoder(
+        //TODO use FFMPEG_AAC after fixing the enum mapping
+        AudioEncoderInfo::new(
+            ObsAudioEncoderType::FFMPEG_NVENC,
+            "audio_encoder",
+            None,
+            None,
+        ),
+        0,
+        audio_ptr,
+    )?;
 
     // In case we already have the encoder and we want to use the same encoder for multiple outputs, use:
     // output.set_video_encoder(ObsVideoEncoder)?;
     // output.set_audio_encoder(ObsAudioEncoder)?;
 
     // Can update the output path to record to a different location
-    let mut settings = context.data().await?;
-    settings.set_string("path", ObsPath::from_relative("obs_output.mp4")).await?;
+    let mut settings = context.data()?;
+    settings.set_string("path", ObsPath::from_relative("obs_output.mp4"))?;
 
     // Update path
-    context.update_output("MAIN", settings).await?;
+    context.update_output("MAIN", settings)?;
     // To get the list of all monitors
     // It has a loop hole though, somehow the monitor_id returned in property is same if we have multiple monitor of exactly same model (exactly same monitor), use `libobs-window-helper` lib for fix
-    let properties = source.get_properties().await?;
-    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name 2").await?;
+    let properties = source.get_properties()?;
+    let mut builder: MonitorCaptureSourceBuilder = context.source_builder("Display name 2")?;
 
     // Read the monitor_id from the property
     let prop = properties.get("monitor_id");
@@ -91,38 +89,36 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // method 2 is WGC
-    let source = builder.
-        set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
-        .add_to_scene(&mut scene)
-        .await?;
+    let source = builder
+        .set_capture_method(ObsDisplayCaptureMethod::MethodWgc)
+        .add_to_scene(&mut scene)?;
 
-    let position = scene.get_source_position(&source).await?;
+    let position = scene.get_source_position(&source)?;
     println!("Position: {:?}", position);
 
-    let scale = scene.get_source_scale(&source).await?;
+    let scale = scene.get_source_scale(&source)?;
     println!("Scale: {:?}", scale);
 
-    scene.set_source_position(&source, Vec2::new(5.0, 5.0)).await?;
-    scene.set_source_scale(&source, Vec2::new(0.5, 0.5)).await?;
+    scene.set_source_position(&source, Vec2::new(5.0, 5.0))?;
+    scene.set_source_scale(&source, Vec2::new(0.5, 0.5))?;
 
-    output.start().await?;
+    output.start()?;
 
     sleep(Duration::from_secs(5));
 
-    output.pause(true).await?;
+    output.pause(true)?;
 
     sleep(Duration::from_secs(4));
 
-    output.pause(false).await?;
+    output.pause(false)?;
 
     sleep(Duration::from_secs(5));
 
     // Stop the recording
-    output.stop().await?;
-
+    output.stop()?;
 
     // Remove the source from the scene
-    // scene.remove_source(&source).await?;
+    // scene.remove_source(&source)?;
 
     Ok(())
 }

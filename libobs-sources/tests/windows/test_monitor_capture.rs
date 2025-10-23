@@ -57,5 +57,7 @@ pub async fn monitor_test() {
 
     output.stop().unwrap();
 
-    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 }).await.unwrap();
+    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 })
+        .await
+        .unwrap();
 }

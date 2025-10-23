@@ -1,14 +1,12 @@
 use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use std::sync::mpsc::{self, Sender, Receiver};
 
-use futures::executor::block_on;
 use libobs_sources::windows::GameCaptureSourceBuilder;
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
-use libobs_wrapper::context::ObsContextReturn;
-use libobs_wrapper::data::video::{ObsVideoInfo, ObsVideoInfoBuilder};
+use libobs_wrapper::data::video::ObsVideoInfoBuilder;
 use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
@@ -59,11 +57,7 @@ impl ApplicationHandler for App {
         let hwnd = hwnd;
         let data = ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height);
 
-        let display = std::thread::spawn(move || {
-            block_on(async move { ctx.write().unwrap().display(data).await.unwrap() })
-        })
-        .join()
-        .unwrap();
+        let display = ctx.write().unwrap().display(data).unwrap();
 
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);
@@ -92,7 +86,7 @@ impl ApplicationHandler for App {
                     }
                     if let Some((width, height)) = last_event.take() {
                         if let Some(display) = display.write().unwrap().clone() {
-                            let _ = block_on(display.set_size(width, height));
+                            let _ = display.set_size(width, height);
                         }
                         // Optionally request redraw
                         if let Some(window) = window.read().unwrap().as_ref() {
@@ -120,9 +114,7 @@ impl ApplicationHandler for App {
                 if let Some(display) = self.display.write().unwrap().clone() {
                     let ctx = self.context.clone();
 
-                    std::thread::spawn(move || {
-                        block_on(ctx.write().unwrap().remove_display(&display))
-                    });
+                    ctx.write().unwrap().remove_display(&display).unwrap();
                 }
 
                 event_loop.exit();
@@ -182,8 +174,7 @@ impl ApplicationHandler for App {
     }
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let v = ObsVideoInfoBuilder::new()
@@ -192,23 +183,17 @@ async fn main() -> anyhow::Result<()> {
         .build();
     let info = StartupInfo::new().set_video_info(v);
 
-    let context = ObsContext::new(info).await?;
-    let mut context = match context {
-        ObsContextReturn::Done(c) => c,
-        ObsContextReturn::Restart => {
-            return Ok(());
-        }
-    };
+    let mut context = ObsContext::new(info)?;
 
     // Set up output to ./recording.mp4
-    let mut output_settings = context.data().await?;
-    output_settings.set_string("path", "recording.mp4").await?;
+    let mut output_settings = context.data()?;
+    output_settings.set_string("path", "recording.mp4")?;
 
     let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
-    let mut output = context.output(output_info).await?;
+    let mut output = context.output(output_info)?;
 
     // Register the video encoder
-    let mut video_settings = context.data().await?;
+    let mut video_settings = context.data()?;
     video_settings
         .bulk_update()
         .set_int("bf", 0)
@@ -219,9 +204,9 @@ async fn main() -> anyhow::Result<()> {
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000)
         .update()
-        .await?;
+        ?;
 
-    let encoders = context.available_video_encoders().await?;
+    let encoders = context.available_video_encoders()?;
 
     let mut encoder = encoders
         .into_iter()
@@ -234,19 +219,19 @@ async fn main() -> anyhow::Result<()> {
     encoder.set_settings(video_settings);
 
     println!("Using encoder {:?}", encoder.get_encoder_id());
-    encoder.set_to_output(&mut output, "video_encoder").await?;
+    encoder.set_to_output(&mut output, "video_encoder")?;
 
     // Register the audio encoder
-    let mut audio_settings = context.data().await?;
-    audio_settings.set_int("bitrate", 160).await?;
+    let mut audio_settings = context.data()?;
+    audio_settings.set_int("bitrate", 160)?;
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-    let audio_handler = context.get_audio_ptr().await?;
-    output.audio_encoder(audio_info, 0, audio_handler).await?;
+    let audio_handler = context.get_audio_ptr()?;
+    output.audio_encoder(audio_info, 0, audio_handler)?;
 
-    let mut scene = context.scene("Main Scene").await?;
+    let mut scene = context.scene("Main Scene")?;
 
     let btd = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
     let btd = btd
@@ -254,22 +239,25 @@ async fn main() -> anyhow::Result<()> {
         .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Bloons"))
         .expect("Could not find Bloons TD 6 window");
 
-    println!("Is used by other instance: {}", GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?);
+    println!(
+        "Is used by other instance: {}",
+        GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
+    );
     let source = context
         .source_builder::<GameCaptureSourceBuilder, _>("Game capture")
-        .await?
+        ?
         .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
         .set_window(btd)
         .add_to_scene(&mut scene)
-        .await?;
+        ?;
 
-    scene.set_to_channel(0).await?;
+    scene.set_to_channel(0)?;
 
     // Example for signals and events with libobs
     let tmp = source.clone();
     tokio::task::spawn(async move {
         let signal_manager = tmp.signal_manager();
-        let mut x = signal_manager.on_update().await.unwrap();
+        let mut x = signal_manager.on_update().unwrap();
 
         println!("Listening for updates");
         while let Ok(_) = x.recv().await {
