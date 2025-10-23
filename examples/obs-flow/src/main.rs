@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     output.audio_encoder(
         //TODO use FFMPEG_AAC after fixing the enum mapping
         AudioEncoderInfo::new(
-            ObsAudioEncoderType::FFMPEG_NVENC,
+            ObsAudioEncoderType::FFMPEG_AAC,
             "audio_encoder",
             None,
             None,

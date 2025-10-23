@@ -1,15 +1,11 @@
 use std::pin::Pin;
-use std::sync::atomic::AtomicUsize;
-use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
 
 use libobs_sources::windows::GameCaptureSourceBuilder;
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
 use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
-use libobs_wrapper::encoders::{ObsContextEncoders, ObsVideoEncoderType};
-use libobs_wrapper::sources::ObsSourceRef;
+use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::unsafe_send::Sendable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
@@ -24,10 +20,8 @@ struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
     display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
     context: Arc<RwLock<ObsContext>>,
-    monitor_index: Arc<AtomicUsize>,
-    source_ref: Arc<RwLock<ObsSourceRef>>,
-    // Add debounce channel for resize events
-    resize_tx: Option<Sender<(u32, u32)>>,
+    //monitor_index: Arc<AtomicUsize>,
+    //source_ref: Arc<RwLock<ObsSourceRef>>,
 }
 
 impl ApplicationHandler for App {
@@ -61,43 +55,6 @@ impl ApplicationHandler for App {
 
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);
-
-        // Setup debounce channel for resize events
-        let (tx, rx): (Sender<(u32, u32)>, Receiver<(u32, u32)>) = mpsc::channel();
-        self.resize_tx = Some(tx.clone());
-        let display = self.display.clone();
-        let window = self.window.clone();
-
-        // Spawn a thread to handle debounced resize
-        std::thread::spawn(move || {
-            let mut last_event: Option<(u32, u32)> = None;
-            let mut last_time = Instant::now();
-            loop {
-                if let Ok((w, h)) = rx.recv() {
-                    last_event = Some((w, h));
-                    last_time = Instant::now();
-                    // Wait for debounce duration
-                    loop {
-                        if rx.recv_timeout(Duration::from_millis(200)).is_ok() {
-                            last_time = Instant::now();
-                            continue;
-                        }
-                        break;
-                    }
-                    if let Some((width, height)) = last_event.take() {
-                        if let Some(display) = display.write().unwrap().clone() {
-                            let _ = display.set_size(width, height);
-                        }
-                        // Optionally request redraw
-                        if let Some(window) = window.read().unwrap().as_ref() {
-                            window.0.request_redraw();
-                        }
-                    }
-                } else {
-                    break;
-                }
-            }
-        });
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -140,9 +97,8 @@ impl ApplicationHandler for App {
                         .request_inner_size(PhysicalSize::new(width, height));
                 }
 
-                // Send resize event to debounce handler
-                if let Some(tx) = &self.resize_tx {
-                    let _ = tx.send((width, height));
+                if let Some(display) = self.display.write().unwrap().clone() {
+                    let _ = display.set_size(size.width, size.height);
                 }
             }
             WindowEvent::MouseInput { state, .. } => {
@@ -226,7 +182,7 @@ fn main() -> anyhow::Result<()> {
     audio_settings.set_int("bitrate", 160)?;
 
     let audio_info =
-        AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
+        AudioEncoderInfo::new(ObsAudioEncoderType::FFMPEG_AAC, "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = context.get_audio_ptr()?;
     output.audio_encoder(audio_info, 0, audio_handler)?;
@@ -270,9 +226,8 @@ fn main() -> anyhow::Result<()> {
         window: Arc::new(RwLock::new(None)),
         display: Arc::new(RwLock::new(None)),
         context: Arc::new(RwLock::new(context)),
-        monitor_index: Arc::new(AtomicUsize::new(1)),
-        source_ref: Arc::new(RwLock::new(source)),
-        resize_tx: None, // Initialize as None
+        //monitor_index: Arc::new(AtomicUsize::new(1)),
+        //source_ref: Arc::new(RwLock::new(source)),
     };
 
     event_loop.run_app(&mut app).unwrap();
