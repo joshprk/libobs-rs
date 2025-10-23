@@ -2,101 +2,119 @@ use std::{convert::Infallible, str::FromStr};
 
 use crate::utils::ObsString;
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(non_camel_case_types)]
-pub enum ObsVideoEncoderType {
-    OBS_QSV11,
-    OBS_QSV11_AV1,
-    FFMPEG_NVENC,
-    JIM_AV1_NVENC,
-    H265_TEXTURE_AMF,
-    FFMPEG_HEVC_NVENC,
-    H264_TEXTURE_AMF,
-    AV1_TEXTURE_AMF,
-    OBS_X264,
-    Other(String),
+macro_rules! encoder_enum {
+    ($name:ident, { $($plugin:literal: [ $($(#[$attr:meta])* $variant:ident,)* ],)* }) => { paste::paste! {
+        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+        #[allow(non_camel_case_types)]
+        pub enum $name {
+            $(
+                $(
+                    #[doc = "From plugin: `" $plugin "`"]
+                    $(#[$attr])*
+                    [<$variant:upper>],
+                )*
+            )*
+            Other(String),
+        }
+
+        impl FromStr for $name {
+            type Err = Infallible;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                #[allow(deprecated)]
+                return Ok(match s {
+                    $( $( stringify!($variant) => Self::[<$variant:upper>], )* )*
+                    e => Self::Other(e.to_string()),
+                });
+            }
+        }
+        impl Into<ObsString> for $name {
+            fn into(self) -> ObsString {
+                #[allow(deprecated)]
+                return match self {
+                    $( $( Self:: [<$variant:upper>] => ObsString::new(stringify!($variant)), )* )*
+                    Self::Other(e) => ObsString::new(&e),
+                };
+            }
+        }
+    } };
 }
 
-impl FromStr for ObsVideoEncoderType {
-    type Err = Infallible;
+// These lists were produced using
+//   rg "struct obs_encoder_info [^\*].*=" -A 4
+// on the OBS codebase, which lists all of the encoders and their types, as well as their
+// capabilities (including whether they're deprecated or not).
 
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        return Ok(match value {
-            "obs_qsv11" => ObsVideoEncoderType::OBS_QSV11,
-            "obs_qsv11_av1" => ObsVideoEncoderType::OBS_QSV11_AV1,
-            "ffmpeg_nvenc" => ObsVideoEncoderType::FFMPEG_NVENC,
-            "jim_av1_nvenc" => ObsVideoEncoderType::JIM_AV1_NVENC,
-            "h265_texture_amf" => ObsVideoEncoderType::H265_TEXTURE_AMF,
-            "ffmpeg_hevc_nvenc" => ObsVideoEncoderType::FFMPEG_HEVC_NVENC,
-            "h264_texture_amf" => ObsVideoEncoderType::H264_TEXTURE_AMF,
-            "av1_texture_amf" => ObsVideoEncoderType::AV1_TEXTURE_AMF,
-            "obs_x264" => ObsVideoEncoderType::OBS_X264,
-            e => ObsVideoEncoderType::Other(e.to_string()),
-        });
+encoder_enum!(
+    ObsVideoEncoderType,
+    {
+        "obs-ffmpeg": [
+            h264_texture_amf,
+            h265_texture_amf,
+            av1_texture_amf,
+            ffmpeg_vaapi,
+            ffmpeg_vaapi_tex,
+            av1_ffmpeg_vaapi,
+            av1_ffmpeg_vaapi_tex,
+            hevc_ffmpeg_vaapi,
+            hevc_ffmpeg_vaapi_tex,
+            ffmpeg_openh264,
+            #[deprecated]
+            ffmpeg_nvenc,
+            #[deprecated]
+            ffmpeg_hevc_nvenc,
+            ffmpeg_svt_av1,
+            ffmpeg_aom_av1,
+        ],
+        "obs-nvenc": [
+            #[deprecated]
+            obs_nvenc_h264_cuda,
+            #[deprecated]
+            obs_nvenc_hevc_cuda,
+            #[deprecated]
+            obs_nvenc_av1_cuda,
+            obs_nvenc_h264_tex,
+            obs_nvenc_hevc_tex,
+            obs_nvenc_av1_tex,
+            #[deprecated]
+            jim_nvenc,
+            #[deprecated]
+            jim_hevc_nvenc,
+            #[deprecated]
+            jim_av1_nvenc,
+            obs_nvenc_h264_soft,
+            obs_nvenc_hevc_soft,
+            obs_nvenc_av1_soft,
+        ],
+        "obs-qsv11": [
+            obs_qsv11,
+            obs_qsv11_soft,
+            obs_qsv11_v2,
+            obs_qsv11_soft_v2,
+            obs_qsv11_av1,
+            obs_qsv11_av1_soft,
+            obs_qsv11_hevc,
+            obs_qsv11_hevc_soft,
+        ],
+        "obs-x264": [
+            obs_x264,
+        ],
     }
-}
+);
 
-impl Into<ObsString> for ObsVideoEncoderType {
-    fn into(self) -> ObsString {
-        return match self {
-            ObsVideoEncoderType::OBS_QSV11 => ObsString::new("obs_qsv11"),
-            ObsVideoEncoderType::OBS_QSV11_AV1 => ObsString::new("obs_qsv11_av1"),
-            ObsVideoEncoderType::FFMPEG_NVENC => ObsString::new("ffmpeg_nvenc"),
-            ObsVideoEncoderType::JIM_AV1_NVENC => ObsString::new("jim_av1_nvenc"),
-            ObsVideoEncoderType::H265_TEXTURE_AMF => ObsString::new("h265_texture_amf"),
-            ObsVideoEncoderType::FFMPEG_HEVC_NVENC => ObsString::new("ffmpeg_hevc_nvenc"),
-            ObsVideoEncoderType::H264_TEXTURE_AMF => ObsString::new("h264_texture_amf"),
-            ObsVideoEncoderType::AV1_TEXTURE_AMF => ObsString::new("av1_texture_amf"),
-            ObsVideoEncoderType::OBS_X264 => ObsString::new("obs_x264"),
-            ObsVideoEncoderType::Other(e) => ObsString::new(&e),
-        };
+encoder_enum!(
+    ObsAudioEncoderType,
+    {
+        "obs-ffmpeg": [
+            ffmpeg_aac,
+            ffmpeg_opus,
+            ffmpeg_pcm_s16le,
+            ffmpeg_pcm_s24le,
+            ffmpeg_pcm_f32le,
+            ffmpeg_alac,
+            ffmpeg_flac,
+        ],
+        "obs-libfdk": [
+            libfdk_aac,
+        ],
     }
-}
-
-// from https://github.com/FFFFFFFXXXXXXX/libobs-recorder
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-#[allow(non_camel_case_types)]
-pub enum ObsAudioEncoderType {
-    JIM_AV1,
-    JIM_NVENC,
-    FFMPEG_NVENC,
-    AMD_AMF_AV1,
-    AMD_AMF_H264,
-    OBS_QSV11_AV1,
-    OBS_QSV11_H264,
-    OBS_X264,
-    Other(String),
-}
-
-impl FromStr for ObsAudioEncoderType {
-    type Err = Infallible;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        return Ok(match s {
-            "jim_av1" => ObsAudioEncoderType::JIM_AV1,
-            "jim_nvenc" => ObsAudioEncoderType::JIM_NVENC,
-            "ffmpeg_nvenc" => ObsAudioEncoderType::FFMPEG_NVENC,
-            "amd_amf_av1" => ObsAudioEncoderType::AMD_AMF_AV1,
-            "amd_amf_h264" => ObsAudioEncoderType::AMD_AMF_H264,
-            "obs_qsv11_av1" => ObsAudioEncoderType::OBS_QSV11_AV1,
-            "obs_qsv11_h264" => ObsAudioEncoderType::OBS_QSV11_H264,
-            "obs_x264" => ObsAudioEncoderType::OBS_X264,
-            e => ObsAudioEncoderType::Other(e.to_string()),
-        });
-    }
-}
-
-impl Into<ObsString> for ObsAudioEncoderType {
-    fn into(self) -> ObsString {
-        return match self {
-            ObsAudioEncoderType::JIM_AV1 => ObsString::new("jim_av1"),
-            ObsAudioEncoderType::JIM_NVENC => ObsString::new("jim_nvenc"),
-            ObsAudioEncoderType::FFMPEG_NVENC => ObsString::new("ffmpeg_nvenc"),
-            ObsAudioEncoderType::AMD_AMF_AV1 => ObsString::new("amd_amf_av1"),
-            ObsAudioEncoderType::AMD_AMF_H264 => ObsString::new("amd_amf_h264"),
-            ObsAudioEncoderType::OBS_QSV11_AV1 => ObsString::new("obs_qsv11_av1"),
-            ObsAudioEncoderType::OBS_QSV11_H264 => ObsString::new("obs_qsv11_h264"),
-            ObsAudioEncoderType::OBS_X264 => ObsString::new("obs_x264"),
-            ObsAudioEncoderType::Other(e) => ObsString::new(&e),
-        };
-    }
-}
+);
