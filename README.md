@@ -2,7 +2,7 @@
 
 
 > [!CAUTION]
-> The async features are about to be removed as they are causing dreadlocks and other issues. Use the `blocking` feature
+> The async features are about to be removed as they are causing dreadlocks and other issues. Use the `blocking` feature for `libobs-wrapper`. 
 
 
 Simple and safe video recording through libobs.
