@@ -1,5 +1,10 @@
 # libobs-rs
 
+
+> [!CAUTION]
+> The async features are about to be removed as they are causing dreadlocks and other issues. Use the `blocking` feature
+
+
 Simple and safe video recording through libobs.
 
 Currently only tested on Windows. Linux and MacOS likely work, but they are untested. These will receive support later down the road.
