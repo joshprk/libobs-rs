@@ -7,8 +7,9 @@ publish = false
 [dependencies]
 anyhow = "1.0.97"
 env_logger = "0.11.8"
-libobs-wrapper = { path = "../../libobs-wrapper", features = ["bootstrapper"] }
-libobs-sources = { path = "../../libobs-sources", features = [] }
+libobs-bootstrapper = { workspace = true }
+libobs-wrapper = { workspace = true }
+libobs-sources = { path = "../../libobs-sources" }
 tokio = { version = "1.47.1", features = ["macros"] }
 futures = "0.3.31"
 winit = "0.30.12"

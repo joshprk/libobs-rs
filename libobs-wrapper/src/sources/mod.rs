@@ -32,8 +32,7 @@ pub struct ObsSourceRef {
 }
 
 impl ObsSourceRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
+    pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
         id: T,
         name: K,
         mut settings: Option<ObsData>,
@@ -45,12 +44,12 @@ impl ObsSourceRef {
 
         let settings = match settings.take() {
             Some(x) => ImmutableObsData::from(x),
-            None => ImmutableObsData::new(&runtime).await?,
+            None => ImmutableObsData::new(&runtime)?,
         };
 
         let hotkey_data = match hotkey_data.take() {
             Some(x) => ImmutableObsData::from(x),
-            None => ImmutableObsData::new(&runtime).await?,
+            None => ImmutableObsData::new(&runtime)?,
         };
 
         let hotkey_data_ptr = hotkey_data.as_ptr();
@@ -69,14 +68,13 @@ impl ObsSourceRef {
                     hotkey_data_ptr,
                 ))
             }
-        )
-        .await?;
+        )?;
 
         if source.0 == ptr::null_mut() {
             return Err(ObsError::NullPointer);
         }
 
-        let signals = ObsSourceSignals::new(&source, runtime.clone()).await?;
+        let signals = ObsSourceSignals::new(&source, runtime.clone())?;
         Ok(Self {
             source: source.clone(),
             id,
@@ -114,43 +112,36 @@ impl ObsSourceRef {
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsUpdatable for ObsSourceRef {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+    fn update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let data_ptr = data.as_ptr();
         let source_ptr = self.source.clone();
         log::trace!("Updating source: {:?}", self.source);
         run_with_obs!(self.runtime, (source_ptr, data_ptr), move || unsafe {
             obs_source_update(source_ptr, data_ptr);
         })
-        .await
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
+    fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             obs_source_reset_settings(source_ptr, data.as_ptr().0);
         })
-        .await
     }
 
     fn runtime(&self) -> ObsRuntime {
         self.runtime.clone()
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_settings(&self) -> Result<ImmutableObsData, ObsError> {
+    fn get_settings(&self) -> Result<ImmutableObsData, ObsError> {
         log::trace!("Getting settings for source: {:?}", self.source);
         let source_ptr = self.source.clone();
         let res = run_with_obs!(self.runtime, (source_ptr), move || unsafe {
             Sendable(libobs::obs_source_get_settings(source_ptr))
-        })
-        .await?;
+        })?;
 
         log::trace!("Got settings: {:?}", res);
-        Ok(ImmutableObsData::from_raw(res, self.runtime.clone()).await)
+        Ok(ImmutableObsData::from_raw(res, self.runtime.clone()))
     }
 }
 

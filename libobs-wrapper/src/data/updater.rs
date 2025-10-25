@@ -64,8 +64,7 @@ impl ObsDataUpdater {
         self
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn update(self) -> Result<(), ObsError> {
+    pub fn update(self) -> Result<(), ObsError> {
         let ObsDataUpdater {
             changes,
             obs_data,
@@ -90,6 +89,6 @@ impl ObsDataUpdater {
                     }
                 };
             }
-        }).await
+        })
     }
 }

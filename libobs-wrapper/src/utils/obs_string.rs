@@ -11,7 +11,7 @@ use crate::unsafe_send::Sendable;
 
 /// String wrapper for OBS function calls.
 ///
-/// `ObsString` provides safe interaction with OBS C API functions that require 
+/// `ObsString` provides safe interaction with OBS C API functions that require
 /// C-style strings. It wraps `CString` internally with convenient helper functions
 /// for converting between Rust strings and C-compatible strings.
 ///

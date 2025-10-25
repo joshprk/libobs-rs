@@ -930,9 +930,9 @@ name = "download-at-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "futures-util",
  "indicatif 0.17.11",
+ "libobs-bootstrapper",
  "libobs-wrapper",
  "tokio",
 ]
@@ -1815,17 +1815,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "io-uring"
-version = "0.7.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "046fa2d4d00aea763528b4950358d0ead425372445dc8ff86312b3c69ff7727b"
-dependencies = [
- "bitflags 2.9.4",
- "cfg-if 1.0.3",
- "libc",
-]
-
-[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1977,27 +1966,39 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "bindgen",
  "vsprintf",
 ]
 
 [[package]]
-name = "libobs-encoders-generator"
-version = "0.1.1"
+name = "libobs-bootstrapper"
+version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-stream",
+ "async-trait",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "lazy_static",
+ "libloading",
  "libobs",
  "libobs-wrapper",
- "num-derive",
- "num-traits",
+ "log",
+ "reqwest 0.12.24",
+ "semver",
+ "serde",
+ "sevenz-rust",
+ "sha2",
  "tokio",
+ "uuid",
 ]
 
 [[package]]
 name = "libobs-source-macro"
-version = "2.0.2"
+version = "5.0.0"
 dependencies = [
  "num-traits",
  "proc-macro2",
@@ -2007,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.12"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2023,13 +2024,12 @@ dependencies = [
  "num-derive",
  "num-traits",
  "paste",
- "remove-async-await",
  "tokio",
 ]
 
 [[package]]
 name = "libobs-window-helper"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "serde",
@@ -2040,19 +2040,16 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "4.0.6"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arboard",
- "async-stream",
- "async-trait",
  "chrono",
  "colored 3.0.0",
  "dialog",
  "display-info",
  "duplicate",
  "futures",
- "futures-core",
  "futures-util",
  "getters0",
  "hex",
@@ -2065,12 +2062,8 @@ dependencies = [
  "oneshot",
  "parking_lot",
  "paste",
- "remove-async-await",
- "reqwest 0.12.23",
- "semver",
+ "reqwest 0.12.24",
  "serde",
- "sevenz-rust",
- "sha2",
  "tokio",
  "uuid",
  "vsprintf",
@@ -2208,9 +2201,9 @@ name = "monitor-capture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
- "tokio",
 ]
 
 [[package]]
@@ -2318,9 +2311,9 @@ dependencies = [
 
 [[package]]
 name = "num_enum"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a973b4e44ce6cad84ce69d797acf9a044532e4184c4f267913d1b546a0727b7a"
+checksum = "b1207a7e20ad57b847bbddc6776b968420d38292bbfe2089accff5e19e82454c"
 dependencies = [
  "num_enum_derive",
  "rustversion",
@@ -2328,9 +2321,9 @@ dependencies = [
 
 [[package]]
 name = "num_enum_derive"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77e878c846a8abae00dd069496dbe8751b16ac1c3d6bd2a7283a938e8228f90d"
+checksum = "ff32365de1b6743cb203b710788263c44a03de03802daf96092f2da4fe6ba4d7"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2724,6 +2717,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
+ "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
  "tokio",
@@ -2736,6 +2730,7 @@ dependencies = [
  "anyhow",
  "env_logger",
  "futures",
+ "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
  "tokio",
@@ -3171,16 +3166,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caf4aa5b0f434c91fe5c7f1ecb6a5ece2130b02ad2a590589dda5146df959001"
 
 [[package]]
-name = "remove-async-await"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a0993102a683d0fb29c6053ad44d7ed7555f69b2fa5fe0fa3bba959a9aa4cd1"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "reqwest"
 version = "0.11.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3222,9 +3207,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.12.23"
+version = "0.12.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d429f34c8092b2d42c7c93cec323bb4adeb7c67698f70839adec842ec10c7ceb"
+checksum = "9d0946410b9f7b082a427e4ef5c8ff541a88b357bc6c637c40db3a68ac70a36f"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -3689,7 +3674,7 @@ dependencies = [
 [[package]]
 name = "specta"
 version = "2.0.0-rc.20"
-source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
+source = "git+https://github.com/specta-rs/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
 dependencies = [
  "serde",
  "specta 1.0.5",
@@ -3713,7 +3698,7 @@ dependencies = [
 [[package]]
 name = "specta-macros"
 version = "2.0.0-rc.17"
-source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
+source = "git+https://github.com/specta-rs/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
 dependencies = [
  "Inflector",
  "proc-macro2",
@@ -3969,29 +3954,26 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.47.1"
+version = "1.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89e49afdadebb872d3145a5638b59eb0691ea23e46ca484037cfab3b76b95038"
+checksum = "ff360e02eab121e0bc37a2d3b4d4dc622e6eda3a8e5253d5435ecf5bd4c68408"
 dependencies = [
- "backtrace",
  "bytes",
- "io-uring",
  "libc",
  "mio",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "slab",
  "socket2 0.6.0",
  "tokio-macros",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
 name = "tokio-macros"
-version = "2.5.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
+checksum = "af407857209536a95c8e56f8231ef2c2e2aff839b22e07a1ffcbc617e9db9fa5"
 dependencies = [
  "proc-macro2",
  "quote",

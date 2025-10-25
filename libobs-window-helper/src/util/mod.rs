@@ -4,4 +4,4 @@ pub(crate) mod validators;
 pub(crate) mod win_iterator;
 
 pub use helper::get_window_info;
-pub use validators::{WindowSearchMode, is_microsoft_internal_exe, is_window_valid};
+pub use validators::{is_microsoft_internal_exe, is_window_valid, WindowSearchMode};

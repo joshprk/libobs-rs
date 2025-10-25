@@ -12,7 +12,12 @@ pub use enums::*;
 use num_traits::FromPrimitive;
 use types::*;
 
-use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::{ObsError, ObsString}};
+use crate::{
+    run_with_obs,
+    runtime::ObsRuntime,
+    unsafe_send::Sendable,
+    utils::{ObsError, ObsString},
+};
 
 #[derive(Debug, Clone)]
 pub enum ObsProperty {
@@ -46,16 +51,15 @@ pub enum ObsProperty {
     ColorAlpha(ObsColorAlphaProperty),
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ObsPropertyObjectPrivate {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(id: T, runtime: ObsRuntime) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    fn get_properties_raw(&self) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
+    fn get_properties_by_id_raw<T: Into<ObsString> + Sync + Send>(
+        id: T,
+        runtime: ObsRuntime,
+    ) -> Result<Sendable<*mut libobs::obs_properties_t>, ObsError>;
 }
 
-#[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-pub(crate) async fn get_properties_inner(
+pub(crate) fn get_properties_inner(
     properties_raw: Sendable<*mut obs_properties>,
     runtime: ObsRuntime,
 ) -> Result<HashMap<String, ObsProperty>, ObsError> {
@@ -64,7 +68,7 @@ pub(crate) async fn get_properties_inner(
         let ptr_clone = properties_raw.clone();
         run_with_obs!(runtime, (ptr_clone), move || {
             unsafe { libobs::obs_properties_destroy(ptr_clone) };
-        }).await?;
+        })?;
 
         return Ok(HashMap::new());
     }
@@ -96,19 +100,18 @@ pub(crate) async fn get_properties_inner(
 
         unsafe { libobs::obs_properties_destroy(properties_raw) };
         result
-    }).await
+    })
 }
 
 /// This trait is implemented for all obs objects that can have properties
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 pub trait ObsPropertyObject: ObsPropertyObjectPrivate {
     /// Returns the properties of the object
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError>;
-
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(id: T, runtime: &ObsRuntime) -> Result<HashMap<String, ObsProperty>, ObsError> {
-        let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone()).await?;
-        get_properties_inner(properties_raw, runtime.clone()).await
+    fn get_properties(&self) -> Result<HashMap<String, ObsProperty>, ObsError>;
+    fn get_properties_by_id<T: Into<ObsString> + Sync + Send>(
+        id: T,
+        runtime: &ObsRuntime,
+    ) -> Result<HashMap<String, ObsProperty>, ObsError> {
+        let properties_raw = Self::get_properties_by_id_raw(id, runtime.clone())?;
+        get_properties_inner(properties_raw, runtime.clone())
     }
 }

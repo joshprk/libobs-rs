@@ -3,7 +3,18 @@ use std::ffi::{CStr, CString};
 use std::thread;
 use std::time::Duration;
 
-use crate::{obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string, obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string, obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create, obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video, obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup, obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO, video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12, video_range_type_VIDEO_RANGE_DEFAULT};
+use crate::{
+    obs_add_data_path, obs_add_module_path, obs_audio_encoder_create, obs_audio_info,
+    obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_int, obs_data_set_string,
+    obs_encoder_set_audio, obs_encoder_set_video, obs_get_audio, obs_get_version_string,
+    obs_get_video, obs_load_all_modules, obs_log_loaded_modules, obs_output_create,
+    obs_output_get_last_error, obs_output_set_audio_encoder, obs_output_set_video_encoder,
+    obs_output_start, obs_output_stop, obs_post_load_modules, obs_reset_audio, obs_reset_video,
+    obs_scale_type_OBS_SCALE_BILINEAR, obs_set_output_source, obs_source_create, obs_startup,
+    obs_video_encoder_create, obs_video_info, speaker_layout_SPEAKERS_STEREO,
+    video_colorspace_VIDEO_CS_DEFAULT, video_format_VIDEO_FORMAT_NV12,
+    video_range_type_VIDEO_RANGE_DEFAULT,
+};
 
 #[test]
 pub fn test_obs() {
@@ -20,7 +31,13 @@ pub fn test_obs() {
             println!("OBS started successfully");
         }
 
-        let parent = current_exe().unwrap().parent().unwrap().to_str().unwrap().to_string();
+        let parent = current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
 
         let data_path = parent.clone() + "/data/libobs/";
         let p_bin_path = parent.clone() + "/obs-plugins/64bit/";
@@ -35,7 +52,7 @@ pub fn test_obs() {
         obs_add_module_path(p_bin_path.as_ptr(), p_data_path.as_ptr());
         let audio_info: obs_audio_info = obs_audio_info {
             samples_per_sec: 44100,
-            speakers: speaker_layout_SPEAKERS_STEREO
+            speakers: speaker_layout_SPEAKERS_STEREO,
         };
 
         let reset_audio_code = obs_reset_audio(&audio_info as *const _);
@@ -57,7 +74,7 @@ pub fn test_obs() {
             gpu_conversion: true,
             colorspace: video_colorspace_VIDEO_CS_DEFAULT,
             range: video_range_type_VIDEO_RANGE_DEFAULT,
-            scale_type: obs_scale_type_OBS_SCALE_BILINEAR
+            scale_type: obs_scale_type_OBS_SCALE_BILINEAR,
         };
 
         let reset_video_code = obs_reset_video(&mut ovi);
@@ -69,21 +86,25 @@ pub fn test_obs() {
         obs_log_loaded_modules();
         obs_post_load_modules();
 
-
         let vid_src_id = CString::new("monitor_capture").unwrap();
         let vid_name = CString::new("Screen Capture Source").unwrap();
-/*
-        let vid_data = obs_data_create();
-        let vid_data_id = CString::new("monitor_id").unwrap();
-        let vid_data_id_1 = CString::new("monitor").unwrap();
-        let vid_data_id_val = CString::new("\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").unwrap();
+        /*
+               let vid_data = obs_data_create();
+               let vid_data_id = CString::new("monitor_id").unwrap();
+               let vid_data_id_1 = CString::new("monitor").unwrap();
+               let vid_data_id_val = CString::new("\\\\?\\DISPLAY#AOC2402#7&11e44168&3&UID256#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").unwrap();
 
-        obs_data_set_int(vid_data, vid_data_id_1.as_ptr(), 1);
-        obs_data_set_string(vid_data, vid_data_id.as_ptr(), vid_data_id_val.as_ptr());
+               obs_data_set_int(vid_data, vid_data_id_1.as_ptr(), 1);
+               obs_data_set_string(vid_data, vid_data_id.as_ptr(), vid_data_id_val.as_ptr());
 
- */
-        let vid_src = obs_source_create(vid_src_id.as_ptr(), vid_name.as_ptr(), std::ptr::null_mut(), std::ptr::null_mut());
-//        obs_data_release(vid_data);
+        */
+        let vid_src = obs_source_create(
+            vid_src_id.as_ptr(),
+            vid_name.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
+        //        obs_data_release(vid_data);
 
         obs_set_output_source(0, vid_src);
 
@@ -102,35 +123,55 @@ pub fn test_obs() {
         obs_data_set_bool(vid_enc_settings, use_buf_size.as_ptr(), true);
         obs_data_set_string(vid_enc_settings, profile.as_ptr(), profile_val.as_ptr());
         obs_data_set_string(vid_enc_settings, preset.as_ptr(), preset_val.as_ptr());
-        obs_data_set_string(vid_enc_settings, rate_control.as_ptr(), rate_control_val.as_ptr());
+        obs_data_set_string(
+            vid_enc_settings,
+            rate_control.as_ptr(),
+            rate_control_val.as_ptr(),
+        );
 
         obs_data_set_int(vid_enc_settings, crf.as_ptr(), 20);
 
         let vid_enc_id = CString::new("obs_x264").unwrap();
         let vid_enc_idk = CString::new("simple_h264_recording").unwrap();
 
-        let vid_enc = obs_video_encoder_create(vid_enc_id.as_ptr(), vid_enc_idk.as_ptr(), vid_enc_settings, std::ptr::null_mut());
+        let vid_enc = obs_video_encoder_create(
+            vid_enc_id.as_ptr(),
+            vid_enc_idk.as_ptr(),
+            vid_enc_settings,
+            std::ptr::null_mut(),
+        );
         obs_encoder_set_video(vid_enc, obs_get_video());
 
         obs_data_release(vid_enc_settings);
-/*
-        let audio_enc_settings = obs_data_create();
-        let device_id = CString::new("device_id").unwrap();
-        let device_id_val = CString::new("default").unwrap();
+        /*
+                let audio_enc_settings = obs_data_create();
+                let device_id = CString::new("device_id").unwrap();
+                let device_id_val = CString::new("default").unwrap();
 
-        obs_data_set_string(audio_enc_settings, device_id.as_ptr(), device_id_val.as_ptr());
-*/
+                obs_data_set_string(audio_enc_settings, device_id.as_ptr(), device_id_val.as_ptr());
+        */
         let audio_enc_id = CString::new("wasapi_output_capture").unwrap();
         let audio_enc_name = CString::new("Audio Capture Source").unwrap();
 
-        let audio_src = obs_source_create(audio_enc_id.as_ptr(), audio_enc_name.as_ptr(), std::ptr::null_mut(), std::ptr::null_mut());
+        let audio_src = obs_source_create(
+            audio_enc_id.as_ptr(),
+            audio_enc_name.as_ptr(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        );
         //obs_data_release(audio_enc_settings);
 
         obs_set_output_source(1, audio_src);
 
         let audio_enc_id = CString::new("ffmpeg_aac").unwrap();
         let audio_enc_name = CString::new("simple_aac_recording").unwrap();
-        let audio_enc = obs_audio_encoder_create(audio_enc_id.as_ptr(), audio_enc_name.as_ptr(), std::ptr::null_mut(), 0, std::ptr::null_mut());
+        let audio_enc = obs_audio_encoder_create(
+            audio_enc_id.as_ptr(),
+            audio_enc_name.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+            std::ptr::null_mut(),
+        );
         obs_encoder_set_audio(audio_enc, obs_get_audio());
 
         let rec_settings = obs_data_create();
@@ -145,12 +186,16 @@ pub fn test_obs() {
         let rec_id = CString::new("ffmpeg_muxer").unwrap();
         let rec_name = CString::new("simple_ffmpeg_output").unwrap();
 
-        let rec_out = obs_output_create(rec_id.as_ptr(), rec_name.as_ptr(), rec_settings, std::ptr::null_mut());
+        let rec_out = obs_output_create(
+            rec_id.as_ptr(),
+            rec_name.as_ptr(),
+            rec_settings,
+            std::ptr::null_mut(),
+        );
         obs_data_release(rec_settings);
 
-        obs_output_set_video_encoder(rec_out,vid_enc);
+        obs_output_set_video_encoder(rec_out, vid_enc);
         obs_output_set_audio_encoder(rec_out, audio_enc, 0);
-
 
         let b = obs_output_start(rec_out);
         if !b {

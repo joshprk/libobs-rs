@@ -1,13 +1,11 @@
 use std::{sync::Arc, time::Duration};
 
 use indicatif::{ProgressBar, ProgressStyle};
-use libobs_wrapper::{
-    bootstrap::{
-        ObsBootstrapperOptions,
-        status_handler::ObsBootstrapStatusHandler,
-    },
-    context::ObsContext,
+use libobs_bootstrapper::{
+    ObsBootstrapper, ObsBootstrapperOptions, ObsBootstrapperResult,
+    status_handler::ObsBootstrapStatusHandler,
 };
+use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
 
 #[derive(Debug, Clone)]
 struct ObsBootstrapProgress(Arc<ProgressBar>);
@@ -31,15 +29,13 @@ impl ObsBootstrapProgress {
         self.0.finish();
     }
 }
-
-#[async_trait::async_trait]
 impl ObsBootstrapStatusHandler for ObsBootstrapProgress {
-    async fn handle_downloading(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
+    fn handle_downloading(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
         self.0.set_message(msg);
         self.0.set_position((prog * 100.0) as u64);
         Ok(())
     }
-    async fn handle_extraction(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
+    fn handle_extraction(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
         self.0.set_message(msg);
         self.0.set_position(100 + (prog * 100.0) as u64);
         Ok(())
@@ -50,24 +46,23 @@ impl ObsBootstrapStatusHandler for ObsBootstrapProgress {
 async fn main() {
     let handler = ObsBootstrapProgress::new();
 
-    let context = ObsContext::builder()
-        .enable_bootstrapper(handler.clone(), ObsBootstrapperOptions::default())
-        .start()
-        .await
-        .unwrap();
+    let res = ObsBootstrapper::bootstrap_with_handler(
+        &ObsBootstrapperOptions::default(),
+        Box::new(handler.clone()),
+    )
+    .await
+    .unwrap();
+    if matches!(res, ObsBootstrapperResult::Restart) {
+        println!("OBS has been downloaded and extracted. The application will now restart.");
+        return;
+    }
 
-    let context = match context {
-        libobs_wrapper::context::ObsContextReturn::Done(c) => c,
-        libobs_wrapper::context::ObsContextReturn::Restart => {
-            println!("OBS has been downloaded and extracted. The application will now restart.");
-            return;
-        }
-    };
+    let context = ObsContext::new(StartupInfo::default()).unwrap();
 
     handler.done();
 
     println!("Done");
     // Use the context here
     // For example creating new obs data
-    context.data().await.unwrap();
+    context.data().unwrap();
 }

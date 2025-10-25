@@ -2,11 +2,14 @@
 
 use windows::{
     core::PCWSTR,
-    Win32::{Foundation::{CloseHandle, HANDLE, LUID}, Security::{
-        AdjustTokenPrivileges, LookupPrivilegeValueW,
-        SE_DEBUG_NAME, SE_INC_BASE_PRIORITY_NAME, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES,
-        TOKEN_PRIVILEGES, TOKEN_QUERY,
-    }, System::Threading::{GetCurrentProcess, OpenProcessToken}},
+    Win32::{
+        Foundation::{CloseHandle, HANDLE, LUID},
+        Security::{
+            AdjustTokenPrivileges, LookupPrivilegeValueW, SE_DEBUG_NAME, SE_INC_BASE_PRIORITY_NAME,
+            SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES, TOKEN_QUERY,
+        },
+        System::Threading::{GetCurrentProcess, OpenProcessToken},
+    },
 };
 
 pub fn load_debug_privilege() {

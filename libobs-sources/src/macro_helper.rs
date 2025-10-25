@@ -1,4 +1,3 @@
-
 macro_rules! define_object_manager {
     ($(#[$parent_meta:meta])* struct $struct_name:ident($obs_id:literal) for $updatable_name:ident {
         $(

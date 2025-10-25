@@ -1,12 +1,13 @@
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{
-    punctuated::Punctuated, token::Comma, Field, LitStr, MetaNameValue, Token
-};
+use syn::{punctuated::Punctuated, token::Comma, Field, LitStr, MetaNameValue, Token};
 
 use crate::docs::collect_doc;
 
-pub fn obs_properties_to_functions(fields: &Punctuated<Field, Comma>, settings_getter: TokenStream) -> Vec<TokenStream>{
+pub fn obs_properties_to_functions(
+    fields: &Punctuated<Field, Comma>,
+    settings_getter: TokenStream,
+) -> Vec<TokenStream> {
     let obs_properties = fields
         .iter()
         .filter_map(|f| {

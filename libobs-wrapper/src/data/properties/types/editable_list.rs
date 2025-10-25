@@ -14,10 +14,14 @@ pub struct ObsEditableListProperty {
     default_path: String,
 }
 
-
-
 impl From<PropertyCreationInfo> for ObsEditableListProperty {
-    fn from(PropertyCreationInfo { name, description, pointer }: PropertyCreationInfo) -> Self {
+    fn from(
+        PropertyCreationInfo {
+            name,
+            description,
+            pointer,
+        }: PropertyCreationInfo,
+    ) -> Self {
         assert_type!(EditableList, pointer);
 
         let list_type = get_enum!(pointer, list_type, ObsEditableListType);

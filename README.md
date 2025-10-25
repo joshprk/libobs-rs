@@ -29,7 +29,7 @@ cargo install cargo-obs-build
 ```
 
 > [!NOTE]
-> There is now a new bootstrapper that can download and install OBS binaries at runtime, which is useful for distributing applications without requiring users to install OBS separately. See the [OBS Bootstrapper](./libobs-wrapper/README.md#obs-bootstrapper) section for more details.
+> There is now a standalone `libobs-bootstrapper` crate that can download and install OBS binaries at runtime, which is useful for distributing applications without requiring users to install OBS separately. See the [libobs-bootstrapper documentation](https://crates.io/crates/libobs-bootstrapper) for more details.
 
 Add the following to your `Cargo.toml`
 ```toml

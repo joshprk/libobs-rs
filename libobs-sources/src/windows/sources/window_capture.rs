@@ -2,7 +2,11 @@ use libobs_source_macro::obs_object_impl;
 #[cfg(feature = "window-list")]
 use libobs_window_helper::{get_all_windows, WindowInfo, WindowSearchMode};
 use libobs_wrapper::{
-    data::{ObsObjectBuilder, ObsObjectUpdater}, scenes::ObsSceneRef, sources::{ObsSourceBuilder, ObsSourceRef}, unsafe_send::Sendable, utils::ObsError
+    data::{ObsObjectBuilder, ObsObjectUpdater},
+    scenes::ObsSceneRef,
+    sources::{ObsSourceBuilder, ObsSourceRef},
+    unsafe_send::Sendable,
+    utils::ObsError,
 };
 use num_traits::ToPrimitive;
 
@@ -98,7 +102,6 @@ impl<'a> WindowCaptureSourceUpdater<'a> {
     }
 }
 
-
 impl WindowCaptureSourceBuilder {
     /// Sets the capture method for the window capture source.
     pub fn set_capture_method(mut self, method: ObsWindowCaptureMethod) -> Self {
@@ -107,13 +110,8 @@ impl WindowCaptureSourceBuilder {
     }
 }
 
-#[cfg_attr(not(feature = "blocking"), async_trait::async_trait)]
 impl ObsSourceBuilder for WindowCaptureSourceBuilder {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    async fn add_to_scene<'a>(
-        mut self,
-        scene: &'a mut ObsSceneRef,
-    ) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene<'a>(mut self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {
@@ -126,15 +124,13 @@ impl ObsSourceBuilder for WindowCaptureSourceBuilder {
         let method_to_set = self.capture_method.clone();
         let runtime = self.runtime.clone();
 
-        let b = self.build().await?;
-        let mut res = scene.add_source(b).await?;
+        let b = self.build()?;
+        let mut res = scene.add_source(b)?;
 
         if let Some(method) = method_to_set {
-            WindowCaptureSourceUpdater::create_update(runtime, &mut res)
-                .await?
+            WindowCaptureSourceUpdater::create_update(runtime, &mut res)?
                 .set_capture_method(method)
-                .update()
-                .await?;
+                .update()?;
         }
 
         Ok(res)

@@ -5,7 +5,6 @@ use crate::unsafe_send::Sendable;
 
 use super::{GsColorFormat, GsZstencilFormat};
 
-
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
@@ -39,7 +38,7 @@ impl ObsDisplayCreationData {
             height,
             adapter: 0,
             backbuffers: 0,
-            background_color: 0
+            background_color: 0,
         }
     }
 

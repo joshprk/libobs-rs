@@ -18,11 +18,10 @@ pub struct ImmutableObsData {
 }
 
 impl ImmutableObsData {
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
+    pub fn new(runtime: &ObsRuntime) -> Result<Self, ObsError> {
         let ptr = run_with_obs!(runtime, move || unsafe {
             Sendable(libobs::obs_data_create())
-        }).await?;
+        })?;
 
         Ok(ImmutableObsData {
             ptr: ptr.clone(),
@@ -34,8 +33,7 @@ impl ImmutableObsData {
         })
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn from_raw(data: Sendable<*mut obs_data_t>, runtime: ObsRuntime) -> Self {
+    pub fn from_raw(data: Sendable<*mut obs_data_t>, runtime: ObsRuntime) -> Self {
         ImmutableObsData {
             ptr: data.clone(),
             runtime: runtime.clone(),
@@ -46,18 +44,18 @@ impl ImmutableObsData {
         }
     }
 
-    #[cfg_attr(feature = "blocking", remove_async_await::remove_async_await)]
-    pub async fn to_mutable(&self) -> Result<ObsData, ObsError> {
+    pub fn to_mutable(&self) -> Result<ObsData, ObsError> {
         let ptr = self.ptr.clone();
         let json = run_with_obs!(self.runtime, (ptr), move || unsafe {
             Sendable(libobs::obs_data_get_json(ptr))
-        }).await?;
+        })?;
 
-        let json = unsafe { CStr::from_ptr(json.0) }.to_str()
+        let json = unsafe { CStr::from_ptr(json.0) }
+            .to_str()
             .map_err(|_| ObsError::JsonParseError)?
             .to_string();
 
-        ObsData::from_json(json.as_ref(), self.runtime.clone()).await
+        ObsData::from_json(json.as_ref(), self.runtime.clone())
     }
 
     pub fn as_ptr(&self) -> Sendable<*mut obs_data_t> {

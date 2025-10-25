@@ -17,7 +17,7 @@ impl ObsLogger for ConsoleLogger {
     fn log(&mut self, level: ObsLogLevel, msg: String) {
         let level_str = format!("{:?}", level);
 
-        #[cfg(feature="color-logger")]
+        #[cfg(feature = "color-logger")]
         let level_str = level.colorize(&level_str);
 
         println!("[{}] {}", level_str, msg);

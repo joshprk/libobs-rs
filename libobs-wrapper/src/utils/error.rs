@@ -2,13 +2,6 @@ use std::fmt::Display;
 
 use crate::enums::ObsResetVideoStatus;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ObsBootstrapError {
-    GeneralError(String),
-    DownloadError(String),
-    ExtractError(String),
-}
-
 /// Error type for OBS function calls.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ObsError {
@@ -21,8 +14,6 @@ pub enum ObsError {
     ThreadFailure,
     /// Unable to reset video.
     ResetVideoFailure(ObsResetVideoStatus),
-    /// Unable to bootstrap OBS for downloading and installing
-    BootstrapperFailure(ObsBootstrapError),
     /// Unable to reset video because the program attempted to
     /// change the graphics module. This is a bug!
     ResetVideoFailureGraphicsModule,
@@ -49,6 +40,9 @@ pub enum ObsError {
     /// Couldn't get the sender of the signal
     NoSenderError,
     NoAvailableEncoders,
+    /// Error locking a mutex or RwLock
+    LockError(String),
+    Unexpected(String),
 }
 
 impl Display for ObsError {
@@ -69,16 +63,13 @@ impl Display for ObsError {
             ObsError::DisplayCreationError(e) => write!(f, "Native error from the Windows API when creating a display: {:?}", e),
             ObsError::OutputSaveBufferFailure(e) => write!(f, "Couldn't save output buffer: {:?}", e),
             ObsError::SourceNotFound => write!(f, "Source not found."),
-            ObsError::BootstrapperFailure(error) => match error {
-                                        ObsBootstrapError::GeneralError(e) => write!(f, "Bootstrapper error: {:?}", e),
-                                        ObsBootstrapError::DownloadError(e) => write!(f, "Bootstrapper download error: {:?}", e),
-                                        ObsBootstrapError::ExtractError(e) => write!(f, "Bootstrapper extract error: {:?}", e),
-                                    },
             ObsError::InvocationError(e) => write!(f, "The obs thread couldn't be called: {:?}", e),
             ObsError::JsonParseError => write!(f, "Failed to parse JSON data."),
             ObsError::NoSenderError => write!(f, "Couldn't get the sender of the signal."),
             ObsError::NoAvailableEncoders => write!(f, "No available encoders found."),
             ObsError::OutputPauseFailure(s) => write!(f, "Output failed to pause. Error is {:?}", s),
+            ObsError::LockError(e) => write!(f, "Error locking a mutex or RwLock: {:?}", e),
+            ObsError::Unexpected(e) => write!(f, "Unexpected error: {:?}", e),
         }
     }
 }

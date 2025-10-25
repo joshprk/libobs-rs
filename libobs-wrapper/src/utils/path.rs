@@ -1,8 +1,9 @@
-use std::{env, path::{Path, PathBuf}};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 use super::ObsString;
-
-
 
 /// Builds into an `ObsString` that represents a path used
 /// by libobs.

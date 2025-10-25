@@ -54,7 +54,11 @@ pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
         .output()
         .await?;
 
-    let stdout = format!("{}\n{}", String::from_utf8_lossy(&cmd.stdout), String::from_utf8_lossy(&cmd.stderr));
+    let stdout = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&cmd.stdout),
+        String::from_utf8_lossy(&cmd.stderr)
+    );
     let stdout = stdout.replace("\r", "");
 
     let duration = stdout
@@ -67,21 +71,20 @@ pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
     let duration = duration.replace(",", "");
     let duration = parse_ffmpeg_duration(&duration)?;
 
-    let split = stdout
-        .split("\n")
-        .find(|l| l.contains("black_start"));
+    let split = stdout.split("\n").find(|l| l.contains("black_start"));
     if split.is_none() {
         // No black frames found,
-        return Ok(())
+        return Ok(());
     }
 
-
-    let split = split.unwrap().trim()
+    let split = split
+        .unwrap()
+        .trim()
         .split("]")
         .nth(1)
         .expect("Couldn't find black_start");
 
-        println!("Split {:?}", split);
+    println!("Split {:?}", split);
     let comps = split.split(" ").into_iter().collect::<Vec<_>>();
 
     let black_duration = comps

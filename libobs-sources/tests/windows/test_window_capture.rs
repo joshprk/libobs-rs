@@ -7,7 +7,9 @@ use std::{
 };
 
 use crate::common::{initialize_obs, test_video};
-use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater};
+use libobs_sources::windows::{
+    ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater,
+};
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::{data::ObsObjectUpdater, unsafe_send::Sendable};
 use libobs_wrapper::{
@@ -44,22 +46,20 @@ pub async fn test_window_capture() {
 
     println!("Recording {:?}", window);
 
-    let (mut context, mut output) = initialize_obs(rec_file).await;
-    let mut scene = context.scene("main").await.unwrap();
-    scene.set_to_channel(0).await.unwrap();
+    let (mut context, mut output) = initialize_obs(rec_file);
+    let mut scene = context.scene("main").unwrap();
+    scene.set_to_channel(0).unwrap();
 
     let source_name = "test_capture";
     let mut source = context
         .source_builder::<WindowCaptureSourceBuilder, _>(source_name)
-        .await
         .unwrap()
         .set_capture_method(ObsWindowCaptureMethod::MethodAuto)
         .set_window(&window)
         .add_to_scene(&mut scene)
-        .await
         .unwrap();
 
-    output.start().await.unwrap();
+    output.start().unwrap();
     println!("Recording started");
 
     let windows = WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)
@@ -73,10 +73,10 @@ pub async fn test_window_capture() {
 
         source
             .create_updater::<WindowCaptureSourceUpdater>()
-            .await.unwrap()
+            .unwrap()
             .set_window(w)
             .update()
-            .await.unwrap();
+            .unwrap();
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
@@ -84,7 +84,7 @@ pub async fn test_window_capture() {
     }
     println!("Recording stop");
 
-    output.stop().await.unwrap();
+    output.stop().unwrap();
 
     test_video(&path_out, 1.0).await.unwrap();
 }

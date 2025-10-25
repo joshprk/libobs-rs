@@ -1,11 +1,11 @@
 [package]
 name = "libobs"
-version = "2.1.1"
+version = "3.0.0"
 description = "LibOBS bindings for Rust"
 repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs/"
 readme = "./README.md"
-authors = ["Joshua Park <joshprk@proton.me>", "sshcrack"]
+authors = ["Joshua Park <joshprk@proton.me>", "Hendrik Lind <hendrik@sshcrack.me>"]
 categories = [
     "multimedia::video",
     "multimedia::audio",
