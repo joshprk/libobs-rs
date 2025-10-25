@@ -1966,7 +1966,7 @@ dependencies = [
 
 [[package]]
 name = "libobs"
-version = "2.1.1"
+version = "3.0.0"
 dependencies = [
  "bindgen",
  "vsprintf",
@@ -1998,7 +1998,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-source-macro"
-version = "2.0.2"
+version = "5.0.0"
 dependencies = [
  "num-traits",
  "proc-macro2",
@@ -2008,7 +2008,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "2.0.12"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2029,7 +2029,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-window-helper"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "serde",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "4.0.6"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -3674,7 +3674,7 @@ dependencies = [
 [[package]]
 name = "specta"
 version = "2.0.0-rc.20"
-source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
+source = "git+https://github.com/specta-rs/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
 dependencies = [
  "serde",
  "specta 1.0.5",
@@ -3698,7 +3698,7 @@ dependencies = [
 [[package]]
 name = "specta-macros"
 version = "2.0.0-rc.17"
-source = "git+https://github.com/oscartbeaumont/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
+source = "git+https://github.com/specta-rs/specta?tag=v2.0.0-rc.20#13c74804f510d4002c58750717e6c532effdfa87"
 dependencies = [
  "Inflector",
  "proc-macro2",
