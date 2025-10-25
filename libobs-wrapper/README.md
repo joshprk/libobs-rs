@@ -53,99 +53,18 @@ cargo obs-build --out-dir target/(debug|release)/deps
 
 ### Option 2: Using the OBS Bootstrapper (Recommended for distribution)
 
-The library includes a bootstrapper that can download and install OBS binaries at runtime, which is useful for distributing applications without requiring users to install OBS separately.
+For applications that need to bundle OBS binaries or handle runtime installation, we recommend using the [`libobs-bootstrapper`](https://crates.io/crates/libobs-bootstrapper) crate. This separate crate provides functionality to download and install OBS binaries at runtime, which is particularly useful for distributing applications without requiring users to install OBS separately.
 
-1. Add a placeholder `obs.dll` file to your executable directory (eg. `target/release/`). That file will be replaced by the bootstrap during runtime:
-   - Download a dummy DLL from [libobs-builds releases](https://github.com/sshcrack/libobs-builds/releases)
-   - Use the version that matches your target OBS version
-   - Rename the downloaded file to `obs.dll`
-
-2. Enable the bootstrapper feature in your `Cargo.toml`:
+Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-libobs-wrapper = { version = "4.0.1", features = ["bootstrapper"] }
+libobs-wrapper = "4.0.1"
+libobs-bootstrapper = "0.1.0"
 async-trait = "0.1"  # For implementing the bootstrap status handler
-indicatif = "0.17"   # Optional: For progress bars
 ```
 
-3. Create a bootstrap handler to track progress and initialize OBS:
-
-```rust
-use indicatif::{ProgressBar, ProgressStyle};
-use libobs_wrapper::{
-    bootstrap::{
-        ObsBootstrapperOptions,
-        status_handler::ObsBootstrapStatusHandler,
-    },
-    context::ObsContext,
-};
-use std::{sync::Arc, time::Duration};
-
-#[derive(Debug, Clone)]
-struct ObsBootstrapProgress(Arc<ProgressBar>);
-
-impl ObsBootstrapProgress {
-    pub fn new() -> Self {
-        let bar = ProgressBar::new(200).with_style(
-            ProgressStyle::with_template(
-                "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg}",
-            )
-            .unwrap(),
-        );
-
-        bar.set_message("Initializing bootstrapper...");
-        bar.enable_steady_tick(Duration::from_millis(50));
-
-        Self(Arc::new(bar))
-    }
-
-    pub fn done(&self) {
-        self.0.finish();
-    }
-}
-
-#[async_trait::async_trait]
-impl ObsBootstrapStatusHandler for ObsBootstrapProgress {
-    async fn handle_downloading(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
-        self.0.set_message(msg);
-        self.0.set_position((prog * 100.0) as u64);
-        Ok(())
-    }
-    async fn handle_extraction(&mut self, prog: f32, msg: String) -> anyhow::Result<()> {
-        self.0.set_message(msg);
-        self.0.set_position(100 + (prog * 100.0) as u64);
-        Ok(())
-    }
-}
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    // Create a progress handler
-    let handler = ObsBootstrapProgress::new();
-
-    // Initialize OBS with bootstrapper
-    let context = ObsContext::builder()
-        .enable_bootstrapper(handler.clone(), ObsBootstrapperOptions::default())
-        .start()
-        .await?;
-
-    // Handle potential restart
-    let context = match context {
-        libobs_wrapper::context::ObsContextReturn::Done(c) => c,
-        libobs_wrapper::context::ObsContextReturn::Restart => {
-            println!("OBS has been downloaded and extracted. The application will now restart.");
-            return Ok(());
-        }
-    };
-
-    handler.done();
-    println!("OBS initialized successfully!");
-
-    // Now you can use the context for recording, etc.
-    
-    Ok(())
-}
+See the [libobs-bootstrapper documentation](https://docs.rs/libobs-bootstrapper) for detailed setup instructions and examples of implementing custom progress handlers.
 ```
 
 With this approach, the bootstrapper will:
@@ -172,59 +91,57 @@ use libobs_wrapper::{
 };
 use std::time::Duration;
 
-async fn record_screen() -> Result<(), Box<dyn std::error::Error>> {
+fn record_screen() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize OBS with default settings
-    let handler = ObsBootstrapConsoleHandler::default();
-    let context = ObsContext::builder()
-        .enable_bootstrapper(handler.clone(), ObsBootstrapperOptions::default())
-        .start()
-        .await
-        .unwrap();
-
-    let context = match context {
-        libobs_wrapper::context::ObsContextReturn::Done(c) => c,
-        libobs_wrapper::context::ObsContextReturn::Restart => {
+    use libobs_bootstrapper::{ObsBootstrapper, ObsBootstrapperOptions, ObsBootstrapConsoleHandler};
+    
+    match ObsBootstrapper::bootstrap(&ObsBootstrapperOptions::default()).await? {
+        ObsBootstrapperResult::None => (),
+        ObsBootstrapperResult::Restart => {
             println!("OBS has been downloaded and extracted. The application will now restart.");
-            return;
+            ObsBootstrapper::spawn_updater(options).await?;
+            std::process::exit(0);
         }
-    };
+    }
+    
+    let context = ObsContext::new()?;
     
     // Configure output (recording to file)
-    let mut output_settings = context.data().await?;
+    let mut output_settings = context.data()?;
     output_settings.set_string("path", "recording.mp4");
     
     let output_info = OutputInfo::new("ffmpeg_muxer", "recording_output", 
                                       Some(output_settings), None);
-    let mut output = context.output(output_info).await?;
+    let mut output = context.output(output_info)?;
     
     // Configure video encoder
-    let mut video_settings = context.data().await?;
+    let mut video_settings = context.data()?;
     video_settings.set_int("bitrate", 6000);
     video_settings.set_string("rate_control", "CBR");
     video_settings.set_string("preset", "medium");
     
     // Get video handler and attach encoder to output
-    let video_handler = context.get_video_ptr().await?;
+    let video_handler = context.get_video_ptr()?;
     output.video_encoder(
         VideoEncoderInfo::new(ObsVideoEncoderType::OBS_X264, "video_encoder", 
                               Some(video_settings), None),
         video_handler
-    ).await?;
+    )?;
     
     // Configure audio encoder
-    let mut audio_settings = context.data().await?;
+    let mut audio_settings = context.data()?;
     audio_settings.set_int("bitrate", 160);
     
     // Get audio handler and attach encoder to output
-    let audio_handler = context.get_audio_ptr().await?;
+    let audio_handler = context.get_audio_ptr()?;
     output.audio_encoder(
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", 
                               Some(audio_settings), None),
         0, audio_handler
-    ).await?;
+    )?;
     
     // Create a scene and add a monitor capture source
-    let mut scene = context.scene("recording_scene").await?;
+    let mut scene = context.scene("recording_scene")?;
     
     // Get available monitors and set up capture for the first one
     let monitors = MonitorCaptureSourceBuilder::get_monitors()?;
@@ -232,18 +149,17 @@ async fn record_screen() -> Result<(), Box<dyn std::error::Error>> {
         let monitor = &monitors[0];
         let capture_source = MonitorCaptureSourceBuilder::new("screen_capture")
             .set_monitor(monitor)
-            .add_to_scene(&mut scene)
-            .await?;
+            .add_to_scene(&mut scene)?;
             
         // Set the scene as active and start recording
-        scene.add_and_set(0).await?;
-        output.start().await?;
+        scene.add_and_set(0)?;
+        output.start()?;
         
         println!("Recording started");
         std::thread::sleep(Duration::from_secs(10));
         println!("Recording stopped");
         
-        output.stop().await?;
+        output.stop()?;
     } else {
         println!("No monitors found");
     }
@@ -264,7 +180,6 @@ For even easier source creation and management, consider using the [`libobs-sour
 ## Features
 
 - `blocking` - Provides a blocking API instead of async (useful for applications that don't need async)
-- `bootstrapper` - Enables the OBS bootstrapper for runtime download and installation
 
 ## Common Issues
 
