@@ -62,3 +62,9 @@ no_blocking_drops = ["tokio/rt"]
 generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
+
+[dev-dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+essi-ffmpeg = "0.2.0"
+winit = "0.30.12"
+pixels = "0.14.0"

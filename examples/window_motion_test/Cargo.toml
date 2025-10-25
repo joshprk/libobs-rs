@@ -1,0 +1,10 @@
+[package]
+name = "window_motion_test"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+winit = "0.30.12"
+pixels = "0.14.0"
+anyhow = "1.0.98"
