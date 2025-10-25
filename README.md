@@ -1,8 +1,5 @@
 # libobs-rs
-
-
-> [!CAUTION]
-> The async features are about to be removed as they are causing dreadlocks and other issues. Use the `blocking` feature for `libobs-wrapper`. 
+ 
 
 
 Simple and safe video recording through libobs.
@@ -18,7 +15,7 @@ sudo apt-get libobs-dev llvm-dev libclang-dev clang
 
 
 > [!NOTE]
-> The libobs-wrapper API is now fully sendable and async. If you do not want to use the async runtime, enable the feature `blocking` for `libobs-wrapper` & `libobs-sources`
+> The libobs-wrapper async functionality has been removed because of all kinds of issues ([#32](https://github.com/joshprk/libobs-rs/issues/32))
 
 
 ## Prerequisites
