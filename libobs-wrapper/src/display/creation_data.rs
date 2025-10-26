@@ -73,7 +73,7 @@ impl ObsDisplayCreationData {
     }
 
     pub(super) fn build(self, window: gs_window) -> gs_init_data {
-        let data = gs_init_data {
+        gs_init_data {
             cx: self.width,
             cy: self.height,
             format: self.format.to_i32().unwrap(),
@@ -81,8 +81,6 @@ impl ObsDisplayCreationData {
             window,
             adapter: self.adapter,
             num_backbuffers: self.backbuffers,
-        };
-
-        data
+        }
     }
 }

@@ -1,4 +1,4 @@
-pub const GITHUB_REPO: &'static str = "sshcrack/libobs-builds";
+pub const GITHUB_REPO: &str = "sshcrack/libobs-builds";
 
 #[derive(Debug, Clone)]
 pub struct ObsBootstrapperOptions {

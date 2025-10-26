@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use crate::common::{initialize_obs, assert_not_black};
+use crate::common::{assert_not_black, initialize_obs};
 use libobs_sources::windows::{
     ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater,
 };
@@ -35,8 +35,9 @@ pub fn test_window_capture() {
     let path_out = PathBuf::from(rec_file.to_string());
 
     let mut window = find_notepad();
+    let mut cmd = None;
     if window.is_none() {
-        Command::new("notepad.exe").spawn().unwrap();
+        cmd = Some(Command::new("notepad.exe").spawn().unwrap());
         std::thread::sleep(Duration::from_millis(350));
 
         window = find_notepad();
@@ -85,6 +86,10 @@ pub fn test_window_capture() {
     println!("Recording stop");
 
     output.stop().unwrap();
+
+    if let Some(mut c) = cmd {
+        let _ = c.kill();
+    }
 
     assert_not_black(&path_out, 1.0);
 }

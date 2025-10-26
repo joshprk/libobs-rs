@@ -11,7 +11,7 @@ use windows::{
     },
 };
 
-const INTERNAL_MICROSOFT_EXES_EXACT: &'static [&'static str] = &[
+const INTERNAL_MICROSOFT_EXES_EXACT: &[&str] = &[
     "startmenuexperiencehost.exe",
     "applicationframehost.exe",
     "peopleexperiencehost.exe",
@@ -29,7 +29,7 @@ const INTERNAL_MICROSOFT_EXES_EXACT: &'static [&'static str] = &[
     "time.exe",
 ];
 
-const INTERNAL_MICROSOFT_EXES_PARTIAL: &'static [&'static str] = &["windowsinternal"];
+const INTERNAL_MICROSOFT_EXES_PARTIAL: &[&str] = &["windowsinternal"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowSearchMode {
@@ -37,6 +37,7 @@ pub enum WindowSearchMode {
     IncludeMinimized,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 type DWORD = u32;
 
 pub(crate) fn is_window_cloaked(handle: HWND) -> bool {
@@ -50,7 +51,7 @@ pub(crate) fn is_window_cloaked(handle: HWND) -> bool {
         )
     };
 
-    return res.is_ok() && cloaked != 0;
+    res.is_ok() && cloaked != 0
 }
 
 pub fn is_window_valid(handle: HWND, mode: WindowSearchMode) -> Result<bool> {
@@ -89,14 +90,14 @@ pub fn is_window_valid(handle: HWND, mode: WindowSearchMode) -> Result<bool> {
         return Ok(false);
     }
 
-    return Ok(true);
+    Ok(true)
 }
 
 pub fn is_microsoft_internal_exe(exe: &str) -> bool {
-    let exact = INTERNAL_MICROSOFT_EXES_EXACT.iter().any(|e| *e == exe);
+    let exact = INTERNAL_MICROSOFT_EXES_EXACT.contains(&exe);
     let partial = INTERNAL_MICROSOFT_EXES_PARTIAL
         .iter()
         .any(|e| exe.contains(e));
 
-    return exact || partial;
+    exact || partial
 }

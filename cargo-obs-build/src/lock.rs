@@ -21,7 +21,7 @@ pub fn wait_for_lock(lock: &Path) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("Failed to parse PID from lock file: {}", e));
 
     if pid.is_err() {
-        fs::remove_file(&lock)?;
+        fs::remove_file(lock)?;
         return Ok(());
     }
 

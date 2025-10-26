@@ -60,7 +60,7 @@ impl ObsAudioEncoder {
             }
         )?;
 
-        if encoder.0 == ptr::null_mut() {
+        if encoder.0.is_null() {
             return Err(ObsError::NullPointer);
         }
 

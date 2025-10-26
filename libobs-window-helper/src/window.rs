@@ -32,9 +32,9 @@ use windows::{
     },
 };
 
-const SZ_STRING_FILE_INFO: &'static str = "StringFileInfo";
-const SZ_PRODUCT_NAME: &'static str = "ProductName";
-const SZ_HEX_CODE_PAGE_ID_UNICODE: &'static str = "04B0";
+const SZ_STRING_FILE_INFO: &str = "StringFileInfo";
+const SZ_PRODUCT_NAME: &str = "ProductName";
+const SZ_HEX_CODE_PAGE_ID_UNICODE: &str = "04B0";
 
 /// Retrieves the executable path and process ID associated with the given window handle.
 ///
@@ -63,7 +63,7 @@ pub fn get_exe(handle: HWND) -> AnyResult<(u32, PathBuf)> {
     };
 
     let exe = unsafe {
-        let mut path = [0 as u16; MAX_PATH as usize];
+        let mut path = [0_u16; MAX_PATH as usize];
         // HMODULE should be null, not default
         let res = GetModuleFileNameExW(Some(h_proc), None, &mut path);
         if res > 0 {
@@ -88,7 +88,7 @@ pub fn get_title(handle: HWND) -> AnyResult<String> {
 
     let len = TryInto::<usize>::try_into(len)?;
 
-    let mut title = vec![0 as u16; len + 1];
+    let mut title = vec![0_u16; len + 1];
     let get_title_res = unsafe { GetWindowTextW(handle, &mut title) };
     if get_title_res == 0 {
         return Err(Error::from_win32().into());
@@ -98,7 +98,7 @@ pub fn get_title(handle: HWND) -> AnyResult<String> {
 }
 
 pub fn get_window_class(handle: HWND) -> AnyResult<String> {
-    let mut class = [0 as u16; MAX_PATH as usize + 1];
+    let mut class = [0_u16; MAX_PATH as usize + 1];
 
     let len = unsafe { GetClassNameW(handle, &mut class) };
     if len == 0 {
@@ -177,7 +177,7 @@ pub fn intersects_with_multiple_monitors(handle: HWND) -> AnyResult<bool> {
     unsafe {
         let res = MonitorFromWindow(handle, MONITOR_DEFAULTTONULL);
 
-        return Ok(!res.is_invalid());
+        Ok(!res.is_invalid())
     }
 }
 

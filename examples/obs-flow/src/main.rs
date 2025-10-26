@@ -50,12 +50,7 @@ fn main() -> anyhow::Result<()> {
     )?;
     output.audio_encoder(
         //TODO use FFMPEG_AAC after fixing the enum mapping
-        AudioEncoderInfo::new(
-            ObsAudioEncoderType::FFMPEG_AAC,
-            "audio_encoder",
-            None,
-            None,
-        ),
+        AudioEncoderInfo::new(ObsAudioEncoderType::FFMPEG_AAC, "audio_encoder", None, None),
         0,
         audio_ptr,
     )?;
@@ -77,15 +72,12 @@ fn main() -> anyhow::Result<()> {
 
     // Read the monitor_id from the property
     let prop = properties.get("monitor_id");
-    if let Some(prop) = prop {
-        if let ObsProperty::List(list) = prop {
-            if list.items().len() > 0 {
-                if let ObsListItemValue::String(value) = list.items()[0].value() {
+    if let Some(prop) = prop
+        && let ObsProperty::List(list) = prop
+            && !list.items().is_empty()
+                && let ObsListItemValue::String(value) = list.items()[0].value() {
                     builder = builder.set_monitor_id_raw(value.to_string());
                 }
-            }
-        }
-    }
 
     // method 2 is WGC
     let source = builder

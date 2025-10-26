@@ -3,7 +3,7 @@ use std::{fs, path::Path};
 use walkdir::WalkDir;
 
 pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow::Result<()> {
-    for entry in WalkDir::new(&src) {
+    for entry in WalkDir::new(src) {
         if entry.is_err() {
             continue;
         }

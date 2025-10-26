@@ -177,9 +177,9 @@ impl fmt::Display for ObsOutputStopSignal {
     }
 }
 
-impl Into<i32> for ObsOutputStopSignal {
-    fn into(self) -> i32 {
-        match self {
+impl From<ObsOutputStopSignal> for i32 {
+    fn from(val: ObsOutputStopSignal) -> Self {
+        match val {
             ObsOutputStopSignal::Success => libobs::OBS_OUTPUT_SUCCESS as i32,
             ObsOutputStopSignal::BadPath => libobs::OBS_OUTPUT_BAD_PATH,
             ObsOutputStopSignal::ConnectFailed => libobs::OBS_OUTPUT_CONNECT_FAILED,

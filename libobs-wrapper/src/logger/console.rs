@@ -7,6 +7,12 @@ pub struct ConsoleLogger {
     _private: (),
 }
 
+impl Default for ConsoleLogger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConsoleLogger {
     pub fn new() -> Self {
         Self { _private: () }

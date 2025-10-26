@@ -263,7 +263,7 @@ fn build_obs(
     #[cfg(not(target_family = "windows"))]
     panic!("Unsupported platform");
 
-    fs::create_dir_all(&build_out)?;
+    fs::create_dir_all(build_out)?;
 
     let obs_path = if let Some(e) = override_zip {
         e
@@ -275,9 +275,9 @@ fn build_obs(
     let mut archive = ZipArchive::new(&obs_archive)?;
 
     info!("{} OBS Studio binaries...", "Extracting".on_blue());
-    archive.extract(&build_out)?;
+    archive.extract(build_out)?;
     let bin_path = build_out.join("bin").join("64bit");
-    copy_to_dir(&bin_path, &build_out, None)?;
+    copy_to_dir(&bin_path, build_out, None)?;
     fs::remove_dir_all(build_out.join("bin"))?;
 
     clean_up_files(build_out, include_browser)?;
@@ -301,7 +301,7 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
         "imageformats",
         "obs-studio",
         "aja-output-ui",
-        "obs-vst"
+        "obs-vst",
     ];
 
     if !include_browser {
@@ -317,21 +317,19 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
     }
 
     info!("{}", "Cleaning up unnecessary files...".red());
-    for entry in WalkDir::new(&build_out) {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if to_exclude.iter().any(|e| {
-                path.file_name().map_or(false, |x| {
-                    let x_l = x.to_string_lossy().to_lowercase();
-                    x_l.contains(e) || x_l == *e
-                })
-            }) {
-                debug!("Deleting: {}", path.display().to_string().red());
-                if path.is_dir() {
-                    fs::remove_dir_all(path)?;
-                } else {
-                    fs::remove_file(path)?;
-                }
+    for entry in WalkDir::new(build_out).into_iter().flatten() {
+        let path = entry.path();
+        if to_exclude.iter().any(|e| {
+            path.file_name().is_some_and(|x| {
+                let x_l = x.to_string_lossy().to_lowercase();
+                x_l.contains(e) || x_l == *e
+            })
+        }) {
+            debug!("Deleting: {}", path.display().to_string().red());
+            if path.is_dir() {
+                fs::remove_dir_all(path)?;
+            } else {
+                fs::remove_file(path)?;
             }
         }
     }

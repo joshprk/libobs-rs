@@ -1,5 +1,6 @@
-///! Monitor capture source for Windows using libobs-rs
-/// ! This source captures the entire monitor and is used for screen recording.
+//! Monitor capture source for Windows using libobs-rs
+//! This source captures the entire monitor and is used for screen recording.
+
 /// Note: This does not update the capture method directly, instead the capture method gets
 /// stored in the struct. The capture method is being set to WGC at first, then the source is created and then the capture method is updated to the desired method.
 use display_info::DisplayInfo;
@@ -43,7 +44,7 @@ impl MonitorCaptureSource {
     pub fn get_monitors() -> anyhow::Result<Vec<Sendable<DisplayInfo>>> {
         Ok(DisplayInfo::all()?
             .into_iter()
-            .map(|e| Sendable(e))
+            .map(Sendable)
             .collect())
     }
 
@@ -72,7 +73,7 @@ impl MonitorCaptureSourceBuilder {
 }
 
 impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
-    fn add_to_scene<'a>(mut self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene(mut self, scene: &mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {
@@ -82,7 +83,7 @@ impl ObsSourceBuilder for MonitorCaptureSourceBuilder {
             ObsDisplayCaptureMethod::MethodWgc.to_i32().unwrap() as i64,
         );
 
-        let method_to_set = self.capture_method.clone();
+        let method_to_set = self.capture_method;
         let runtime = self.runtime.clone();
 
         let b = self.build()?;

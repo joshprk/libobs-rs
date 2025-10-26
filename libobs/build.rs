@@ -15,7 +15,7 @@ fn main() {
     );
     println!("cargo:rustc-link-lib=dylib=obs");
 
-    if let Some(path) = std::env::var("LIBOBS_PATH").ok() {
+    if let Ok(path) = std::env::var("LIBOBS_PATH") {
         println!("cargo:rustc-link-search=native={}", path);
     }
 

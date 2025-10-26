@@ -7,6 +7,12 @@ pub struct DialogCrashHandler {
     _private: (),
 }
 
+impl Default for DialogCrashHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DialogCrashHandler {
     pub fn new() -> Self {
         Self { _private: () }
@@ -40,7 +46,6 @@ impl ObsCrashHandler for DialogCrashHandler {
         let mut clipboard = clipboard.unwrap();
         if let Err(e) = clipboard.set_text(message.clone()) {
             eprintln!("Failed to copy crash message to clipboard: {e:?}");
-            return;
         }
     }
 }

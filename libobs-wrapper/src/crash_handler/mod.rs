@@ -13,6 +13,12 @@ pub struct ConsoleCrashHandler {
     _private: (),
 }
 
+impl Default for ConsoleCrashHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConsoleCrashHandler {
     pub fn new() -> Self {
         Self { _private: () }

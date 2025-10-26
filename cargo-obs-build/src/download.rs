@@ -77,10 +77,10 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     debug!("Downloading OBS binaries from {}", url.green());
 
     let uri = Uri::try_from(url)?;
-    let mut stream = Stream::connect(&uri, Some(timeout.clone()))?;
+    let mut stream = Stream::connect(&uri, Some(timeout))?;
 
-    stream.set_read_timeout(Some(timeout.clone()))?;
-    stream.set_write_timeout(Some(timeout.clone()))?;
+    stream.set_read_timeout(Some(timeout))?;
+    stream.set_write_timeout(Some(timeout))?;
 
     stream = Stream::try_to_https(stream, &uri, None)?;
 
@@ -154,7 +154,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
 
     let pb = ProgressBar::new(content_len);
     pb.set_style(style);
-    pb.set_message(format!("Downloading OBS binaries"));
+    pb.set_message("Downloading OBS binaries".to_string());
 
     let mut file =
         File::create(path).or(Err(anyhow!("Failed to create file '{}'", path.display())))?;
@@ -184,5 +184,5 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     pb.finish_with_message(format!("Downloaded OBS to {}", path.display()));
     trace!("Hashing...");
     stdout().flush().unwrap();
-    return Ok(hex::encode(hasher.finalize()));
+    Ok(hex::encode(hasher.finalize()))
 }

@@ -62,7 +62,7 @@ pub fn get_all_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<WindowInfo>
     Ok(out)
 }
 
-const OBS_PIPE_NAME: &'static str = "CaptureHook_Pipe";
+const OBS_PIPE_NAME: &str = "CaptureHook_Pipe";
 pub fn is_window_in_use_by_other_instance(window_pid: u32) -> std::io::Result<bool> {
     #[cfg(not(windows))]
     return false;

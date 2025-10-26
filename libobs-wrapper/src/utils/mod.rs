@@ -69,14 +69,14 @@ impl ObsModules {
     }
 
     pub fn log_if_failed(&self) {
-        if self.info.as_ref().is_none_or(|x| &x.0.count == &0) {
+        if self.info.as_ref().is_none_or(|x| x.0.count == 0) {
             return;
         }
 
         let info = &self.info.as_ref().unwrap().0;
         let mut failed_modules = Vec::new();
         for i in 0..info.count {
-            let module = unsafe { info.failed_modules.offset(i as isize) };
+            let module = unsafe { info.failed_modules.add(i) };
             let plugin_name = unsafe { CStr::from_ptr(*module) };
             failed_modules.push(plugin_name.to_string_lossy());
         }

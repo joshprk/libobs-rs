@@ -14,7 +14,7 @@ use crate::{
     utils::{traits::ObsUpdatable, ObsError, ObsString},
 };
 
-use std::{ptr, sync::Arc};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
@@ -70,7 +70,7 @@ impl ObsSourceRef {
             }
         )?;
 
-        if source.0 == ptr::null_mut() {
+        if source.0.is_null() {
             return Err(ObsError::NullPointer);
         }
 
@@ -145,7 +145,7 @@ impl ObsUpdatable for ObsSourceRef {
     }
 }
 
-impl_signal_manager!(|ptr| libobs::obs_source_get_signal_handler(ptr), ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
+impl_signal_manager!(|ptr| unsafe { libobs::obs_source_get_signal_handler(ptr) }, ObsSourceSignals for ObsSourceRef<*mut libobs::obs_source_t>, [
     "destroy": {},
     "remove": {},
     "update": {},

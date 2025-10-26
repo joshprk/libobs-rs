@@ -36,7 +36,7 @@ pub fn get_installed_version(obs_dll: &Path) -> anyhow::Result<Option<String>> {
         }
 
         lib.close()?;
-        return Ok(Some(version_str.unwrap().to_string()));
+        Ok(Some(version_str.unwrap().to_string()))
     }
 }
 
@@ -57,7 +57,7 @@ pub fn should_update(version_str: &str) -> anyhow::Result<bool> {
     let minor = minor.unwrap();
     let patch = patch.unwrap();
 
-    return Ok(major != LIBOBS_API_MAJOR_VER as u64
+    Ok(major != LIBOBS_API_MAJOR_VER as u64
         || minor != LIBOBS_API_MINOR_VER as u64
-        || patch < LIBOBS_API_PATCH_VER as u64);
+        || patch < LIBOBS_API_PATCH_VER as u64)
 }

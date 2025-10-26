@@ -55,7 +55,7 @@ impl ObsPath {
         let split = value.split(['/', '\\'].as_ref());
 
         for item in split {
-            if item.len() > 0 {
+            if !item.is_empty() {
                 self.path.push(item);
             }
         }
@@ -84,7 +84,7 @@ impl ObsPath {
         let mut bytes = self.path.display().to_string().replace("\\", "/");
 
         if self.path.is_dir() {
-            bytes = bytes + "/";
+            bytes += "/";
         }
         let obs_string = ObsString::from(bytes.as_str());
 
@@ -93,8 +93,8 @@ impl ObsPath {
     }
 }
 
-impl Into<ObsString> for ObsPath {
-    fn into(self) -> ObsString {
-        self.build()
+impl From<ObsPath> for ObsString {
+    fn from(val: ObsPath) -> Self {
+        val.build()
     }
 }

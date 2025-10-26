@@ -46,14 +46,14 @@ extern "system" fn wndproc(
     unsafe {
         match message {
             WM_NCHITTEST => {
-                return LRESULT(HTTRANSPARENT as _);
+                LRESULT(HTTRANSPARENT as _)
             }
             WM_DESTROY_WINDOW => {
                 PostQuitMessage(0);
-                return LRESULT(0);
+                LRESULT(0)
             }
             _ => {
-                return DefWindowProcW(window, message, w_param, l_param);
+                DefWindowProcW(window, message, w_param, l_param)
             }
         }
     }
@@ -226,7 +226,7 @@ impl DisplayWindowManager {
             };
 
             let r = create();
-            let window = r.as_ref().ok().map(|r| r.0.clone());
+            let window = r.as_ref().ok().map(|r| r.0);
             tx.send(r).unwrap();
             if window.is_none() {
                 return;
@@ -288,7 +288,7 @@ impl DisplayWindowManager {
     }
 
     pub fn get_window_handle(&self) -> HWND {
-        self.hwnd.0.clone()
+        self.hwnd.0
     }
 }
 

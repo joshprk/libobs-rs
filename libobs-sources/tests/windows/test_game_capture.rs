@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use libobs_sources::windows::{GameCaptureSourceBuilder, ObsGameCaptureMode};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
-use crate::common::{initialize_obs, assert_not_black};
+use crate::common::{assert_not_black, initialize_obs};
 
 #[test]
 pub fn game_test() {

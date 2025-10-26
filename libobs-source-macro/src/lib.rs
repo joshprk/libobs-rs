@@ -118,9 +118,12 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// - `string`: the field should be a string.
 /// - `bool`: the field should be a bool.
 /// - `type_t`: `int`, the field should be an i64.
-/// The attribute can also have a `settings_key` which is the key used in the settings, if this attribute is not given, the macro defaults to the field name. <br>
-/// Documentation is inherited from the field to the setter function.<br>
-/// Example: <br>
+///   The attribute can also have a `settings_key` which is the key used in the settings, if this attribute is not given, the macro defaults to the field name.
+///
+/// Documentation is inherited from the field to the setter function.
+///
+/// Example:
+///
 /// ```
 /// use libobs_wrapper::data::StringEnum;
 /// use libobs_source_macro::obs_object_builder;
@@ -129,9 +132,9 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 /// #[repr(i32)]
 /// #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// pub enum ObsWindowCaptureMethod {
-///     MethodAuto = libobs::window_capture_method_METHOD_AUTO,
-/// 	MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
-/// 	MethodWgc = libobs::window_capture_method_METHOD_WGC,
+///        MethodAuto = libobs::window_capture_method_METHOD_AUTO,
+///        MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
+///        MethodWgc = libobs::window_capture_method_METHOD_WGC,
 /// }
 ///
 /// #[derive(Clone, Copy, Debug, PartialEq, Eq)]

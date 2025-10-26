@@ -11,7 +11,7 @@ use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
-use winit::event::{ElementState, WindowEvent};
+use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
@@ -48,7 +48,6 @@ impl ApplicationHandler for App {
         let w = self.window.clone();
         let d_rw = self.display.clone();
         let ctx = self.context.clone();
-        let hwnd = hwnd;
         let data = ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height);
 
         let display = ctx.write().unwrap().display(data).unwrap();
@@ -101,11 +100,11 @@ impl ApplicationHandler for App {
                     let _ = display.set_size(size.width, size.height);
                 }
             }
+            /*
             WindowEvent::MouseInput { state, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;
                 }
-                /*
                                let tmp = self.source_ref.clone();
                                let monitor_index = self.monitor_index.clone();
 
@@ -123,8 +122,8 @@ impl ApplicationHandler for App {
                                    .set_monitor(monitor)
                                    .update()
                                    .unwrap();
-                */
-            }
+                            }
+                            */
             _ => (),
         }
     }
@@ -159,8 +158,7 @@ fn main() -> anyhow::Result<()> {
         .set_string("preset", "fast")
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000)
-        .update()
-        ?;
+        .update()?;
 
     let encoders = context.available_video_encoders()?;
 
@@ -181,8 +179,12 @@ fn main() -> anyhow::Result<()> {
     let mut audio_settings = context.data()?;
     audio_settings.set_int("bitrate", 160)?;
 
-    let audio_info =
-        AudioEncoderInfo::new(ObsAudioEncoderType::FFMPEG_AAC, "audio_encoder", Some(audio_settings), None);
+    let audio_info = AudioEncoderInfo::new(
+        ObsAudioEncoderType::FFMPEG_AAC,
+        "audio_encoder",
+        Some(audio_settings),
+        None,
+    );
 
     let audio_handler = context.get_audio_ptr()?;
     output.audio_encoder(audio_info, 0, audio_handler)?;
@@ -200,12 +202,10 @@ fn main() -> anyhow::Result<()> {
         GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
     );
     let source = context
-        .source_builder::<GameCaptureSourceBuilder, _>("Game capture")
-        ?
+        .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
         .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
         .set_window(btd)
-        .add_to_scene(&mut scene)
-        ?;
+        .add_to_scene(&mut scene)?;
 
     scene.set_to_channel(0)?;
 
@@ -216,7 +216,7 @@ fn main() -> anyhow::Result<()> {
         let mut x = signal_manager.on_update().unwrap();
 
         println!("Listening for updates");
-        while let Ok(_) = x.recv().await {
+        while x.recv().await.is_ok() {
             println!("Game Source has been updated!");
         }
     });

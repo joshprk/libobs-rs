@@ -24,14 +24,12 @@ pub fn obs_properties_to_functions(
 
         let name_values: Punctuated<MetaNameValue, Token![,]> = attr
             .parse_args_with(Punctuated::parse_terminated)
-            .expect(&format!(
-                "Field {} has invalid obs_property, should be name value",
-                field_name
-            ));
+            .unwrap_or_else(|_| panic!("Field {} has invalid obs_property, should be name value",
+                field_name));
 
         let type_t = &name_values
             .iter()
-            .find(|e| e.path.get_ident().unwrap().to_string() == "type_t")
+            .find(|e| *e.path.get_ident().unwrap() == "type_t")
             .expect("type_t is required for obs_property")
             .value;
 
@@ -47,7 +45,7 @@ pub fn obs_properties_to_functions(
         let mut obs_settings_name = field_name.to_string();
         let pot_name = &name_values
             .iter()
-            .find(|e| e.path.get_ident().unwrap().to_string() == "settings_key");
+            .find(|e| *e.path.get_ident().unwrap() == "settings_key");
 
         if let Some(n) = pot_name {
             obs_settings_name = match &n.value {

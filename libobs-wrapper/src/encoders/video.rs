@@ -54,7 +54,7 @@ impl ObsVideoEncoder {
             }
         )?;
 
-        if encoder.0 == ptr::null_mut() {
+        if encoder.0.is_null() {
             return Err(ObsError::NullPointer);
         }
 
@@ -79,7 +79,7 @@ impl ObsVideoEncoder {
     ) -> Result<(), ObsError> {
         let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
-            Sendable(obs_encoder_set_video(self_ptr, handler));
+            obs_encoder_set_video(self_ptr, handler);
         })
     }
 }

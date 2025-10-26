@@ -6,7 +6,6 @@ use download::DownloadStatus;
 use extract::ExtractStatus;
 use futures_core::Stream;
 use futures_util::{StreamExt, pin_mut};
-use hex;
 use lazy_static::lazy_static;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
 use tokio::{fs::File, io::AsyncWriteExt, process::Command};
@@ -46,8 +45,8 @@ pub enum BootstrapStatus {
 /// If you want to use this bootstrapper to also install required OBS binaries at runtime,
 /// do the following:
 /// - Add a `obs.dll` file to your executable directory. This file will be replaced by the obs installer.
-/// Recommended to use is the a dll dummy (found [here](https://github.com/sshcrack/libobs-builds/releases), make sure you use the correct OBS version)
-/// and rename it to `obs.dll`.
+///   Recommended to use is the a dll dummy (found [here](https://github.com/sshcrack/libobs-builds/releases), make sure you use the correct OBS version)
+///   and rename it to `obs.dll`.
 /// - Call `ObsBootstrapper::bootstrap()` at the start of your application. Options must be configured. For more documentation look at the [tauri example app](https://github.com/joshprk/libobs-rs/tree/main/examples/tauri-app). This will download the latest version of OBS and extract it in the executable directory.
 /// - If BootstrapStatus::RestartRequired is returned, call `ObsBootstrapper::spawn_updater()` to spawn the updater process.
 /// - Exit the application. The updater process will wait for the application to exit and rename the `obs_new.dll` file to `obs.dll` and restart your application with the same arguments as before.
@@ -62,7 +61,7 @@ lazy_static! {
     );
 }
 
-pub const UPDATER_SCRIPT: &'static str = include_str!("./updater.ps1");
+pub const UPDATER_SCRIPT: &str = include_str!("./updater.ps1");
 
 fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
     let executable = env::current_exe()?;
@@ -261,7 +260,8 @@ impl ObsBootstrapper {
         }
 
         let installed = installed.unwrap();
-        Ok(version::should_update(&installed)?)
+
+        version::should_update(&installed)
     }
 
     /// Bootstraps OBS using the provided options and a default console status
@@ -286,7 +286,7 @@ impl ObsBootstrapper {
     ) -> Result<ObsBootstrapperResult, ObsBootstrapError> {
         ObsBootstrapper::bootstrap_with_handler(
             options,
-            Box::new(ObsBootstrapConsoleHandler::default()),
+            Box::new(ObsBootstrapConsoleHandler),
         )
         .await
     }

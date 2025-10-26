@@ -122,7 +122,6 @@ impl ObsRuntime {
     ///     }
     /// }
     /// ```
-
     #[allow(unused_mut)]
     pub(crate) fn startup(
         mut options: StartupInfo,
@@ -232,7 +231,7 @@ impl ObsRuntime {
     /// ```
     pub fn run_with_obs<F>(&self, operation: F) -> anyhow::Result<()>
     where
-        F: FnOnce() -> () + Send + 'static,
+        F: FnOnce() + Send + 'static,
     {
         self.run_with_obs_result(move || {
             operation();
@@ -336,7 +335,7 @@ impl ObsRuntime {
         // Directly checks if the value of the
         // Mutex is false. If true, then error.
         // We've checked already but keeping this
-        if *mutex_value != None {
+        if (*mutex_value).is_some() {
             return Err(ObsError::ThreadFailure);
         }
 

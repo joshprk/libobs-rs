@@ -87,14 +87,14 @@ pub fn get_window_info(wnd: HWND) -> AnyResult<WindowInfo> {
     let monitor = Some(hwnd_to_monitor(wnd)?);
     let intersects = intersects_with_multiple_monitors(wnd).ok();
     let cmd_line = get_command_line_args(wnd).ok();
-    let monitor_id = monitor.map(|e| get_monitor_id(e).ok()).flatten();
+    let monitor_id = monitor.and_then(|e| get_monitor_id(e).ok());
 
     let title_o = title.as_ref().map_or("", |v| v);
     let class_o = class.as_ref().map_or("", |v| v);
 
     let obs_id: Vec<String> = vec![title_o, class_o, &exe]
         .into_iter()
-        .map(|e| encode_string(e))
+        .map(encode_string)
         .collect();
 
     let obs_id = obs_id.join(":");

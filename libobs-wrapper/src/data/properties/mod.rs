@@ -87,7 +87,7 @@ pub(crate) fn get_properties_inner(
             println!("Property: {:?}", name);
             match p_type {
                 Some(p_type) => {
-                    result.insert(name, p_type.to_property_struct(property));
+                    result.insert(name, unsafe { p_type.to_property_struct(property) });
                 }
                 None => {
                     result.insert(name, ObsProperty::Invalid);

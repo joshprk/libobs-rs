@@ -1,4 +1,3 @@
-use std::ffi::CString;
 use std::sync::{Arc, RwLock};
 use std::{ffi::CStr, ptr};
 
@@ -122,11 +121,11 @@ impl ObsOutputRef {
                     )
                 };
 
-                if output == ptr::null_mut() {
+                if output.is_null() {
                     bail!("Null pointer returned from obs_output_create");
                 }
 
-                return Ok((Sendable(output), id, name, settings, hotkey_data));
+                Ok((Sendable(output), id, name, settings, hotkey_data))
             })
             .map_err(|e| ObsError::InvocationError(e.to_string()))?
             .map_err(|_| ObsError::NullPointer)?;
@@ -468,9 +467,9 @@ impl ObsOutputRef {
             return Err(ObsError::OutputStopFailure(Some(signal.to_string())));
         }
 
-        return Err(ObsError::OutputStopFailure(Some(
+        Err(ObsError::OutputStopFailure(Some(
             "Output is not active.".to_string(),
-        )));
+        )))
     }
 
     pub fn as_ptr(&self) -> Sendable<*mut obs_output> {
@@ -478,31 +477,7 @@ impl ObsOutputRef {
     }
 }
 
-pub unsafe fn process_stop_signal(
-    cd: *mut libobs::calldata_t,
-) -> anyhow::Result<ObsOutputStopSignal> {
-    let mut code = 0i64;
-    let code_str = CString::new("code").unwrap();
-    let got_code = libobs::calldata_get_data(
-        cd,
-        code_str.as_ptr(),
-        &mut code as *mut _ as *mut std::ffi::c_void,
-        size_of::<i64>(),
-    );
-
-    if !got_code {
-        bail!("Failed to get code from calldata");
-    }
-
-    let signal = ObsOutputStopSignal::try_from(code as i32);
-    if let Err(e) = signal {
-        bail!("Failed to convert code to ObsOutputStopSignal: {}", e);
-    }
-
-    Ok(signal.unwrap())
-}
-
-impl_signal_manager!(|ptr| libobs::obs_output_get_signal_handler(ptr), ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
+impl_signal_manager!(|ptr| unsafe { libobs::obs_output_get_signal_handler(ptr) }, ObsOutputSignals for ObsOutputRef<*mut libobs::obs_output>, [
     "start": {},
     "stop": {code: crate::enums::ObsOutputStopSignal},
     "pause": {},

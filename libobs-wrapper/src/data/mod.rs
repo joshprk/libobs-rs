@@ -54,7 +54,6 @@ impl ObsData {
     /// `ObsString` types to prevent them from being
     /// dropped prematurely. This makes it safer than
     /// using `obs_data` directly from libobs.
-
     pub fn new(runtime: ObsRuntime) -> Result<Self, ObsError> {
         let obs_data = run_with_obs!(runtime, move || unsafe { Sendable(obs_data_create()) })?;
 
@@ -81,7 +80,6 @@ impl ObsData {
 
     /// Sets a string in `obs_data` and stores it so
     /// it in `ObsData` does not get freed.
-
     pub fn set_string<T: Into<ObsString> + Send + Sync, K: Into<ObsString> + Send + Sync>(
         &mut self,
         key: T,
@@ -105,7 +103,6 @@ impl ObsData {
 
     /// Sets an int in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
-
     pub fn set_int<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -117,7 +114,7 @@ impl ObsData {
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_int(data_ptr, key_ptr, value.into());
+            obs_data_set_int(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)
@@ -125,7 +122,6 @@ impl ObsData {
 
     /// Sets a bool in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
-
     pub fn set_bool<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -136,7 +132,7 @@ impl ObsData {
         let key_ptr = key.as_ptr();
         let data_ptr = self.obs_data.clone();
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_bool(data_ptr, key_ptr, value.into());
+            obs_data_set_bool(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)
@@ -144,7 +140,6 @@ impl ObsData {
 
     /// Sets a double in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
-
     pub fn set_double<T: Into<ObsString> + Sync + Send>(
         &mut self,
         key: T,
@@ -156,7 +151,7 @@ impl ObsData {
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_double(data_ptr, key_ptr, value.into());
+            obs_data_set_double(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)

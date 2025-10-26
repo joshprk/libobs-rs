@@ -58,7 +58,6 @@ async fn main() {
     }
 
     let context = ObsContext::new(StartupInfo::default()).unwrap();
-
     handler.done();
 
     println!("Done");

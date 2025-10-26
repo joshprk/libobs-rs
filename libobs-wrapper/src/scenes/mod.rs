@@ -131,7 +131,7 @@ impl ObsSceneRef {
             .read()
             .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
             .get(index)
-            .map(|x| x.clone());
+            .cloned();
         Ok(r)
     }
 
@@ -142,7 +142,7 @@ impl ObsSceneRef {
             .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
             .iter()
             .find(|x| x.name() == name)
-            .map(|x| x.clone());
+            .cloned();
 
         Ok(r)
     }
@@ -171,7 +171,7 @@ impl ObsSceneRef {
         let source_ptr = source.source.clone();
         let filter_ptr = filter_ref.source.clone();
         run_with_obs!(self.runtime, (source_ptr, filter_ptr), move || unsafe {
-            Sendable(libobs::obs_source_filter_add(source_ptr, filter_ptr))
+            libobs::obs_source_filter_add(source_ptr, filter_ptr);
         })?;
         Ok(())
     }
@@ -184,7 +184,7 @@ impl ObsSceneRef {
         let source_ptr = source.source.clone();
         let filter_ptr = filter_ref.source.clone();
         run_with_obs!(self.runtime, (source_ptr, filter_ptr), move || unsafe {
-            Sendable(libobs::obs_source_filter_remove(source_ptr, filter_ptr))
+            libobs::obs_source_filter_remove(source_ptr, filter_ptr);
         })?;
         Ok(())
     }
@@ -197,7 +197,7 @@ impl ObsSceneRef {
 
         let position = run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
             let mut main_pos: libobs::vec2 = std::mem::zeroed();
-            Sendable(libobs::obs_sceneitem_get_pos(scene_item_ptr, &mut main_pos));
+            libobs::obs_sceneitem_get_pos(scene_item_ptr, &mut main_pos);
             Vec2::from(main_pos)
         })?;
 
@@ -212,10 +212,10 @@ impl ObsSceneRef {
 
         let scale = run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
             let mut main_pos: libobs::vec2 = std::mem::zeroed();
-            Sendable(libobs::obs_sceneitem_get_scale(
+            libobs::obs_sceneitem_get_scale(
                 scene_item_ptr,
                 &mut main_pos,
-            ));
+            );
             Vec2::from(main_pos)
         })?;
 
@@ -233,10 +233,10 @@ impl ObsSceneRef {
         };
 
         run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
-            Sendable(libobs::obs_sceneitem_set_pos(
+            libobs::obs_sceneitem_set_pos(
                 scene_item_ptr,
                 &position.into(),
-            ));
+            );
         })?;
 
         Ok(())
@@ -249,10 +249,10 @@ impl ObsSceneRef {
         };
 
         run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
-            Sendable(libobs::obs_sceneitem_set_scale(
+            libobs::obs_sceneitem_set_scale(
                 scene_item_ptr,
                 &scale.into(),
-            ));
+            );
         })?;
 
         Ok(())
@@ -263,7 +263,7 @@ impl ObsSceneRef {
     }
 }
 
-impl_signal_manager!(|scene_ptr| {
+impl_signal_manager!(|scene_ptr| unsafe {
     let source_ptr = libobs::obs_scene_get_source(scene_ptr);
 
     libobs::obs_source_get_signal_handler(source_ptr)

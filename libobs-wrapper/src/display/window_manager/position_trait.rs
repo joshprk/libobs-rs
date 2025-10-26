@@ -72,8 +72,8 @@ impl WindowPositionTrait for ObsDisplayRef {
                 Some(insert_after),
                 x,
                 y,
-                1 as i32,
-                1 as i32,
+                1_i32,
+                1_i32,
                 flags,
             )
             .map_err(|e| ObsError::DisplayCreationError(format!("{:?}", e)))?;

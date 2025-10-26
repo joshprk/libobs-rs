@@ -3,7 +3,7 @@ use crate::{data::ObsObjectBuilder, scenes::ObsSceneRef, utils::ObsError};
 use super::ObsSourceRef;
 
 pub trait ObsSourceBuilder: ObsObjectBuilder {
-    fn add_to_scene<'a>(self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene(self, scene: &mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {

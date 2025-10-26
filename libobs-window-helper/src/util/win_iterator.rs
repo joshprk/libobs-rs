@@ -47,7 +47,7 @@ pub unsafe fn get_uwp_actual_window(parent: HWND) -> Result<Option<HWND>> {
             .unwrap_or(HWND::default());
     }
 
-    return Ok(None);
+    Ok(None)
 }
 
 pub unsafe fn next_window(
@@ -56,11 +56,11 @@ pub unsafe fn next_window(
     parent: &mut Option<HWND>,
     use_find_window_ex: bool,
 ) -> anyhow::Result<Option<HWND>> {
-    let mut window = window.unwrap_or(HWND::default());
+    let mut window = window.unwrap_or_default();
 
     let parent_valid = parent.is_some_and(|e| !e.is_invalid());
     if parent_valid {
-        window = parent.unwrap_or(HWND::default());
+        window = parent.unwrap_or_default();
         *parent = None;
     }
 
@@ -101,7 +101,7 @@ pub unsafe fn next_window(
         }
     }
 
-    return Ok(window_opt);
+    Ok(window_opt)
 }
 
 pub unsafe fn first_window(
@@ -151,5 +151,5 @@ pub unsafe fn first_window(
         }
     }
 
-    return Ok(window);
+    Ok(window)
 }

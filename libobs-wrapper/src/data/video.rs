@@ -173,8 +173,6 @@ impl ObsVideoInfoBuilder {
             scale_type: self.scale_type as OsEnumType,
         };
 
-        drop(self);
-
         ObsVideoInfo {
             ovi: Sendable(Box::pin(ovi)),
             graphics_module: graphics_mod_str,

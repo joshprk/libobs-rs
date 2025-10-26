@@ -6,30 +6,30 @@ macro_rules! __signals_impl_primitive_handler {
     }};
 
     // Match against all primitive types
-    ($field_name: ident, i8) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i8) };
-    ($field_name: ident, i16) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i16) };
-    ($field_name: ident, i32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i32) };
-    ($field_name: ident, i64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i64) };
-    ($field_name: ident, i128) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, i128) };
-    ($field_name: ident, isize) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, isize) };
+    ($field_name: ident, i8) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, i8) };
+    ($field_name: ident, i16) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, i16) };
+    ($field_name: ident, i32) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, i32) };
+    ($field_name: ident, i64) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, i64) };
+    ($field_name: ident, i128) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, i128) };
+    ($field_name: ident, isize) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, isize) };
 
-    ($field_name: ident, u8) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u8) };
-    ($field_name: ident, u16) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u16) };
-    ($field_name: ident, u32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u32) };
-    ($field_name: ident, u64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u64) };
-    ($field_name: ident, u128) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, u128) };
-    ($field_name: ident, usize) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, usize) };
+    ($field_name: ident, u8) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, u8) };
+    ($field_name: ident, u16) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, u16) };
+    ($field_name: ident, u32) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, u32) };
+    ($field_name: ident, u64) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, u64) };
+    ($field_name: ident, u128) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, u128) };
+    ($field_name: ident, usize) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, usize) };
 
-    ($field_name: ident, f32) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, f32) };
-    ($field_name: ident, f64) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, f64) };
+    ($field_name: ident, f32) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, f32) };
+    ($field_name: ident, f64) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, f64) };
 
-    ($field_name: ident, bool) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, bool) };
-    ($field_name: ident, char) => { crate::__signals_impl_primitive_handler!(__inner, $field_name, char) };
+    ($field_name: ident, bool) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, bool) };
+    ($field_name: ident, char) => { $crate::__signals_impl_primitive_handler!(__inner, $field_name, char) };
 
     ($field_name: ident, String) => {
         move |__internal_calldata|  {
             let mut $field_name = std::ptr::null_mut();
-            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let obs_str = $crate::utils::ObsString::new(stringify!($field_name));
             let success = libobs::calldata_get_string(
                 __internal_calldata,
                 obs_str.as_ptr().0,
@@ -50,12 +50,12 @@ macro_rules! __signals_impl_primitive_handler {
     };
 
     // For any other type, return false
-    ($field_name: ident, $other:ty) => { crate::__signals_impl_primitive_handler!(__enum $field_name, $other) };
+    ($field_name: ident, $other:ty) => { $crate::__signals_impl_primitive_handler!(__enum $field_name, $other) };
 
     (__inner, $field_name: ident, $field_type: ty) => {
         move |__internal_calldata| {
             let mut $field_name = std::mem::zeroed::<$field_type>();
-            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let obs_str = $crate::utils::ObsString::new(stringify!($field_name));
             let success = libobs::calldata_get_data(
                 __internal_calldata,
                 obs_str.as_ptr().0,
@@ -76,7 +76,7 @@ macro_rules! __signals_impl_primitive_handler {
     (__ptr, $field_name: ident, $field_type: ty) => {
         move |__internal_calldata| {
             let mut $field_name = std::mem::zeroed::<$field_type>();
-            let obs_str = crate::utils::ObsString::new(stringify!($field_name));
+            let obs_str = $crate::utils::ObsString::new(stringify!($field_name));
             let success = libobs::calldata_get_data(
                 __internal_calldata,
                 obs_str.as_ptr().0,
@@ -91,12 +91,12 @@ macro_rules! __signals_impl_primitive_handler {
                 ));
             }
 
-            Result::<_, anyhow::Error>::Ok(crate::unsafe_send::Sendable($field_name))
+            Result::<_, anyhow::Error>::Ok($crate::unsafe_send::Sendable($field_name))
         }
     };
     (__enum $field_name: ident, $enum_type: ty) => {
         move |__internal_calldata| {
-            let code = crate::__signals_impl_primitive_handler!(__inner, $field_name, i64)(__internal_calldata)?;
+            let code = $crate::__signals_impl_primitive_handler!(__inner, $field_name, i64)(__internal_calldata)?;
             let en = <$enum_type>::try_from(code as i32);
             if let Err(e) = en {
                 anyhow::bail!("Failed to convert code to {}: {}", stringify!($field_name), e);
@@ -118,7 +118,7 @@ macro_rules! __signals_impl_signal {
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$gen_type> {
-                let e = crate::__signals_impl_primitive_handler!($field_name, $gen_type)(cd);
+                let e = $crate::__signals_impl_primitive_handler!($field_name, $gen_type)(cd);
 
                 e
             }
@@ -141,7 +141,7 @@ macro_rules! __signals_impl_signal {
     ($ptr: ty, $signal_name: literal, struct $name: ident {
         $($field_name: ident: $field_type: ty),* $(,)*
     }) => {
-        crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
+        $crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
             $($field_name: $field_type),*;
             POINTERS {}
         });
@@ -150,7 +150,7 @@ macro_rules! __signals_impl_signal {
         POINTERS
         {$($ptr_field_name: ident: $ptr_field_type: ty),* $(,)*}
     }) => {
-        crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
+        $crate::__signals_impl_signal!($ptr, $signal_name, struct $name {
             ;POINTERS { $($ptr_field_name: $ptr_field_type),* }
         });
     };
@@ -168,15 +168,15 @@ macro_rules! __signals_impl_signal {
             #[derive(Debug, Clone)]
             pub struct $name {
                 $(pub $field_name: $field_type,)*
-                $(pub $ptr_field_name: crate::unsafe_send::Sendable<$ptr_field_type>,)*
+                $(pub $ptr_field_name: $crate::unsafe_send::Sendable<$ptr_field_type>,)*
             }
 
             unsafe fn [< $signal_name:snake _handler_inner>](cd: *mut libobs::calldata_t) -> anyhow::Result<$name> {
                 $(
-                    let $field_name = crate::__signals_impl_primitive_handler!($field_name, $field_type)(cd)?;
+                    let $field_name = $crate::__signals_impl_primitive_handler!($field_name, $field_type)(cd)?;
                 )*
                 $(
-                    let $ptr_field_name = crate::__signals_impl_primitive_handler!(__ptr, $ptr_field_name, $ptr_field_type)(cd)?;
+                    let $ptr_field_name = $crate::__signals_impl_primitive_handler!(__ptr, $ptr_field_name, $ptr_field_type)(cd)?;
                 )*
 
                 Ok($name {
@@ -194,7 +194,7 @@ macro_rules! impl_signal_manager {
         $($(#[$attr:meta])* $signal_name: literal: { $($inner_def:tt)* }),* $(,)*
     ]) => {
         paste::paste! {
-            $(crate::__signals_impl_signal!($ptr, $signal_name, $($inner_def)*);)*
+            $($crate::__signals_impl_signal!($ptr, $signal_name, $($inner_def)*);)*
 
             $(
             extern "C" fn [< $signal_name:snake _handler>](obj_ptr: *mut std::ffi::c_void, __internal_calldata: *mut libobs::calldata_t) {
@@ -230,15 +230,15 @@ macro_rules! impl_signal_manager {
             }
 
             impl $name {
-                pub(crate) fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, crate::utils::ObsError> {
-                    use crate::{utils::ObsString, unsafe_send::SendableComp};
+                pub(crate) fn new(ptr: &Sendable<$ptr>, runtime: $crate::runtime::ObsRuntime) -> Result<Self, $crate::utils::ObsError> {
+                    use $crate::{utils::ObsString, unsafe_send::SendableComp};
                     let pointer =  SendableComp(ptr.0);
 
                     $(
                         let senders = [<$signal_name:snake:upper _SENDERS>].clone();
                         let senders = senders.write();
                         if senders.is_err() {
-                            return Err(crate::utils::ObsError::LockError("Failed to acquire write lock for signal senders".to_string()));
+                            return Err($crate::utils::ObsError::LockError("Failed to acquire write lock for signal senders".to_string()));
                         }
 
                         let (tx, [<_ $signal_name:snake _rx>]) = tokio::sync::broadcast::channel(16);
@@ -246,16 +246,18 @@ macro_rules! impl_signal_manager {
                         senders.insert(pointer.clone(), tx);
                     )*
 
-                    crate::run_with_obs!(runtime, (pointer), move || unsafe {
+                    $crate::run_with_obs!(runtime, (pointer), move || {
                             let handler = ($handler_getter)(pointer);
                             $(
                                 let signal = ObsString::new($signal_name);
-                                libobs::signal_handler_connect(
-                                    handler,
-                                    signal.as_ptr().0,
-                                    Some([< $signal_name:snake _handler>]),
-                                    pointer as *mut std::ffi::c_void,
-                                );
+                                unsafe {
+                                    libobs::signal_handler_connect(
+                                        handler,
+                                        signal.as_ptr().0,
+                                        Some([< $signal_name:snake _handler>]),
+                                        pointer as *mut std::ffi::c_void,
+                                    );
+                                };
                             )*
                     })?;
 
@@ -267,15 +269,15 @@ macro_rules! impl_signal_manager {
 
                 $(
                     $(#[$attr])*
-                    pub fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, crate::utils::ObsError> {
+                    pub fn [<on_ $signal_name:snake>](&self) -> Result<tokio::sync::broadcast::Receiver<[<__Private $signal_name:camel Type >]>, $crate::utils::ObsError> {
                         let handlers = [<$signal_name:snake:upper _SENDERS>].read();
                         if handlers.is_err() {
-                            return Err(crate::utils::ObsError::LockError("Failed to acquire read lock for signal senders".to_string()));
+                            return Err($crate::utils::ObsError::LockError("Failed to acquire read lock for signal senders".to_string()));
                         }
 
                         let handlers = handlers.unwrap();
                         let rx = handlers.get(&self.pointer)
-                            .ok_or_else(|| crate::utils::ObsError::NoSenderError)?
+                            .ok_or_else(|| $crate::utils::ObsError::NoSenderError)?
                             .subscribe();
 
                         Ok(rx)
@@ -293,17 +295,19 @@ macro_rules! impl_signal_manager {
                     let runtime = self.runtime.clone();
 
                     //TODO make this non blocking
-                    let future = crate::run_with_obs!(runtime, (ptr), move || unsafe {
+                    let future = $crate::run_with_obs!(runtime, (ptr), move || {
                         #[allow(unused_variables)]
                         let handler = ($handler_getter)(ptr);
                         $(
-                            let signal = crate::utils::ObsString::new($signal_name);
-                            libobs::signal_handler_disconnect(
-                                handler,
-                                signal.as_ptr().0,
-                                Some([< $signal_name:snake _handler>]),
-                                ptr as *mut std::ffi::c_void,
-                            );
+                            let signal = $crate::utils::ObsString::new($signal_name);
+                            unsafe {
+                                libobs::signal_handler_disconnect(
+                                    handler,
+                                    signal.as_ptr().0,
+                                    Some([< $signal_name:snake _handler>]),
+                                    ptr as *mut std::ffi::c_void,
+                                );
+                            }
                         )*
                     });
 

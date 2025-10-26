@@ -27,12 +27,12 @@ macro_rules! encoder_enum {
                 });
             }
         }
-        impl Into<ObsString> for $name {
-            fn into(self) -> ObsString {
+        impl From<$name> for ObsString {
+            fn from(v: $name) -> ObsString {
                 #[allow(deprecated)]
-                return match self {
-                    $( $( Self:: [<$variant:upper>] => ObsString::new(stringify!($variant)), )* )*
-                    Self::Other(e) => ObsString::new(&e),
+                return match v {
+                    $( $( $name::[<$variant:upper>] => ObsString::new(stringify!($variant)), )* )*
+                    $name::Other(e) => ObsString::new(&e),
                 };
             }
         }

@@ -50,8 +50,7 @@ pub fn assert_not_black(vid_path: &Path, divider: f64) {
 
     let duration = duration.split(" ").collect::<Vec<_>>()[1];
     let duration = duration.replace(",", "");
-    let duration = parse_ffmpeg_duration(&duration)
-        .expect("Couldn't parse duration");
+    let duration = parse_ffmpeg_duration(&duration).expect("Couldn't parse duration");
 
     let split = stdout.split("\n").find(|l| l.contains("black_start"));
     if split.is_none() {
@@ -67,7 +66,7 @@ pub fn assert_not_black(vid_path: &Path, divider: f64) {
         .expect("Couldn't find black_start");
 
     println!("Split {:?}", split);
-    let comps = split.split(" ").into_iter().collect::<Vec<_>>();
+    let comps = split.split(" ").collect::<Vec<_>>();
 
     let black_duration = comps
         .get(2)
@@ -76,7 +75,8 @@ pub fn assert_not_black(vid_path: &Path, divider: f64) {
         .nth(1)
         .expect("Couldn't find black duration");
 
-    let black_duration = black_duration.parse::<f64>()
+    let black_duration = black_duration
+        .parse::<f64>()
         .expect("Couldn't parse black duration");
 
     let max_no_black = 0.7 / divider;
@@ -90,28 +90,46 @@ pub fn assert_not_black(vid_path: &Path, divider: f64) {
 }
 
 /// Returns ffprobe JSON output for a given file
+#[allow(dead_code)]
 pub fn ffprobe_json(path: &str) -> serde_json::Value {
     ffmpeg_sidecar::download::auto_download().unwrap();
 
     let output = Command::new(ffprobe_path())
-        .args(["-v", "error", "-show_streams", "-show_frames", "-of", "json", path])
+        .args([
+            "-v",
+            "error",
+            "-show_streams",
+            "-show_frames",
+            "-of",
+            "json",
+            path,
+        ])
         .output()
         .expect("Failed to run ffprobe");
     serde_json::from_slice(&output.stdout).expect("Failed to parse ffprobe output")
 }
 
 /// Checks that the video stream exists and duration is reasonable
+#[allow(dead_code)]
 pub async fn assert_valid_video(path: &str) {
     ffmpeg_sidecar::download::auto_download().unwrap();
 
     let json = ffprobe_json(path);
     let streams = json["streams"].as_array().expect("No streams");
-    let video_stream = streams.iter().find(|s| s["codec_type"] == "video").expect("No video stream");
-    let duration: f64 = video_stream["duration"].as_str().unwrap_or("0").parse().unwrap_or(0.0);
+    let video_stream = streams
+        .iter()
+        .find(|s| s["codec_type"] == "video")
+        .expect("No video stream");
+    let duration: f64 = video_stream["duration"]
+        .as_str()
+        .unwrap_or("0")
+        .parse()
+        .unwrap_or(0.0);
     assert!(duration > 1.0, "Video duration too short: {}", duration);
 }
 
 /// Checks that the video has motion (frame variance above threshold)
+#[allow(dead_code)]
 pub async fn assert_motion(path: &str, min_variance: f64) {
     ffmpeg_sidecar::download::auto_download().unwrap();
 
@@ -123,7 +141,7 @@ pub async fn assert_motion(path: &str, min_variance: f64) {
     let mut found = false;
     for line in stdout.lines() {
         if let Some(idx) = line.find("VAVG:") {
-            let val = &line[idx+5..].split_whitespace().next().unwrap_or("");
+            let val = &line[idx + 5..].split_whitespace().next().unwrap_or("");
             if let Ok(var) = val.parse::<f64>() {
                 found = true;
                 assert!(var > min_variance, "Video has low motion: variance {}", var);

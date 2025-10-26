@@ -67,6 +67,9 @@ lazy_static::lazy_static! {
 // That way, obs is not shut down as long as there are still displays or scenes alive.
 // This is a bit of a hack, but it works would be glad to hear your thoughts on this.
 
+// Factor complex display map type out to satisfy clippy::type_complexity
+pub(crate) type DisplayMap = HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>;
+
 /// Interface to the OBS context. Only one context
 /// can exist across all threads and any attempt to
 /// create a new context while there is an existing
@@ -83,10 +86,9 @@ pub struct ObsContext {
     /// prevents any use-after-free as these do not
     /// get copied in libobs.
     startup_info: Arc<RwLock<StartupInfo>>,
-
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    displays: Arc<RwLock<HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>>>,
+    displays: Arc<RwLock<DisplayMap>>,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
@@ -214,7 +216,7 @@ impl ObsContext {
         };
 
         if reset_video_status != ObsResetVideoStatus::Success {
-            return Err(ObsError::ResetVideoFailure(reset_video_status));
+            Err(ObsError::ResetVideoFailure(reset_video_status))
         } else {
             let outputs = self
                 .outputs
@@ -243,7 +245,7 @@ impl ObsContext {
                     ObsError::LockError("Failed to acquire write lock on startup info".to_string())
                 })?
                 .obs_video_info = ovi;
-            return Ok(());
+            Ok(())
         }
     }
 
@@ -268,7 +270,7 @@ impl ObsContext {
     pub fn output(&mut self, info: OutputInfo) -> Result<ObsOutputRef, ObsError> {
         let output = ObsOutputRef::new(info, self.runtime.clone());
 
-        return match output {
+        match output {
             Ok(x) => {
                 let tmp = x.clone();
                 self.outputs
@@ -281,7 +283,7 @@ impl ObsContext {
             }
 
             Err(x) => Err(x),
-        };
+        }
     }
 
     pub fn obs_filter(&mut self, info: FilterInfo) -> Result<ObsFilterRef, ObsError> {
@@ -293,7 +295,7 @@ impl ObsContext {
             self.runtime.clone(),
         );
 
-        return match filter {
+        match filter {
             Ok(x) => {
                 let tmp = x.clone();
                 self.filters
@@ -306,7 +308,7 @@ impl ObsContext {
             }
 
             Err(x) => Err(x),
-        };
+        }
     }
 
     /// Creates a new display and returns its ID.
@@ -367,7 +369,7 @@ impl ObsContext {
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on outputs".to_string()))?
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
-            .map(|e| e.clone());
+            .cloned();
 
         Ok(o)
     }
@@ -393,8 +395,7 @@ impl ObsContext {
             .read()
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on filters".to_string()))?
             .iter()
-            .find(|x| x.name().to_string().as_str() == name)
-            .map(|e| e.clone());
+            .find(|x| x.name().to_string().as_str() == name).cloned();
 
         Ok(f)
     }
@@ -421,7 +422,7 @@ impl ObsContext {
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on scenes".to_string()))?
             .iter()
             .find(|x| x.name().to_string().as_str() == name)
-            .map(|e| e.clone());
+            .cloned();
         Ok(r)
     }
 

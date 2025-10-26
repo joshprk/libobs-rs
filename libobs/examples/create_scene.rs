@@ -87,14 +87,14 @@ fn main() {
 
         // Audio settings
         println!("Configuring audio settings");
-        let mut avi = libobs::obs_audio_info2 {
+        let avi = libobs::obs_audio_info2 {
             samples_per_sec: 44100,
             speakers: libobs::speaker_layout_SPEAKERS_STEREO,
             max_buffering_ms: 0,
             fixed_buffering: false,
         };
         println!("Resetting audio system");
-        let reset_audio_result = libobs::obs_reset_audio2(&mut avi);
+        let reset_audio_result = libobs::obs_reset_audio2(&avi);
         println!("Audio reset result: {}", reset_audio_result);
 
         // Video settings - scene rendering resolution
@@ -145,8 +145,8 @@ fn main() {
         println!("Module loading complete");
 
         let scene = libobs::obs_scene_create(CString::new("Test scene").unwrap().as_ptr());
-let scene_source = libobs::obs_scene_get_source(scene);
-libobs::obs_source_release(scene_source);
+        let scene_source = libobs::obs_scene_get_source(scene);
+        libobs::obs_source_release(scene_source);
 
         libobs::obs_scene_release(scene);
 

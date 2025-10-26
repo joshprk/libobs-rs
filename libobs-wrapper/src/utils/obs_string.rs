@@ -6,6 +6,7 @@
 
 use std::ffi::CString;
 use std::os::raw::c_char;
+use std::fmt;
 
 use crate::unsafe_send::Sendable;
 
@@ -79,9 +80,8 @@ impl ObsString {
         Sendable(self.c_string.as_ptr())
     }
 }
-
-impl ToString for ObsString {
-    /// Converts the `ObsString` back to a Rust `String`.
+impl fmt::Display for ObsString {
+    /// Converts the `ObsString` back to a Rust `String` for display.
     ///
     /// # Examples
     ///
@@ -89,10 +89,10 @@ impl ToString for ObsString {
     /// use libobs_wrapper::utils::ObsString;
     ///
     /// let obs_string = ObsString::new("Hello");
-    /// assert_eq!(obs_string.to_string(), "Hello");
+    /// assert_eq!(format!("{}", obs_string), "Hello");
     /// ```
-    fn to_string(&self) -> String {
-        self.c_string.to_string_lossy().into_owned()
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.c_string.to_string_lossy())
     }
 }
 

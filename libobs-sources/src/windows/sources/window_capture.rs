@@ -75,7 +75,7 @@ impl WindowCaptureSource {
     pub fn get_windows(mode: WindowSearchMode) -> anyhow::Result<Vec<Sendable<WindowInfo>>> {
         Ok(get_all_windows(mode)?
             .into_iter()
-            .map(|e| Sendable(e))
+            .map(Sendable)
             .collect())
     }
 
@@ -111,7 +111,7 @@ impl WindowCaptureSourceBuilder {
 }
 
 impl ObsSourceBuilder for WindowCaptureSourceBuilder {
-    fn add_to_scene<'a>(mut self, scene: &'a mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
+    fn add_to_scene(mut self, scene: &mut ObsSceneRef) -> Result<ObsSourceRef, ObsError>
     where
         Self: Sized,
     {
@@ -121,7 +121,7 @@ impl ObsSourceBuilder for WindowCaptureSourceBuilder {
             ObsWindowCaptureMethod::MethodAuto.to_i32().unwrap() as i64,
         );
 
-        let method_to_set = self.capture_method.clone();
+        let method_to_set = self.capture_method;
         let runtime = self.runtime.clone();
 
         let b = self.build()?;

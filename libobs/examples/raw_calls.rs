@@ -87,14 +87,14 @@ fn main() {
 
         // Audio settings
         println!("Configuring audio settings");
-        let mut avi = libobs::obs_audio_info2 {
+        let avi = libobs::obs_audio_info2 {
             samples_per_sec: 44100,
             speakers: libobs::speaker_layout_SPEAKERS_STEREO,
             max_buffering_ms: 0,
             fixed_buffering: false,
         };
         println!("Resetting audio system");
-        let reset_audio_result = libobs::obs_reset_audio2(&mut avi);
+        let reset_audio_result = libobs::obs_reset_audio2(&avi);
         println!("Audio reset result: {}", reset_audio_result);
 
         // Video settings - scene rendering resolution

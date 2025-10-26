@@ -79,10 +79,10 @@ impl ObsDataUpdater {
                         obs_data_set_string(obs_data, key.as_ptr().0, value.as_ptr().0)
                     }
                     ObsDataChange::Int(key, value) => {
-                        obs_data_set_int(obs_data, key.as_ptr().0, value.into())
+                        obs_data_set_int(obs_data, key.as_ptr().0, value)
                     }
                     ObsDataChange::Bool(key, value) => {
-                        obs_data_set_bool(obs_data, key.as_ptr().0, value.into())
+                        obs_data_set_bool(obs_data, key.as_ptr().0, value)
                     }
                     ObsDataChange::Double(key, value) => {
                         obs_data_set_double(obs_data, key.as_ptr().0, value)

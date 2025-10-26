@@ -9,7 +9,7 @@ use libobs_wrapper::{
 };
 use std::{env::current_dir, fs::File, io::Write};
 
-pub fn initialize_obs<'a, T: Into<ObsString> + Send + Sync>(
+pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(
     rec_file: T,
 ) -> (ObsContext, ObsOutputRef) {
     initialize_obs_with_log(rec_file, false)
@@ -30,7 +30,7 @@ impl ObsLogger for DebugLogger {
 }
 
 /// The string returned is the name of the obs output
-pub fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(
+pub fn initialize_obs_with_log<T: Into<ObsString> + Send + Sync>(
     rec_file: T,
     file_logger: bool,
 ) -> (ObsContext, ObsOutputRef) {
