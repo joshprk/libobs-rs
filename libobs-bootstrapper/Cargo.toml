@@ -3,6 +3,7 @@ name = "libobs-bootstrapper"
 version = "0.1.0"
 description = "Downloads OBS binaries at runtime and bootstraps libobs"
 readme = "./README.md"
+repository = "https://github.com/joshprk/libobs-rs"
 authors = ["Hendrik Lind <hendrik@sshcrack.me>"]
 edition = "2024"
 categories = [
@@ -11,7 +12,7 @@ categories = [
     "multimedia",
     "multimedia::encoding",
 ]
-keywords = ["obs", "libobs", "video", "recording", "screen-recording", "bootstrapper"]
+keywords = ["obs", "libobs", "video", "bootstrapper"]
 license = "GPL-3.0"
 
 
