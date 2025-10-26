@@ -1,28 +1,10 @@
 mod initialize;
 
-use std::path::Path;
+use std::{path::Path, process::Command};
 
 use anyhow::bail;
-use essi_ffmpeg::FFmpeg;
+use ffmpeg_sidecar::{ffprobe::ffprobe_path, paths::ffmpeg_path};
 pub use initialize::*;
-use tokio::process::Command;
-
-pub async fn check_ffmpeg() -> anyhow::Result<()> {
-    // Automatically download FFmpeg if not found
-    if let Some((handle, mut progress)) = FFmpeg::auto_download().await? {
-        tokio::spawn(async move {
-            while let Some(state) = progress.recv().await {
-                println!("Downloading: {:?}", state);
-            }
-        });
-
-        handle.await??;
-    } else {
-        println!("FFmpeg is downloaded, using existing installation");
-    }
-
-    Ok(())
-}
 
 fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     let parts: Vec<&str> = duration.split(':').collect();
@@ -38,11 +20,10 @@ fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     Ok(total_seconds)
 }
 
-pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
-    check_ffmpeg().await?;
+pub fn assert_not_black(vid_path: &Path, divider: f64) {
+    ffmpeg_sidecar::download::auto_download().unwrap();
 
-    let prog = FFmpeg::get_program()?.ok_or_else(|| anyhow::anyhow!("Couldn't find FFmpeg"))?;
-    let cmd = Command::new(prog)
+    let cmd = Command::new(ffmpeg_path())
         .arg("-i")
         .arg(vid_path)
         .arg("-vf")
@@ -52,7 +33,7 @@ pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
         .arg("null")
         .arg("-")
         .output()
-        .await?;
+        .expect("Failed to execute ffmpeg command");
 
     let stdout = format!(
         "{}\n{}",
@@ -64,17 +45,18 @@ pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
     let duration = stdout
         .split("\n")
         .find(|l| l.contains("Duration"))
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?
+        .expect("Couldn't find duration")
         .trim();
 
     let duration = duration.split(" ").collect::<Vec<_>>()[1];
     let duration = duration.replace(",", "");
-    let duration = parse_ffmpeg_duration(&duration)?;
+    let duration = parse_ffmpeg_duration(&duration)
+        .expect("Couldn't parse duration");
 
     let split = stdout.split("\n").find(|l| l.contains("black_start"));
     if split.is_none() {
-        // No black frames found,
-        return Ok(());
+        // No black frames detected
+        return;
     }
 
     let split = split
@@ -89,18 +71,64 @@ pub async fn test_video(vid_path: &Path, divider: f64) -> anyhow::Result<()> {
 
     let black_duration = comps
         .get(2)
-        .ok_or_else(|| anyhow::anyhow!("Couldn't find duration"))?
+        .expect("Couldn't find black_duration")
         .split(":")
         .nth(1)
         .expect("Couldn't find black duration");
 
-    let black_duration = black_duration.parse::<f64>()?;
+    let black_duration = black_duration.parse::<f64>()
+        .expect("Couldn't parse black duration");
 
     let max_no_black = 0.7 / divider;
 
     if black_duration / duration > max_no_black {
-        return Err(anyhow::anyhow!("Black duration too long, Invalid video"));
+        panic!(
+            "Video is too black: black duration {}s / total duration {}s",
+            black_duration, duration
+        );
     }
+}
 
-    Ok(())
+/// Returns ffprobe JSON output for a given file
+pub fn ffprobe_json(path: &str) -> serde_json::Value {
+    ffmpeg_sidecar::download::auto_download().unwrap();
+
+    let output = Command::new(ffprobe_path())
+        .args(["-v", "error", "-show_streams", "-show_frames", "-of", "json", path])
+        .output()
+        .expect("Failed to run ffprobe");
+    serde_json::from_slice(&output.stdout).expect("Failed to parse ffprobe output")
+}
+
+/// Checks that the video stream exists and duration is reasonable
+pub async fn assert_valid_video(path: &str) {
+    ffmpeg_sidecar::download::auto_download().unwrap();
+
+    let json = ffprobe_json(path);
+    let streams = json["streams"].as_array().expect("No streams");
+    let video_stream = streams.iter().find(|s| s["codec_type"] == "video").expect("No video stream");
+    let duration: f64 = video_stream["duration"].as_str().unwrap_or("0").parse().unwrap_or(0.0);
+    assert!(duration > 1.0, "Video duration too short: {}", duration);
+}
+
+/// Checks that the video has motion (frame variance above threshold)
+pub async fn assert_motion(path: &str, min_variance: f64) {
+    ffmpeg_sidecar::download::auto_download().unwrap();
+
+    let output = Command::new(ffmpeg_path())
+        .args(["-i", path, "-vf", "signalstats", "-f", "null", "-"])
+        .output()
+        .expect("Failed to run ffmpeg");
+    let stdout = String::from_utf8_lossy(&output.stderr);
+    let mut found = false;
+    for line in stdout.lines() {
+        if let Some(idx) = line.find("VAVG:") {
+            let val = &line[idx+5..].split_whitespace().next().unwrap_or("");
+            if let Ok(var) = val.parse::<f64>() {
+                found = true;
+                assert!(var > min_variance, "Video has low motion: variance {}", var);
+            }
+        }
+    }
+    assert!(found, "No motion info found");
 }

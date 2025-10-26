@@ -15,8 +15,7 @@ use libobs_wrapper::{
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo},
 };
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let startup_info = StartupInfo::new();

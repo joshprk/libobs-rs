@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use crate::common::{initialize_obs, test_video};
+use crate::common::{initialize_obs, assert_not_black};
 use libobs_sources::windows::{
     ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater,
 };
@@ -28,9 +28,9 @@ fn find_notepad() -> Option<Sendable<WindowInfo>> {
     })
 }
 
-#[tokio::test]
+#[test]
 // For this test to work, notepad must be open
-pub async fn test_window_capture() {
+pub fn test_window_capture() {
     let rec_file = ObsPath::from_relative("window_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -44,7 +44,7 @@ pub async fn test_window_capture() {
 
     let window = window.expect("Couldn't find notepad window");
 
-    println!("Recording {:?}", window);
+    println!("Recording {:?}", window.0.obs_id);
 
     let (mut context, mut output) = initialize_obs(rec_file);
     let mut scene = context.scene("main").unwrap();
@@ -80,11 +80,11 @@ pub async fn test_window_capture() {
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        std::thread::sleep(Duration::from_secs(5));
     }
     println!("Recording stop");
 
     output.stop().unwrap();
 
-    test_video(&path_out, 1.0).await.unwrap();
+    assert_not_black(&path_out, 1.0);
 }

@@ -75,6 +75,7 @@ macro_rules! impl_obs_drop {
     ($struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
         impl Drop for $struct_name {
             fn drop(&mut self) {
+                log::trace!("Dropping {}...", stringify!($struct_name));
                 $(let $var = self.$var.clone();)*
                 #[cfg(not(feature="no_blocking_drops"))]
                 {
@@ -97,6 +98,7 @@ macro_rules! impl_obs_drop {
     (is_runtime, $struct_name: ident, ($($var:ident),* $(,)*), $operation:expr) => {
         impl Drop for $struct_name {
             fn drop(&mut self) {
+                log::trace!("Dropping {}...", stringify!($struct_name));
                 $(let $var = self.$var.clone();)*
                 let r = crate::run_with_obs_blocking!(self, ($($var),*), $operation);
                 if std::thread::panicking() {

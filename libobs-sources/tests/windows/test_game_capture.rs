@@ -3,10 +3,10 @@ use std::{path::PathBuf, time::Duration};
 use libobs_sources::windows::{GameCaptureSourceBuilder, ObsGameCaptureMode};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
-use crate::common::{initialize_obs, test_video};
+use crate::common::{initialize_obs, assert_not_black};
 
-#[tokio::test]
-pub async fn game_test() {
+#[test]
+pub fn game_test() {
     let rec_file = ObsPath::from_relative("game_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -42,5 +42,5 @@ pub async fn game_test() {
     let _x = capture_source.id();
     output.stop().unwrap();
 
-    test_video(&path_out, 1.0).await.unwrap();
+    assert_not_black(&path_out, 1.0);
 }

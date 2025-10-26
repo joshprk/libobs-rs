@@ -75,23 +75,6 @@ enum ObsCommand {
 ///
 /// When the last `ObsRuntime` instance is dropped, the OBS thread is automatically
 /// shut down and all OBS resources are properly released.
-///
-/// # Examples
-///
-/// Creating a runtime:
-///
-/// ```
-/// use libobs_wrapper::runtime::{ObsRuntimeReturn, ObsRuntime};
-/// use libobs_wrapper::utils::StartupInfo;
-///
-/// fn example() {
-///     let startup_info = StartupInfo::default();
-///     let (runtime, _, _) = match ObsRuntime::startup(startup_info).unwrap() {
-///         ObsRuntimeReturn::Done(res) => res,
-///         _ => panic!("OBS initialization failed"),
-///     };
-///     // Now you can use runtime to interact with OBS
-/// }
 /// ```
 #[derive(Debug, Clone)]
 pub struct ObsRuntime {
@@ -510,6 +493,7 @@ pub struct _ObsRuntimeGuard {
 impl Drop for _ObsRuntimeGuard {
     /// Ensures the OBS thread is properly shut down when the runtime is dropped
     fn drop(&mut self) {
+        log::trace!("Dropping ObsRuntime and shutting down OBS thread");
         // Theoretically the queued_commands is zero and should be increased but because
         // we are shutting down, we don't care about that.
         let r = self

@@ -9,7 +9,7 @@ use libobs_wrapper::{
     utils::{traits::ObsUpdatable, ObsPath},
 };
 
-use crate::common::{initialize_obs, test_video};
+use crate::common::{initialize_obs, assert_not_black};
 
 #[test]
 pub fn monitor_list_check() {
@@ -19,8 +19,8 @@ pub fn monitor_list_check() {
 /// DXGI is not supported for now
 const ENABLE_DXGI_TEST: bool = false;
 
-#[tokio::test]
-pub async fn monitor_test() {
+#[test]
+pub fn monitor_test() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -57,7 +57,5 @@ pub async fn monitor_test() {
 
     output.stop().unwrap();
 
-    test_video(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 })
-        .await
-        .unwrap();
+    assert_not_black(&path_out, if ENABLE_DXGI_TEST { 2.0 } else { 1.0 });
 }

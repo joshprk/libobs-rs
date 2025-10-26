@@ -194,6 +194,8 @@ impl _DisplayDropGuard {
 
 impl Drop for _DisplayDropGuard {
     fn drop(&mut self) {
+        log::trace!("Dropping ObsDisplayRef guard...");
+
         let display = self.display.clone();
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();

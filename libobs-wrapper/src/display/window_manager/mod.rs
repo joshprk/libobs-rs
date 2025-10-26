@@ -294,6 +294,7 @@ impl DisplayWindowManager {
 
 impl Drop for DisplayWindowManager {
     fn drop(&mut self) {
+        log::trace!("Dropping DisplayWindowManager...");
         unsafe {
             self.should_exit.store(true, Ordering::Relaxed);
 

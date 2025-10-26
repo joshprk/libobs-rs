@@ -62,3 +62,6 @@ no_blocking_drops = ["tokio/rt"]
 generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
+
+[dev-dependencies]
+serde_json = "1.0.145"

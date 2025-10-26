@@ -7,10 +7,10 @@ use super::ObsString;
 
 #[derive(Debug)]
 pub struct ObjectInfo {
-    pub(crate) id: ObsString,
-    pub(crate) name: ObsString,
-    pub(crate) settings: Option<ObsData>,
-    pub(crate) hotkey_data: Option<ObsData>,
+    pub id: ObsString,
+    pub name: ObsString,
+    pub settings: Option<ObsData>,
+    pub hotkey_data: Option<ObsData>,
 }
 
 impl ObjectInfo {

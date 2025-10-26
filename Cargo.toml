@@ -8,7 +8,7 @@ members = [
     "libobs-window-helper",
     "libobs-wrapper",
     "libobs-bootstrapper",
-    "examples/*",
+    "examples/*"
 ]
 exclude = [
     "examples/tauri-app",

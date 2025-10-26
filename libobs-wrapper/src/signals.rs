@@ -285,6 +285,8 @@ macro_rules! impl_signal_manager {
 
             impl Drop for $name {
                 fn drop(&mut self) {
+                    log::trace!("Dropping signal manager {}...", stringify!($name));
+
                     #[allow(unused_variables)]
                     let ptr = self.pointer.clone();
                     #[allow(unused_variables)]

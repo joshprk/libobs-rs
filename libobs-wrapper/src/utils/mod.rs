@@ -90,6 +90,8 @@ impl ObsModules {
 
 impl Drop for ObsModules {
     fn drop(&mut self) {
+        log::trace!("Dropping ObsModules and removing module paths...");
+
         let paths = self.paths.clone();
         let runtime = self.runtime.take().unwrap();
 

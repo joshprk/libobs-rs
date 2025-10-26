@@ -92,7 +92,7 @@ pub fn initialize_obs_with_log<'a, T: Into<ObsString> + Send + Sync>(
         })
         .unwrap();
 
-    println!("Using encoder {:?}", encoder);
+    println!("Using encoder {:?}", encoder.get_encoder_id());
     encoder.set_settings(video_settings);
     encoder.set_to_output(&mut output, "video_encoder").unwrap();
 
