@@ -300,6 +300,8 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
         "qwindows",
         "imageformats",
         "obs-studio",
+        "aja-output-ui",
+        "obs-vst"
     ];
 
     if !include_browser {

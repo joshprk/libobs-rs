@@ -1,7 +1,7 @@
 [package]
 name = "cargo-obs-build"
 description = "A CLI tool used to build the libobs library and put it in the taregt directory"
-version = "1.2.2"
+version = "1.2.3"
 readme = "README.md"
 license = "MIT"
 repository = "https://github.com/joshprk/libobs-rs"
