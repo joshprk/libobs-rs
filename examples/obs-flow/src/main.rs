@@ -74,10 +74,11 @@ fn main() -> anyhow::Result<()> {
     let prop = properties.get("monitor_id");
     if let Some(prop) = prop
         && let ObsProperty::List(list) = prop
-            && !list.items().is_empty()
-                && let ObsListItemValue::String(value) = list.items()[0].value() {
-                    builder = builder.set_monitor_id_raw(value.to_string());
-                }
+        && !list.items().is_empty()
+        && let ObsListItemValue::String(value) = list.items()[0].value()
+    {
+        builder = builder.set_monitor_id_raw(value.to_string());
+    }
 
     // method 2 is WGC
     let source = builder

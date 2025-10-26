@@ -45,16 +45,12 @@ extern "system" fn wndproc(
 ) -> LRESULT {
     unsafe {
         match message {
-            WM_NCHITTEST => {
-                LRESULT(HTTRANSPARENT as _)
-            }
+            WM_NCHITTEST => LRESULT(HTTRANSPARENT as _),
             WM_DESTROY_WINDOW => {
                 PostQuitMessage(0);
                 LRESULT(0)
             }
-            _ => {
-                DefWindowProcW(window, message, w_param, l_param)
-            }
+            _ => DefWindowProcW(window, message, w_param, l_param),
         }
     }
 }

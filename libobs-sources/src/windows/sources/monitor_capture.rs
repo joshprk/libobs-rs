@@ -42,10 +42,7 @@ define_object_manager!(
 impl MonitorCaptureSource {
     /// Gets all available monitors
     pub fn get_monitors() -> anyhow::Result<Vec<Sendable<DisplayInfo>>> {
-        Ok(DisplayInfo::all()?
-            .into_iter()
-            .map(Sendable)
-            .collect())
+        Ok(DisplayInfo::all()?.into_iter().map(Sendable).collect())
     }
 
     pub fn set_monitor(self, monitor: &Sendable<DisplayInfo>) -> Self {

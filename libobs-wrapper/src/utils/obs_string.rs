@@ -5,8 +5,8 @@
 //! ensuring proper lifetime management and UTF-8 validation.
 
 use std::ffi::CString;
-use std::os::raw::c_char;
 use std::fmt;
+use std::os::raw::c_char;
 
 use crate::unsafe_send::Sendable;
 

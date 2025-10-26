@@ -212,10 +212,7 @@ impl ObsSceneRef {
 
         let scale = run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
             let mut main_pos: libobs::vec2 = std::mem::zeroed();
-            libobs::obs_sceneitem_get_scale(
-                scene_item_ptr,
-                &mut main_pos,
-            );
+            libobs::obs_sceneitem_get_scale(scene_item_ptr, &mut main_pos);
             Vec2::from(main_pos)
         })?;
 
@@ -233,10 +230,7 @@ impl ObsSceneRef {
         };
 
         run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
-            libobs::obs_sceneitem_set_pos(
-                scene_item_ptr,
-                &position.into(),
-            );
+            libobs::obs_sceneitem_set_pos(scene_item_ptr, &position.into());
         })?;
 
         Ok(())
@@ -249,10 +243,7 @@ impl ObsSceneRef {
         };
 
         run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
-            libobs::obs_sceneitem_set_scale(
-                scene_item_ptr,
-                &scale.into(),
-            );
+            libobs::obs_sceneitem_set_scale(scene_item_ptr, &scale.into());
         })?;
 
         Ok(())

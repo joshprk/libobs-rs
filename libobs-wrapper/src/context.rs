@@ -395,7 +395,8 @@ impl ObsContext {
             .read()
             .map_err(|_| ObsError::LockError("Failed to acquire read lock on filters".to_string()))?
             .iter()
-            .find(|x| x.name().to_string().as_str() == name).cloned();
+            .find(|x| x.name().to_string().as_str() == name)
+            .cloned();
 
         Ok(f)
     }

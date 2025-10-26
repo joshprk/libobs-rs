@@ -67,16 +67,8 @@ impl WindowPositionTrait for ObsDisplayRef {
         unsafe {
             let flags = SWP_NOCOPYBITS | SWP_NOSIZE | SWP_NOACTIVATE;
             // Just use dummy values as size is not changed
-            SetWindowPos(
-                m.hwnd.0,
-                Some(insert_after),
-                x,
-                y,
-                1_i32,
-                1_i32,
-                flags,
-            )
-            .map_err(|e| ObsError::DisplayCreationError(format!("{:?}", e)))?;
+            SetWindowPos(m.hwnd.0, Some(insert_after), x, y, 1_i32, 1_i32, flags)
+                .map_err(|e| ObsError::DisplayCreationError(format!("{:?}", e)))?;
         }
 
         Ok(())

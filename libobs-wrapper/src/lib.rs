@@ -43,10 +43,7 @@ impl From<Vec2> for libobs::vec2 {
     fn from(val: Vec2) -> Self {
         libobs::vec2 {
             __bindgen_anon_1: libobs::vec2__bindgen_ty_1 {
-                __bindgen_anon_1: libobs::vec2__bindgen_ty_1__bindgen_ty_1 {
-                    x: val.x,
-                    y: val.y,
-                },
+                __bindgen_anon_1: libobs::vec2__bindgen_ty_1__bindgen_ty_1 { x: val.x, y: val.y },
             },
         }
     }

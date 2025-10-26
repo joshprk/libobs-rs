@@ -125,11 +125,13 @@ pub fn fetch_latest_patch_release(
         let r_minor = parts[1].parse::<u32>().unwrap_or(0);
         let r_patch = parts[2].parse::<u32>().unwrap_or(0);
 
-        if r_major == major && r_minor == minor
-            && (best_patch.is_none() || r_patch > best_patch.unwrap()) {
-                best_patch = Some(r_patch);
-                best_tag = Some(tag_name);
-            }
+        if r_major == major
+            && r_minor == minor
+            && (best_patch.is_none() || r_patch > best_patch.unwrap())
+        {
+            best_patch = Some(r_patch);
+            best_tag = Some(tag_name);
+        }
     }
 
     Ok(best_tag)

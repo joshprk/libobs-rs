@@ -9,9 +9,7 @@ use libobs_wrapper::{
 };
 use std::{env::current_dir, fs::File, io::Write};
 
-pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(
-    rec_file: T,
-) -> (ObsContext, ObsOutputRef) {
+pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsContext, ObsOutputRef) {
     initialize_obs_with_log(rec_file, false)
 }
 

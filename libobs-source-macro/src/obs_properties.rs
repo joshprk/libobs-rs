@@ -24,8 +24,12 @@ pub fn obs_properties_to_functions(
 
         let name_values: Punctuated<MetaNameValue, Token![,]> = attr
             .parse_args_with(Punctuated::parse_terminated)
-            .unwrap_or_else(|_| panic!("Field {} has invalid obs_property, should be name value",
-                field_name));
+            .unwrap_or_else(|_| {
+                panic!(
+                    "Field {} has invalid obs_property, should be name value",
+                    field_name
+                )
+            });
 
         let type_t = &name_values
             .iter()
