@@ -16,7 +16,7 @@ exclude = [
 
 [workspace.dependencies]
 libobs = { path = "./libobs", version = "3.0.0" }
-libobs-wrapper = { path = "./libobs-wrapper", version = "5.0.0" }
+libobs-wrapper = { path = "./libobs-wrapper", version = "5.1.0" }
 libobs-source-macro = { path = "./libobs-source-macro", version = "5.0.0" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.1.6" }
 libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.1.0" }
