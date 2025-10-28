@@ -7,17 +7,13 @@ mod window_manager;
 
 pub use creation_data::*;
 pub use enums::*;
+use libobs::obs_video_info;
 pub use window_manager::*;
 
 use std::{
     ffi::c_void,
     marker::PhantomPinned,
     sync::{atomic::AtomicUsize, Arc, RwLock},
-};
-
-use libobs::{
-    gs_ortho, gs_projection_pop, gs_projection_push, gs_set_viewport, gs_viewport_pop,
-    gs_viewport_push, obs_get_video_info, obs_render_main_texture, obs_video_info,
 };
 
 use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
@@ -55,12 +51,12 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
 
     let (width, height) = r.unwrap();
     let mut ovi: obs_video_info = std::mem::zeroed();
-    obs_get_video_info(&mut ovi);
+    libobs::obs_get_video_info(&mut ovi);
 
-    gs_viewport_push();
-    gs_projection_push();
+    libobs::gs_viewport_push();
+    libobs::gs_projection_push();
 
-    gs_ortho(
+    libobs::gs_ortho(
         0.0f32,
         ovi.base_width as f32,
         0.0f32,
@@ -68,13 +64,13 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
         -100.0f32,
         100.0f32,
     );
-    gs_set_viewport(0, 0, width as i32, height as i32);
+    libobs::gs_set_viewport(0, 0, width as i32, height as i32);
     //draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
-    obs_render_main_texture();
+    libobs::obs_render_main_texture();
 
-    gs_projection_pop();
-    gs_viewport_pop();
+    libobs::gs_projection_pop();
+    libobs::gs_viewport_pop();
 }
 
 impl ObsDisplayRef {

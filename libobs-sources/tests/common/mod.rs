@@ -5,6 +5,9 @@ use std::{path::Path, process::Command};
 use anyhow::bail;
 use ffmpeg_sidecar::{ffprobe::ffprobe_path, paths::ffmpeg_path};
 pub use initialize::*;
+use libobs_sources::windows::WindowCaptureSourceBuilder;
+use libobs_window_helper::{WindowInfo, WindowSearchMode};
+use libobs_wrapper::unsafe_send::Sendable;
 
 fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     let parts: Vec<&str> = duration.split(':').collect();
@@ -149,4 +152,15 @@ pub async fn assert_motion(path: &str, min_variance: f64) {
         }
     }
     assert!(found, "No motion info found");
+}
+
+pub fn find_notepad() -> Option<Sendable<WindowInfo>> {
+    let windows =
+        WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap();
+    println!("{:?}", windows);
+    windows.into_iter().find(|w| {
+        w.0.class
+            .as_ref()
+            .is_some_and(|e| e.to_lowercase().contains("notepad"))
+    })
 }

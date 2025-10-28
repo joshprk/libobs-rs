@@ -57,7 +57,7 @@ pub fn main() -> anyhow::Result<()> {
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
     let audio_handler = context.get_audio_ptr()?;
-    output.audio_encoder(audio_info, 0, audio_handler)?;
+    output.create_and_set_audio_encoder(audio_info, 0, audio_handler)?;
 
     output.start()?;
 

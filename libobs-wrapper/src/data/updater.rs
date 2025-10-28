@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use libobs::{
-    obs_data, obs_data_set_bool, obs_data_set_double, obs_data_set_int, obs_data_set_string,
-};
+use libobs::obs_data;
 
 use crate::{
     run_with_obs,
@@ -76,16 +74,16 @@ impl ObsDataUpdater {
             for change in changes {
                 match change {
                     ObsDataChange::String(key, value) => {
-                        obs_data_set_string(obs_data, key.as_ptr().0, value.as_ptr().0)
+                        libobs::obs_data_set_string(obs_data, key.as_ptr().0, value.as_ptr().0)
                     }
                     ObsDataChange::Int(key, value) => {
-                        obs_data_set_int(obs_data, key.as_ptr().0, value)
+                        libobs::obs_data_set_int(obs_data, key.as_ptr().0, value)
                     }
                     ObsDataChange::Bool(key, value) => {
-                        obs_data_set_bool(obs_data, key.as_ptr().0, value)
+                        libobs::obs_data_set_bool(obs_data, key.as_ptr().0, value)
                     }
                     ObsDataChange::Double(key, value) => {
-                        obs_data_set_double(obs_data, key.as_ptr().0, value)
+                        libobs::obs_data_set_double(obs_data, key.as_ptr().0, value)
                     }
                 };
             }

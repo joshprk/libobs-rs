@@ -228,7 +228,7 @@ impl ObsContext {
             let mut video_encoders = vec![];
 
             for output in outputs.iter() {
-                let encoders = output.get_video_encoders()?;
+                let encoders = output.get_current_video_encoder()?;
                 video_encoders.extend(encoders.into_iter().map(|e| e.as_ptr()));
             }
 

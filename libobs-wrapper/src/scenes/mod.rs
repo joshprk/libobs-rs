@@ -1,7 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use getters0::Getters;
-use libobs::{obs_scene_t, obs_set_output_source, obs_source_t};
+use libobs::{obs_scene_t, obs_source_t};
 
 use crate::{
     impl_obs_drop, impl_signal_manager, run_with_obs,
@@ -86,7 +86,7 @@ impl ObsSceneRef {
 
         let scene_source_ptr = self.get_scene_source_ptr()?;
         run_with_obs!(self.runtime, (scene_source_ptr), move || unsafe {
-            obs_set_output_source(channel, scene_source_ptr);
+            libobs::obs_set_output_source(channel, scene_source_ptr);
         })
     }
 

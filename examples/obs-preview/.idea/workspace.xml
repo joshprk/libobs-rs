@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="b326c7db-3c8a-4f1c-8039-e90aae0f1af5" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/output.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/output_with_encoders.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/scene.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/source.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/leak_tests/startup.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../.vscode/launch.json" beforeDir="false" afterPath="$PROJECT_DIR$/../../.vscode/launch.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../monitor-capture/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../monitor-capture/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../obs-flow/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../obs-flow/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-sources/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-sources/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-sources/tests/common/initialize.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-sources/tests/common/initialize.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-sources/tests/common/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-sources/tests/common/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-sources/tests/windows/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-sources/tests/windows/test_window_capture.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-sources/tests/windows/test_window_capture.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/context.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/context.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/data/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/data/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/data/output/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/data/output/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/data/output/replay_buffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/data/output/replay_buffer.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/data/updater.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/data/updater.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/data/video.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/data/video.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/display/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/display/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/audio.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/audio.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/property_helper.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/property_helper.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/video.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/encoders/video.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/macros.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/macros.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/runtime.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/runtime.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/scenes/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/scenes/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs-wrapper/src/sources/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs-wrapper/src/sources/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../libobs/examples/create_scene.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../libobs/examples/create_scene.rs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="uw6gOywG" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="34hZzNz90Dtl97znz4XRxY7Kseq" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "junie.onboarding.icon.badge.shown": "true",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.cargo.project.model.impl.CargoExternalSystemProjectAware.subscribe.first.balloon": "",
+    "org.rust.first.attach.projects": "true",
+    "to.speed.mode.migration.done": "true",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b326c7db-3c8a-4f1c-8039-e90aae0f1af5" name="Changes" comment="" />
+      <created>1761668037707</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1761668037707</updated>
+      <workItem from="1761668045388" duration="48000" />
+    </task>
+    <servers />
+  </component>
+</project>

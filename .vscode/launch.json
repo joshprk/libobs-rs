@@ -7,6 +7,21 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "Startup LibOBS",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--package",
+                    "libobs-sources",
+                    "startup",
+                    "--",
+                    "--nocapture"
+                ]
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "OSB Preview",
             "cargo": {
                 "args": [

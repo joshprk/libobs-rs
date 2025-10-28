@@ -9,7 +9,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use libobs::{calldata_get_string, calldata_t, obs_output_get_proc_handler, proc_handler_call};
+use libobs::calldata_t;
 
 use crate::{
     run_with_obs,
@@ -60,7 +60,7 @@ impl ReplayBufferOutput for ObsOutputRef {
         let output_ptr = self.output.clone();
 
         let path = run_with_obs!(self.runtime, (output_ptr), move || {
-            let ph = unsafe { obs_output_get_proc_handler(output_ptr) };
+            let ph = unsafe { libobs::obs_output_get_proc_handler(output_ptr) };
             if ph.is_null() {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get proc handler.".to_string(),
@@ -70,7 +70,7 @@ impl ReplayBufferOutput for ObsOutputRef {
             let name = ObsString::new("save");
             let call_success = unsafe {
                 let mut calldata = MaybeUninit::<calldata_t>::zeroed();
-                proc_handler_call(ph, name.as_ptr().0, calldata.as_mut_ptr())
+                libobs::proc_handler_call(ph, name.as_ptr().0, calldata.as_mut_ptr())
             };
 
             if !call_success {
@@ -82,7 +82,8 @@ impl ReplayBufferOutput for ObsOutputRef {
             let func_get = ObsString::new("get_last_replay");
             let last_replay = unsafe {
                 let mut calldata = MaybeUninit::<calldata_t>::zeroed();
-                let success = proc_handler_call(ph, func_get.as_ptr().0, calldata.as_mut_ptr());
+                let success =
+                    libobs::proc_handler_call(ph, func_get.as_ptr().0, calldata.as_mut_ptr());
 
                 if !success {
                     return Err(ObsError::OutputSaveBufferFailure(
@@ -97,8 +98,9 @@ impl ReplayBufferOutput for ObsOutputRef {
 
             let mut s = MaybeUninit::<*const c_char>::uninit();
 
-            let res =
-                unsafe { calldata_get_string(&last_replay, path_get.as_ptr().0, s.as_mut_ptr()) };
+            let res = unsafe {
+                libobs::calldata_get_string(&last_replay, path_get.as_ptr().0, s.as_mut_ptr())
+            };
             if !res {
                 return Err(ObsError::OutputSaveBufferFailure(
                     "Failed to get path from last replay.".to_string(),
