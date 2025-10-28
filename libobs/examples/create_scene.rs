@@ -4,6 +4,14 @@ use std::{
     ptr,
 };
 
+pub(crate) unsafe extern "C" fn main_crash_handler(
+    format: *const i8,
+    args: *mut i8,
+    _params: *mut c_void,
+) {
+    println!("Some crash");
+}
+
 fn main() {
     // STARTUP
     unsafe {
@@ -27,6 +35,9 @@ fn main() {
 
         #[cfg(target_os = "windows")]
         {
+            libobs::obs_init_win32_crash_handler();
+
+            libobs::base_set_crash_handler(Some(main_crash_handler), std::ptr::null_mut());
             println!("Setting log handler on Windows");
             libobs::base_set_log_handler(Some(log_handler), ptr::null_mut());
             println!("Log handler set successfully");

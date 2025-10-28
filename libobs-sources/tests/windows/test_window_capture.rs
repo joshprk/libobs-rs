@@ -6,27 +6,16 @@ use std::{
     time::Duration,
 };
 
-use crate::common::{assert_not_black, initialize_obs};
+use crate::common::{assert_not_black, find_notepad, initialize_obs};
 use libobs_sources::windows::{
     ObsWindowCaptureMethod, WindowCaptureSourceBuilder, WindowCaptureSourceUpdater,
 };
-use libobs_window_helper::{WindowInfo, WindowSearchMode};
-use libobs_wrapper::{data::ObsObjectUpdater, unsafe_send::Sendable};
+use libobs_window_helper::WindowSearchMode;
+use libobs_wrapper::data::ObsObjectUpdater;
 use libobs_wrapper::{
     sources::ObsSourceBuilder,
     utils::{traits::ObsUpdatable, ObsPath},
 };
-
-fn find_notepad() -> Option<Sendable<WindowInfo>> {
-    let windows =
-        WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap();
-    println!("{:?}", windows);
-    windows.into_iter().find(|w| {
-        w.0.class
-            .as_ref()
-            .is_some_and(|e| e.to_lowercase().contains("notepad"))
-    })
-}
 
 #[test]
 // For this test to work, notepad must be open

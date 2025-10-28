@@ -3,12 +3,7 @@ use std::{ffi::CStr, ptr};
 
 use anyhow::bail;
 use getters0::Getters;
-use libobs::{
-    audio_output, obs_encoder_set_audio, obs_encoder_set_video, obs_output, obs_output_active,
-    obs_output_create, obs_output_get_last_error, obs_output_pause, obs_output_release,
-    obs_output_set_audio_encoder, obs_output_set_video_encoder, obs_output_start, obs_output_stop,
-    obs_output_update, video_output,
-};
+use libobs::{audio_output, obs_output, video_output};
 
 use crate::enums::ObsOutputStopSignal;
 use crate::runtime::ObsRuntime;
@@ -33,7 +28,7 @@ struct _ObsDropGuard {
 }
 
 impl_obs_drop!(_ObsDropGuard, (output), move || unsafe {
-    obs_output_release(output);
+    libobs::obs_output_release(output);
 });
 
 #[derive(Debug, Getters, Clone)]
@@ -57,11 +52,11 @@ pub struct ObsOutputRef {
 
     /// Video encoders attached to this output
     #[get_mut]
-    pub(crate) video_encoders: Arc<RwLock<Vec<Arc<ObsVideoEncoder>>>>,
+    pub(crate) curr_video_encoder: Arc<RwLock<Option<Arc<ObsVideoEncoder>>>>,
 
     /// Audio encoders attached to this output
     #[get_mut]
-    pub(crate) audio_encoders: Arc<RwLock<Vec<Arc<ObsAudioEncoder>>>>,
+    pub(crate) audio_encoders: Arc<RwLock<Option<Arc<ObsAudioEncoder>>>>,
 
     /// Pointer to the underlying OBS output
     #[skip_getter]
@@ -113,7 +108,7 @@ impl ObsOutputRef {
                 };
 
                 let output = unsafe {
-                    obs_output_create(
+                    libobs::obs_output_create(
                         id.as_ptr().0,
                         name.as_ptr().0,
                         settings_ptr.0,
@@ -135,8 +130,8 @@ impl ObsOutputRef {
             settings: Arc::new(RwLock::new(settings)),
             hotkey_data: Arc::new(RwLock::new(hotkey_data)),
 
-            video_encoders: Arc::new(RwLock::new(vec![])),
-            audio_encoders: Arc::new(RwLock::new(vec![])),
+            curr_video_encoder: Arc::new(RwLock::new(None)),
+            audio_encoders: Arc::new(RwLock::new(None)),
 
             output: output.clone(),
             id,
@@ -156,11 +151,24 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A vector of Arc-wrapped ObsVideoEncoder instances
+    #[deprecated = "Use `get_current_video_encoder` instead"]
     pub fn get_video_encoders(&self) -> Result<Vec<Arc<ObsVideoEncoder>>, ObsError> {
-        self.video_encoders
+        let curr = self.get_current_video_encoder()?;
+
+        match curr {
+            Some(encoder) => Ok(vec![encoder.clone()]),
+            None => Ok(vec![]),
+        }
+    }
+
+    /// Returns the current video encoder attached to this output, if any.
+    pub fn get_current_video_encoder(&self) -> Result<Option<Arc<ObsVideoEncoder>>, ObsError> {
+        let curr = self
+            .curr_video_encoder
             .read()
-            .map_err(|e| ObsError::LockError(e.to_string()))
-            .map(|x| x.clone())
+            .map_err(|e| ObsError::LockError(e.to_string()))?;
+
+        Ok(curr.clone())
     }
 
     /// Creates and attaches a new video encoder to this output.
@@ -174,39 +182,47 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result containing an Arc-wrapped ObsVideoEncoder or an error
+    #[deprecated = "This function has been renamed to `create_and_set_video_encoder`."]
     pub fn video_encoder(
         &mut self,
         info: VideoEncoderInfo,
         handler: Sendable<*mut video_output>,
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
-        let video_enc = ObsVideoEncoder::new(
-            info.id,
-            info.name,
-            info.settings,
-            info.hotkey_data,
-            self.runtime.clone(),
-        )?;
+        self.create_and_set_video_encoder(info, handler)
+    }
+
+    /// Creates and attaches a new audio encoder to this output.
+    ///
+    /// This method creates a new audio encoder using the provided information,
+    /// sets up the audio handler, and attaches it to this output at the specified mixer index.
+    ///
+    /// # Arguments
+    /// * `info` - Information for creating the audio encoder
+    /// * `mixer_idx` - The mixer index to use (typically 0 for primary audio)
+    /// * `handler` - The audio output handler
+    ///
+    /// # Returns
+    /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
+    pub fn create_and_set_video_encoder(
+        &mut self,
+        info: VideoEncoderInfo,
+        handler: Sendable<*mut video_output>,
+    ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
+        let video_enc = ObsVideoEncoder::new_from_info(info, handler, self.runtime.clone())?;
 
         let encoder_ptr = video_enc.encoder.clone();
         let output_ptr = self.output.clone();
-        let handler = Sendable(handler);
 
-        run_with_obs!(
-            self.runtime,
-            (encoder_ptr, output_ptr, handler),
-            move || unsafe {
-                obs_encoder_set_video(encoder_ptr, handler.0);
-                obs_output_set_video_encoder(output_ptr, encoder_ptr);
-            }
-        )?;
+        run_with_obs!(self.runtime, (encoder_ptr, output_ptr), move || unsafe {
+            libobs::obs_output_set_video_encoder(output_ptr, encoder_ptr);
+        })?;
 
-        let tmp = Arc::new(video_enc);
-        self.video_encoders
+        self.curr_video_encoder
             .write()
             .map_err(|e| ObsError::LockError(e.to_string()))?
-            .push(tmp.clone());
+            .replace(video_enc.clone());
 
-        Ok(tmp)
+        Ok(video_enc)
     }
 
     /// Attaches an existing video encoder to this output.
@@ -216,7 +232,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error
-    pub fn set_video_encoder(&mut self, encoder: ObsVideoEncoder) -> Result<(), ObsError> {
+    pub fn set_video_encoder(&mut self, encoder: Arc<ObsVideoEncoder>) -> Result<(), ObsError> {
         if encoder.encoder.0.is_null() {
             return Err(ObsError::NullPointer);
         }
@@ -225,23 +241,13 @@ impl ObsOutputRef {
         let encoder_ptr = encoder.as_ptr();
 
         run_with_obs!(self.runtime, (output, encoder_ptr), move || unsafe {
-            obs_output_set_video_encoder(output, encoder_ptr);
+            libobs::obs_output_set_video_encoder(output, encoder_ptr);
         })?;
 
-        if !self
-            .video_encoders
-            .read()
+        self.curr_video_encoder
+            .write()
             .map_err(|e| ObsError::LockError(e.to_string()))?
-            .iter()
-            .any(|x| x.encoder.0 == encoder.as_ptr().0)
-        {
-            let tmp = Arc::new(encoder);
-
-            self.video_encoders
-                .write()
-                .map_err(|e| ObsError::LockError(e.to_string()))?
-                .push(tmp.clone());
-        }
+            .replace(encoder);
 
         Ok(())
     }
@@ -258,14 +264,14 @@ impl ObsOutputRef {
     pub fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
         let output = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
-            obs_output_active(output)
+            libobs::obs_output_active(output)
         })?;
 
         if !output_active {
             let settings_ptr = settings.as_ptr();
 
             run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
-                obs_output_update(output, settings_ptr)
+                libobs::obs_output_update(output, settings_ptr)
             })?;
 
             self.settings
@@ -290,39 +296,50 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
+    #[deprecated = "This function has been renamed to `create_and_set_audio_encoder`."]
     pub fn audio_encoder(
         &mut self,
         info: AudioEncoderInfo,
         mixer_idx: usize,
         handler: Sendable<*mut audio_output>,
     ) -> Result<Arc<ObsAudioEncoder>, ObsError> {
-        let audio_enc = ObsAudioEncoder::new(
-            info.id,
-            info.name,
-            info.settings,
-            mixer_idx,
-            info.hotkey_data,
-            self.runtime.clone(),
-        )?;
+        self.create_and_set_audio_encoder(info, mixer_idx, handler)
+    }
+
+    /// Creates and attaches a new audio encoder to this output.
+    ///
+    /// This method creates a new audio encoder using the provided information,
+    /// sets up the audio handler, and attaches it to this output at the specified mixer index.
+    ///
+    /// # Arguments
+    /// * `info` - Information for creating the audio encoder
+    /// * `mixer_idx` - The mixer index to use (typically 0 for primary audio)
+    /// * `handler` - The audio output handler
+    ///
+    /// # Returns
+    /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
+    pub fn create_and_set_audio_encoder(
+        &mut self,
+        info: AudioEncoderInfo,
+        mixer_idx: usize,
+        handler: Sendable<*mut audio_output>,
+    ) -> Result<Arc<ObsAudioEncoder>, ObsError> {
+        let audio_enc =
+            ObsAudioEncoder::new_from_info(info, mixer_idx, handler, self.runtime.clone())?;
 
         let encoder_ptr = audio_enc.encoder.clone();
         let output_ptr = self.output.clone();
 
-        run_with_obs!(
-            self.runtime,
-            (handler, encoder_ptr, output_ptr),
-            move || unsafe {
-                obs_encoder_set_audio(encoder_ptr, handler);
-                obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
-            }
-        )?;
+        run_with_obs!(self.runtime, (encoder_ptr, output_ptr), move || unsafe {
+            libobs::obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
+        })?;
 
-        let x = Arc::new(audio_enc);
         self.audio_encoders
             .write()
             .map_err(|e| ObsError::LockError(e.to_string()))?
-            .push(x.clone());
-        Ok(x)
+            .replace(audio_enc.clone());
+
+        Ok(audio_enc)
     }
 
     /// Attaches an existing audio encoder to this output at the specified mixer index.
@@ -335,7 +352,7 @@ impl ObsOutputRef {
     /// A Result indicating success or an error
     pub fn set_audio_encoder(
         &mut self,
-        encoder: ObsAudioEncoder,
+        encoder: Arc<ObsAudioEncoder>,
         mixer_idx: usize,
     ) -> Result<(), ObsError> {
         if encoder.encoder.0.is_null() {
@@ -345,22 +362,13 @@ impl ObsOutputRef {
         let encoder_ptr = encoder.encoder.clone();
         let output_ptr = self.output.clone();
         run_with_obs!(self.runtime, (output_ptr, encoder_ptr), move || unsafe {
-            obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
+            libobs::obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx)
         })?;
 
-        if !self
-            .audio_encoders
-            .read()
+        self.audio_encoders
+            .write()
             .map_err(|e| ObsError::LockError(e.to_string()))?
-            .iter()
-            .any(|x| x.encoder.0 == encoder.encoder.0)
-        {
-            let tmp = Arc::new(encoder);
-            self.audio_encoders
-                .write()
-                .map_err(|e| ObsError::LockError(e.to_string()))?
-                .push(tmp.clone());
-        }
+            .replace(encoder);
 
         Ok(())
     }
@@ -374,12 +382,12 @@ impl ObsOutputRef {
     pub fn start(&self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            obs_output_active(output_ptr)
+            libobs::obs_output_active(output_ptr)
         })?;
 
         if !output_active {
             let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                obs_output_start(output_ptr)
+                libobs::obs_output_start(output_ptr)
             })?;
 
             if res {
@@ -387,7 +395,7 @@ impl ObsOutputRef {
             }
 
             let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                Sendable(obs_output_get_last_error(output_ptr))
+                Sendable(libobs::obs_output_get_last_error(output_ptr))
             })?;
 
             let c_str = unsafe { CStr::from_ptr(err.0) };
@@ -412,19 +420,19 @@ impl ObsOutputRef {
     pub fn pause(&self, pause: bool) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            obs_output_active(output_ptr)
+            libobs::obs_output_active(output_ptr)
         })?;
 
         if output_active {
             let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                obs_output_pause(output_ptr, pause)
+                libobs::obs_output_pause(output_ptr, pause)
             })?;
 
             if res {
                 Ok(())
             } else {
                 let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                    Sendable(obs_output_get_last_error(output_ptr))
+                    Sendable(libobs::obs_output_get_last_error(output_ptr))
                 })?;
 
                 let c_str = unsafe { CStr::from_ptr(err.0) };
@@ -449,13 +457,13 @@ impl ObsOutputRef {
     pub fn stop(&mut self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            obs_output_active(output_ptr)
+            libobs::obs_output_active(output_ptr)
         })?;
 
         if output_active {
             let mut rx = self.signal_manager.on_stop()?;
             run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                obs_output_stop(output_ptr)
+                libobs::obs_output_stop(output_ptr)
             })?;
 
             let signal = rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;

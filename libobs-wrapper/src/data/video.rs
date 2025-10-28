@@ -154,7 +154,7 @@ impl ObsVideoInfoBuilder {
     pub fn build(self) -> ObsVideoInfo {
         let graphics_mod_str = match self.graphics_module {
             ObsGraphicsModule::OpenGL => ObsString::new("libobs-opengl"),
-            ObsGraphicsModule::DirectX11 => ObsString::new("libobs-d3d11"),
+            ObsGraphicsModule::DirectX11 => ObsString::new("libobs-d3d11.dll"),
         };
 
         let ovi = obs_video_info {

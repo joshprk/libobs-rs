@@ -457,7 +457,12 @@ impl ObsRuntime {
                 logger.log(
                     level,
                     format!("Number of memory leaks: {}{}", allocs, notice),
-                )
+                );
+
+                #[cfg(any(feature = "__panic_on_leak", test))]
+                {
+                    assert_eq!(allocs, 1, "Memory leaks detected: {}", allocs);
+                }
             }
             Err(_) => {
                 println!("OBS context shutdown. (but couldn't lock logger)");

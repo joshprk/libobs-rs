@@ -95,7 +95,7 @@ impl ObsAudioEncoderBuilder {
         let info = ObjectInfo::new(e_id, ObsString::new(name), settings, hotkey_data);
 
         let audio_handler = self.context.get_audio_ptr()?;
-        output.audio_encoder(info, mixer_idx, audio_handler)
+        output.create_and_set_audio_encoder(info, mixer_idx, audio_handler)
     }
 }
 
@@ -109,7 +109,7 @@ impl ObsVideoEncoderBuilder {
         let info = ObjectInfo::new(e_id, ObsString::new(name), self.settings, self.hotkey_data);
 
         let video_handler = self.context.get_video_ptr()?;
-        output.video_encoder(info, video_handler)
+        output.create_and_set_video_encoder(info, video_handler)
     }
 }
 

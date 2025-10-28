@@ -187,7 +187,7 @@ fn main() -> anyhow::Result<()> {
     );
 
     let audio_handler = context.get_audio_ptr()?;
-    output.audio_encoder(audio_info, 0, audio_handler)?;
+    output.create_and_set_audio_encoder(audio_info, 0, audio_handler)?;
 
     let mut scene = context.scene("Main Scene")?;
 

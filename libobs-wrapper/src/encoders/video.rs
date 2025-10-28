@@ -1,14 +1,12 @@
-use libobs::{
-    obs_encoder, obs_encoder_release, obs_encoder_set_video, obs_video_encoder_create, video_output,
-};
-use std::ptr;
+use libobs::{obs_encoder, video_output};
+use std::{ptr, sync::Arc};
 
 use crate::{
     data::ObsData,
     impl_obs_drop, run_with_obs,
     runtime::ObsRuntime,
     unsafe_send::Sendable,
-    utils::{ObsError, ObsString},
+    utils::{ObsError, ObsString, VideoEncoderInfo},
 };
 
 #[derive(Debug)]
@@ -23,13 +21,30 @@ pub struct ObsVideoEncoder {
 }
 
 impl ObsVideoEncoder {
+    pub fn new_from_info(
+        info: VideoEncoderInfo,
+        handler: Sendable<*mut video_output>,
+        runtime: ObsRuntime,
+    ) -> Result<Arc<Self>, ObsError> {
+        #[allow(deprecated)]
+        let encoder = Self::new(info.id, info.name, info.settings, info.hotkey_data, runtime)?;
+
+        let encoder_ptr = encoder.encoder.clone();
+        run_with_obs!(encoder.runtime, (encoder_ptr, handler), move || unsafe {
+            libobs::obs_encoder_set_video(encoder_ptr, handler);
+        })?;
+
+        Ok(encoder)
+    }
+
+    #[deprecated = "Use `ObsVideoEncoder::new_from_info` instead, this will be removed in a future release."]
     pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
         id: T,
         name: K,
         settings: Option<ObsData>,
         hotkey_data: Option<ObsData>,
         runtime: ObsRuntime,
-    ) -> Result<Self, ObsError> {
+    ) -> Result<Arc<Self>, ObsError> {
         let id = id.into();
         let name = name.into();
 
@@ -49,7 +64,12 @@ impl ObsVideoEncoder {
             runtime,
             (id_ptr, name_ptr, hotkey_data_ptr, settings_ptr),
             move || unsafe {
-                let ptr = obs_video_encoder_create(id_ptr, name_ptr, settings_ptr, hotkey_data_ptr);
+                let ptr = libobs::obs_video_encoder_create(
+                    id_ptr,
+                    name_ptr,
+                    settings_ptr,
+                    hotkey_data_ptr,
+                );
                 Sendable(ptr)
             }
         )?;
@@ -58,14 +78,14 @@ impl ObsVideoEncoder {
             return Err(ObsError::NullPointer);
         }
 
-        Ok(Self {
+        Ok(Arc::new(Self {
             encoder,
             id,
             name,
             settings,
             hotkey_data,
             runtime,
-        })
+        }))
     }
 
     pub fn as_ptr(&self) -> Sendable<*mut obs_encoder> {
@@ -79,11 +99,11 @@ impl ObsVideoEncoder {
     ) -> Result<(), ObsError> {
         let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
-            obs_encoder_set_video(self_ptr, handler);
+            libobs::obs_encoder_set_video(self_ptr, handler);
         })
     }
 }
 
 impl_obs_drop!(ObsVideoEncoder, (encoder), move || unsafe {
-    obs_encoder_release(encoder);
+    libobs::obs_encoder_release(encoder);
 });

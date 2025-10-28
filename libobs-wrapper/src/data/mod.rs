@@ -3,17 +3,13 @@ use std::{
     sync::Arc,
 };
 
-use libobs::{
-    obs_data, obs_data_create, obs_data_release, obs_data_set_bool, obs_data_set_double,
-    obs_data_set_int, obs_data_set_string,
-};
-
 use crate::{
     impl_obs_drop, run_with_obs,
     runtime::ObsRuntime,
     unsafe_send::Sendable,
     utils::{ObsError, ObsString},
 };
+use libobs::obs_data;
 
 pub mod audio;
 pub mod immutable;
@@ -55,7 +51,9 @@ impl ObsData {
     /// dropped prematurely. This makes it safer than
     /// using `obs_data` directly from libobs.
     pub fn new(runtime: ObsRuntime) -> Result<Self, ObsError> {
-        let obs_data = run_with_obs!(runtime, move || unsafe { Sendable(obs_data_create()) })?;
+        let obs_data = run_with_obs!(runtime, move || unsafe {
+            Sendable(libobs::obs_data_create())
+        })?;
 
         Ok(ObsData {
             obs_data: obs_data.clone(),
@@ -95,7 +93,7 @@ impl ObsData {
         run_with_obs!(
             self.runtime,
             (data_ptr, key_ptr, value_ptr),
-            move || unsafe { obs_data_set_string(data_ptr, key_ptr, value_ptr) }
+            move || unsafe { libobs::obs_data_set_string(data_ptr, key_ptr, value_ptr) }
         )?;
 
         Ok(self)
@@ -114,7 +112,7 @@ impl ObsData {
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_int(data_ptr, key_ptr, value);
+            libobs::obs_data_set_int(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)
@@ -132,7 +130,7 @@ impl ObsData {
         let key_ptr = key.as_ptr();
         let data_ptr = self.obs_data.clone();
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_bool(data_ptr, key_ptr, value);
+            libobs::obs_data_set_bool(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)
@@ -151,7 +149,7 @@ impl ObsData {
         let data_ptr = self.obs_data.clone();
 
         run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
-            obs_data_set_double(data_ptr, key_ptr, value);
+            libobs::obs_data_set_double(data_ptr, key_ptr, value);
         })?;
 
         Ok(self)
@@ -197,7 +195,7 @@ impl ObsData {
 }
 
 impl_obs_drop!(_ObsDataDropGuard, (obs_data), move || unsafe {
-    obs_data_release(obs_data)
+    libobs::obs_data_release(obs_data)
 });
 
 impl Clone for ObsData {

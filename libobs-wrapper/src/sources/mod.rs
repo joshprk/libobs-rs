@@ -1,10 +1,7 @@
 mod builder;
 pub use builder::*;
 
-use libobs::{
-    obs_scene_item, obs_source_create, obs_source_release, obs_source_reset_settings, obs_source_t,
-    obs_source_update,
-};
+use libobs::{obs_scene_item, obs_source_t};
 
 use crate::{
     data::{immutable::ImmutableObsData, ObsData},
@@ -61,7 +58,7 @@ impl ObsSourceRef {
             runtime,
             (hotkey_data_ptr, settings_ptr, id_ptr, name_ptr),
             move || unsafe {
-                Sendable(obs_source_create(
+                Sendable(libobs::obs_source_create(
                     id_ptr,
                     name_ptr,
                     settings_ptr,
@@ -118,14 +115,14 @@ impl ObsUpdatable for ObsSourceRef {
         let source_ptr = self.source.clone();
         log::trace!("Updating source: {:?}", self.source);
         run_with_obs!(self.runtime, (source_ptr, data_ptr), move || unsafe {
-            obs_source_update(source_ptr, data_ptr);
+            libobs::obs_source_update(source_ptr, data_ptr);
         })
     }
 
     fn reset_and_update_raw(&mut self, data: ObsData) -> Result<(), ObsError> {
         let source_ptr = self.source.clone();
         run_with_obs!(self.runtime, (source_ptr), move || unsafe {
-            obs_source_reset_settings(source_ptr, data.as_ptr().0);
+            libobs::obs_source_reset_settings(source_ptr, data.as_ptr().0);
         })
     }
 
@@ -240,7 +237,7 @@ struct _ObsSourceGuard {
 }
 
 impl_obs_drop!(_ObsSourceGuard, (source), move || unsafe {
-    obs_source_release(source);
+    libobs::obs_source_release(source);
 });
 
 pub type ObsFilterRef = ObsSourceRef;
