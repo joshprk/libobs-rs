@@ -17,6 +17,8 @@ pub enum ObsError {
     /// Unable to reset video because the program attempted to
     /// change the graphics module. This is a bug!
     ResetVideoFailureGraphicsModule,
+    /// Unable to reset video because some outputs were still active.
+    ResetVideoFailureOutputActive,
     /// The function returned a null pointer, often indicating
     /// an error with creating the object of the requested
     /// pointer.
@@ -43,6 +45,9 @@ pub enum ObsError {
     /// Error locking a mutex or RwLock
     LockError(String),
     Unexpected(String),
+
+    /// Encoder is still active, stop the attached output before proceeding
+    EncoderActive
 }
 
 impl Display for ObsError {
@@ -55,6 +60,7 @@ impl Display for ObsError {
             ObsError::ThreadFailure => write!(f, "Some or no thread is already using libobs. This is a bug!"),
             ObsError::ResetVideoFailure(status) => write!(f, "Could not reset obs video. Status: {:?}", status),
             ObsError::ResetVideoFailureGraphicsModule => write!(f, "Unable to reset video because the program attempted to change the graphics module. This is a bug!"),
+            ObsError::ResetVideoFailureOutputActive => write!(f, "Unable to reset video because some outputs were still active."),
             ObsError::NullPointer => write!(f, "The function returned a null pointer, often indicating an error with creating the object of the requested pointer."),
             ObsError::OutputAlreadyActive => write!(f, "Output is already active."),
             ObsError::OutputStartFailure(s) => write!(f, "Output failed to start. Error is {:?}", s),
@@ -70,6 +76,7 @@ impl Display for ObsError {
             ObsError::OutputPauseFailure(s) => write!(f, "Output failed to pause. Error is {:?}", s),
             ObsError::LockError(e) => write!(f, "Error locking a mutex or RwLock: {:?}", e),
             ObsError::Unexpected(e) => write!(f, "Unexpected error: {:?}", e),
+            ObsError::EncoderActive => write!(f, "Encoder is still active, stop the attached output before proceeding"),
         }
     }
 }

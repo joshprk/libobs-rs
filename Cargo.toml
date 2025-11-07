@@ -9,7 +9,7 @@ members = [
     "libobs-wrapper",
     "libobs-bootstrapper",
     "examples/*"
-]
+, "scripts/full_binary_tests/encoder_switch"]
 exclude = [
     "examples/tauri-app",
 ]

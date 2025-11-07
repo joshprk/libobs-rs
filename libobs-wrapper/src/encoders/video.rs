@@ -21,45 +21,23 @@ pub struct ObsVideoEncoder {
 }
 
 impl ObsVideoEncoder {
+    /// Info: the handler attribute is no longer needed and kept for compatibility. The `handler` parameter will be removed in a future release.
     pub fn new_from_info(
         info: VideoEncoderInfo,
-        handler: Sendable<*mut video_output>,
         runtime: ObsRuntime,
     ) -> Result<Arc<Self>, ObsError> {
-        #[allow(deprecated)]
-        let encoder = Self::new(info.id, info.name, info.settings, info.hotkey_data, runtime)?;
-
-        let encoder_ptr = encoder.encoder.clone();
-        run_with_obs!(encoder.runtime, (encoder_ptr, handler), move || unsafe {
-            libobs::obs_encoder_set_video(encoder_ptr, handler);
-        })?;
-
-        Ok(encoder)
-    }
-
-    #[deprecated = "Use `ObsVideoEncoder::new_from_info` instead, this will be removed in a future release."]
-    pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
-        id: T,
-        name: K,
-        settings: Option<ObsData>,
-        hotkey_data: Option<ObsData>,
-        runtime: ObsRuntime,
-    ) -> Result<Arc<Self>, ObsError> {
-        let id = id.into();
-        let name = name.into();
-
-        let settings_ptr = match &settings {
+        let settings_ptr = match &info.settings {
             Some(x) => x.as_ptr(),
             None => Sendable(ptr::null_mut()),
         };
 
-        let hotkey_data_ptr = match &hotkey_data {
+        let hotkey_data_ptr = match &info.hotkey_data {
             Some(x) => x.as_ptr(),
             None => Sendable(ptr::null_mut()),
         };
 
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let id_ptr = info.id.as_ptr();
+        let name_ptr = info.name.as_ptr();
         let encoder = run_with_obs!(
             runtime,
             (id_ptr, name_ptr, hotkey_data_ptr, settings_ptr),
@@ -80,10 +58,10 @@ impl ObsVideoEncoder {
 
         Ok(Arc::new(Self {
             encoder,
-            id,
-            name,
-            settings,
-            hotkey_data,
+            id: info.id,
+            name: info.name,
+            settings: info.settings,
+            hotkey_data: info.hotkey_data,
             runtime,
         }))
     }
@@ -100,6 +78,27 @@ impl ObsVideoEncoder {
         let self_ptr = self.as_ptr();
         run_with_obs!(self.runtime, (handler, self_ptr), move || unsafe {
             libobs::obs_encoder_set_video(self_ptr, handler);
+        })
+    }
+
+    pub fn is_active(&self) -> Result<bool, ObsError> {
+        let encoder_ptr = self.as_ptr();
+
+        run_with_obs!(self.runtime, (encoder_ptr), move || unsafe {
+            libobs::obs_encoder_active(encoder_ptr)
+        })
+    }
+
+    pub fn update_settings(&mut self, settings: &ObsData) -> Result<(), ObsError> {
+        let encoder_ptr = self.as_ptr();
+        if self.is_active()? {
+            return Err(ObsError::EncoderActive);
+        }
+
+        let settings_ptr = settings.as_ptr();
+
+        run_with_obs!(self.runtime, (encoder_ptr, settings_ptr), move || unsafe {
+            libobs::obs_encoder_update(encoder_ptr, settings_ptr);
         })
     }
 }

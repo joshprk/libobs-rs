@@ -197,6 +197,20 @@ impl ObsContext {
             return Err(ObsError::ResetVideoFailureGraphicsModule);
         }
 
+        let has_active_outputs = {
+            self.outputs
+                .read()
+                .map_err(|_| {
+                    ObsError::LockError("Failed to acquire read lock on outputs".to_string())
+                })?
+                .iter()
+                .any(|output| output.is_active().unwrap_or_default())
+        };
+
+        if has_active_outputs {
+            return Err(ObsError::ResetVideoFailureOutputActive);
+        }
+
         // Resets the video context. Note that this
         // is similar to Self::reset_video, but it
         // does not call that function because the
@@ -215,48 +229,36 @@ impl ObsContext {
             None => ObsResetVideoStatus::Failure,
         };
 
-        if reset_video_status != ObsResetVideoStatus::Success {
-            Err(ObsError::ResetVideoFailure(reset_video_status))
-        } else {
-            let outputs = self
-                .outputs
-                .read()
-                .map_err(|_| {
-                    ObsError::LockError("Failed to acquire read lock on outputs".to_string())
-                })?
-                .clone();
-            let mut video_encoders = vec![];
-
-            for output in outputs.iter() {
-                let encoders = output.get_current_video_encoder()?;
-                video_encoders.extend(encoders.into_iter().map(|e| e.as_ptr()));
-            }
-
-            let vid_ptr = self.get_video_ptr()?;
-            run_with_obs!(self.runtime, (vid_ptr), move || unsafe {
-                for encoder_ptr in video_encoders.into_iter() {
-                    libobs::obs_encoder_set_video(encoder_ptr.0, vid_ptr);
-                }
-            })?;
-
+        if reset_video_status == ObsResetVideoStatus::Success {
             self.startup_info
                 .write()
                 .map_err(|_| {
                     ObsError::LockError("Failed to acquire write lock on startup info".to_string())
                 })?
                 .obs_video_info = ovi;
+
             Ok(())
+        } else {
+            Err(ObsError::ResetVideoFailure(reset_video_status))
         }
     }
 
-    pub fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
+    /// Returns a pointer to the video output.
+    ///
+    /// # Safety
+    /// This function is unsafe because it returns a raw pointer that must be handled carefully. Only use this pointer if you REALLY know what you are doing.
+    pub unsafe fn get_video_ptr(&self) -> Result<Sendable<*mut video_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_video())
         })
     }
 
-    pub fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
+    /// Returns a pointer to the audio output.
+    ///
+    /// # Safety
+    /// This function is unsafe because it returns a raw pointer that must be handled carefully. Only use this pointer if you REALLY know what you are doing.
+    pub unsafe fn get_audio_ptr(&self) -> Result<Sendable<*mut audio_output>, ObsError> {
         // Removed safeguards here because ptr are not sendable and this OBS context should never be used across threads
         run_with_obs!(self.runtime, || unsafe {
             Sendable(libobs::obs_get_audio())

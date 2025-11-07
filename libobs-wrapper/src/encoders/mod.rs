@@ -1,4 +1,4 @@
-use std::{ffi::CStr, os::raw::c_char, str::FromStr};
+use std::{ffi::CStr, os::raw::c_char};
 
 use num_traits::ToPrimitive;
 
@@ -18,23 +18,11 @@ pub mod video;
 pub use enums::*;
 
 pub trait ObsContextEncoders {
-    #[deprecated(note = "Use `best_video_encoder` instead.")]
-    fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError>;
-
     fn best_video_encoder(&self) -> Result<ObsVideoEncoderBuilder, ObsError>;
-
-    #[deprecated(note = "Use `best_audio_encoder` instead.")]
-    fn get_best_audio_encoder(&self) -> Result<ObsAudioEncoderType, ObsError>;
 
     fn best_audio_encoder(&self) -> Result<ObsAudioEncoderBuilder, ObsError>;
 
-    #[deprecated(note = "Use `available_audio_encoders` instead.")]
-    fn get_available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderType>, ObsError>;
-
     fn available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderBuilder>, ObsError>;
-
-    #[deprecated(note = "Use `available_video_encoders` instead.")]
-    fn get_available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderType>, ObsError>;
 
     fn available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderBuilder>, ObsError>;
 }
@@ -99,38 +87,6 @@ impl ObsContextEncoders for ObsContext {
         Ok(get_encoders_raw(ObsEncoderType::Video, &self.runtime)?
             .into_iter()
             .map(|x| ObsVideoEncoderBuilder::new(self.clone(), &x))
-            .collect::<Vec<_>>())
-    }
-
-    fn get_best_video_encoder(&self) -> Result<ObsVideoEncoderType, ObsError> {
-        #[allow(deprecated)]
-        Ok(self
-            .get_available_video_encoders()?
-            .first()
-            .unwrap()
-            .clone())
-    }
-
-    fn get_best_audio_encoder(&self) -> Result<ObsAudioEncoderType, ObsError> {
-        #[allow(deprecated)]
-        Ok(self
-            .get_available_audio_encoders()?
-            .first()
-            .unwrap()
-            .clone())
-    }
-
-    fn get_available_audio_encoders(&self) -> Result<Vec<ObsAudioEncoderType>, ObsError> {
-        Ok(get_encoders_raw(ObsEncoderType::Audio, &self.runtime)?
-            .into_iter()
-            .map(|x| ObsAudioEncoderType::from_str(&x).unwrap())
-            .collect::<Vec<_>>())
-    }
-
-    fn get_available_video_encoders(&self) -> Result<Vec<ObsVideoEncoderType>, ObsError> {
-        Ok(get_encoders_raw(ObsEncoderType::Video, &self.runtime)?
-            .into_iter()
-            .map(|x| ObsVideoEncoderType::from_str(&x).unwrap())
             .collect::<Vec<_>>())
     }
 }

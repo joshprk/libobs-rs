@@ -21,54 +21,24 @@ pub struct ObsAudioEncoder {
 }
 
 impl ObsAudioEncoder {
+    /// Info: the handler attribute is no longer needed and kept for compatibility. The `handler` parameter will be removed in a future release.
     pub fn new_from_info(
         info: AudioEncoderInfo,
         mixer_idx: usize,
-        handler: Sendable<*mut audio_output>,
         runtime: ObsRuntime,
     ) -> Result<Arc<Self>, ObsError> {
-        #[allow(deprecated)]
-        let encoder = Self::new(
-            info.id,
-            info.name,
-            info.settings,
-            mixer_idx,
-            info.hotkey_data,
-            runtime.clone(),
-        )?;
-
-        let encoder_ptr = encoder.encoder.clone();
-        run_with_obs!(encoder.runtime, (encoder_ptr, handler), move || unsafe {
-            libobs::obs_encoder_set_audio(encoder_ptr, handler);
-        })?;
-
-        Ok(encoder)
-    }
-
-    #[deprecated = "Use `ObsAudioEncoder::new_from_info` instead, this will be removed in a future release."]
-    pub fn new<T: Into<ObsString> + Sync + Send, K: Into<ObsString> + Sync + Send>(
-        id: T,
-        name: K,
-        settings: Option<ObsData>,
-        mixer_idx: usize,
-        hotkey_data: Option<ObsData>,
-        runtime: ObsRuntime,
-    ) -> Result<Arc<Self>, ObsError> {
-        let id = id.into();
-        let name = name.into();
-
-        let settings_ptr = match settings.borrow() {
+        let settings_ptr = match info.settings.borrow() {
             Some(x) => x.as_ptr(),
             None => Sendable(ptr::null_mut()),
         };
 
-        let hotkey_data_ptr = match hotkey_data.borrow() {
+        let hotkey_data_ptr = match info.hotkey_data.borrow() {
             Some(x) => x.as_ptr(),
             None => Sendable(ptr::null_mut()),
         };
 
-        let id_ptr = id.as_ptr();
-        let name_ptr = name.as_ptr();
+        let id_ptr = info.id.as_ptr();
+        let name_ptr = info.name.as_ptr();
 
         let encoder = run_with_obs!(
             runtime,
@@ -91,10 +61,10 @@ impl ObsAudioEncoder {
 
         Ok(Arc::new(Self {
             encoder,
-            id,
-            name,
-            settings,
-            hotkey_data,
+            id: info.id,
+            name: info.name,
+            settings: info.settings,
+            hotkey_data: info.hotkey_data,
             runtime,
         }))
     }

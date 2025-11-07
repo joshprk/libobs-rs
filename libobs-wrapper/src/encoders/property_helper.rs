@@ -30,7 +30,8 @@ use super::{
 pub struct StructName {
     encoder_id: EncoderType,
     runtime: ObsRuntime,
-    context: ObsContext,
+    //TODO: keeping this for now, maybe it'll be useful later
+    _context: ObsContext,
     settings: Option<ObsData>,
     hotkey_data: Option<ObsData>,
 }
@@ -45,7 +46,7 @@ impl StructName {
         Self {
             encoder_id: EncoderType::from_str(encoder_id).unwrap(),
             runtime: context.runtime().clone(),
-            context,
+            _context: context,
             settings: None,
             hotkey_data: None,
         }
@@ -94,8 +95,7 @@ impl ObsAudioEncoderBuilder {
         let e_id: ObsString = self.encoder_id.into();
         let info = ObjectInfo::new(e_id, ObsString::new(name), settings, hotkey_data);
 
-        let audio_handler = self.context.get_audio_ptr()?;
-        output.create_and_set_audio_encoder(info, mixer_idx, audio_handler)
+        output.create_and_set_audio_encoder(info, mixer_idx)
     }
 }
 
@@ -108,8 +108,7 @@ impl ObsVideoEncoderBuilder {
         let e_id: ObsString = self.encoder_id.into();
         let info = ObjectInfo::new(e_id, ObsString::new(name), self.settings, self.hotkey_data);
 
-        let video_handler = self.context.get_video_ptr()?;
-        output.create_and_set_video_encoder(info, video_handler)
+        output.create_and_set_video_encoder(info)
     }
 }
 

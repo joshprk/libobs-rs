@@ -1,9 +1,10 @@
 use std::sync::{Arc, RwLock};
+use std::time::Duration;
 use std::{ffi::CStr, ptr};
 
 use anyhow::bail;
 use getters0::Getters;
-use libobs::{audio_output, obs_output, video_output};
+use libobs::obs_output;
 
 use crate::enums::ObsOutputStopSignal;
 use crate::runtime::ObsRuntime;
@@ -147,20 +148,6 @@ impl ObsOutputRef {
         })
     }
 
-    /// Returns a list of all video encoders attached to this output.
-    ///
-    /// # Returns
-    /// A vector of Arc-wrapped ObsVideoEncoder instances
-    #[deprecated = "Use `get_current_video_encoder` instead"]
-    pub fn get_video_encoders(&self) -> Result<Vec<Arc<ObsVideoEncoder>>, ObsError> {
-        let curr = self.get_current_video_encoder()?;
-
-        match curr {
-            Some(encoder) => Ok(vec![encoder.clone()]),
-            None => Ok(vec![]),
-        }
-    }
-
     /// Returns the current video encoder attached to this output, if any.
     pub fn get_current_video_encoder(&self) -> Result<Option<Arc<ObsVideoEncoder>>, ObsError> {
         let curr = self
@@ -171,44 +158,27 @@ impl ObsOutputRef {
         Ok(curr.clone())
     }
 
-    /// Creates and attaches a new video encoder to this output.
-    ///
-    /// This method creates a new video encoder using the provided information,
-    /// sets up the video handler, and attaches it to this output.
-    ///
-    /// # Arguments
-    /// * `info` - Information for creating the video encoder
-    /// * `handler` - The video output handler
-    ///
-    /// # Returns
-    /// A Result containing an Arc-wrapped ObsVideoEncoder or an error
-    #[deprecated = "This function has been renamed to `create_and_set_video_encoder`."]
-    pub fn video_encoder(
-        &mut self,
-        info: VideoEncoderInfo,
-        handler: Sendable<*mut video_output>,
-    ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
-        self.create_and_set_video_encoder(info, handler)
-    }
-
     /// Creates and attaches a new audio encoder to this output.
     ///
-    /// This method creates a new audio encoder using the provided information,
-    /// sets up the audio handler, and attaches it to this output at the specified mixer index.
+    /// This method creates a new audio encoder using the provided information
+    ///  and attaches it to this output at the specified mixer index.
     ///
     /// # Arguments
     /// * `info` - Information for creating the audio encoder
     /// * `mixer_idx` - The mixer index to use (typically 0 for primary audio)
-    /// * `handler` - The audio output handler
     ///
     /// # Returns
     /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
     pub fn create_and_set_video_encoder(
         &mut self,
         info: VideoEncoderInfo,
-        handler: Sendable<*mut video_output>,
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
-        let video_enc = ObsVideoEncoder::new_from_info(info, handler, self.runtime.clone())?;
+        // Fail early before creating the encoder if the output is active
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
+        }
+
+        let video_enc = ObsVideoEncoder::new_from_info(info, self.runtime.clone())?;
 
         self.set_video_encoder(video_enc.clone())?;
         Ok(video_enc)
@@ -224,6 +194,10 @@ impl ObsOutputRef {
     pub fn set_video_encoder(&mut self, encoder: Arc<ObsVideoEncoder>) -> Result<(), ObsError> {
         if encoder.encoder.0.is_null() {
             return Err(ObsError::NullPointer);
+        }
+
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
         }
 
         let output = self.output.clone();
@@ -251,48 +225,22 @@ impl ObsOutputRef {
     /// # Returns
     /// A Result indicating success or an error
     pub fn update_settings(&mut self, settings: ObsData) -> Result<(), ObsError> {
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
+        }
+
+        let settings_ptr = settings.as_ptr();
         let output = self.output.clone();
-        let output_active = run_with_obs!(self.runtime, (output), move || unsafe {
-            libobs::obs_output_active(output)
+
+        run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
+            libobs::obs_output_update(output, settings_ptr)
         })?;
 
-        if !output_active {
-            let settings_ptr = settings.as_ptr();
-
-            run_with_obs!(self.runtime, (output, settings_ptr), move || unsafe {
-                libobs::obs_output_update(output, settings_ptr)
-            })?;
-
-            self.settings
-                .write()
-                .map_err(|e| ObsError::LockError(e.to_string()))?
-                .replace(settings);
-            Ok(())
-        } else {
-            Err(ObsError::OutputAlreadyActive)
-        }
-    }
-
-    /// Creates and attaches a new audio encoder to this output.
-    ///
-    /// This method creates a new audio encoder using the provided information,
-    /// sets up the audio handler, and attaches it to this output at the specified mixer index.
-    ///
-    /// # Arguments
-    /// * `info` - Information for creating the audio encoder
-    /// * `mixer_idx` - The mixer index to use (typically 0 for primary audio)
-    /// * `handler` - The audio output handler
-    ///
-    /// # Returns
-    /// A Result containing an Arc-wrapped ObsAudioEncoder or an error
-    #[deprecated = "This function has been renamed to `create_and_set_audio_encoder`."]
-    pub fn audio_encoder(
-        &mut self,
-        info: AudioEncoderInfo,
-        mixer_idx: usize,
-        handler: Sendable<*mut audio_output>,
-    ) -> Result<Arc<ObsAudioEncoder>, ObsError> {
-        self.create_and_set_audio_encoder(info, mixer_idx, handler)
+        self.settings
+            .write()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
+            .replace(settings);
+        Ok(())
     }
 
     /// Creates and attaches a new audio encoder to this output.
@@ -311,11 +259,13 @@ impl ObsOutputRef {
         &mut self,
         info: AudioEncoderInfo,
         mixer_idx: usize,
-        handler: Sendable<*mut audio_output>,
     ) -> Result<Arc<ObsAudioEncoder>, ObsError> {
-        let audio_enc =
-            ObsAudioEncoder::new_from_info(info, mixer_idx, handler, self.runtime.clone())?;
+        // Fail early before creating the encoder if the output is active
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
+        }
 
+        let audio_enc = ObsAudioEncoder::new_from_info(info, mixer_idx, self.runtime.clone())?;
         self.set_audio_encoder(audio_enc.clone(), mixer_idx)?;
         Ok(audio_enc)
     }
@@ -335,6 +285,10 @@ impl ObsOutputRef {
     ) -> Result<(), ObsError> {
         if encoder.encoder.0.is_null() {
             return Err(ObsError::NullPointer);
+        }
+
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
         }
 
         let encoder_ptr = encoder.encoder.clone();
@@ -358,34 +312,53 @@ impl ObsOutputRef {
     /// # Returns
     /// A Result indicating success or an error (e.g., if the output is already active)
     pub fn start(&self) -> Result<(), ObsError> {
-        let output_ptr = self.output.clone();
-        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            libobs::obs_output_active(output_ptr)
-        })?;
-
-        if !output_active {
-            let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                libobs::obs_output_start(output_ptr)
-            })?;
-
-            if res {
-                return Ok(());
-            }
-
-            let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                Sendable(libobs::obs_output_get_last_error(output_ptr))
-            })?;
-
-            let c_str = unsafe { CStr::from_ptr(err.0) };
-            let err_str = c_str.to_str().ok().map(|x| x.to_string());
-
-            return Err(ObsError::OutputStartFailure(err_str));
+        if self.is_active()? {
+            return Err(ObsError::OutputAlreadyActive);
         }
 
-        Err(ObsError::OutputAlreadyActive)
+        // Set the video and audio encoders before starting (similar to https://github.com/obsproject/obs-studio/blob/0b1229632063a13dfd26cf1cd9dd43431d8c68f6/frontend/utility/SimpleOutput.cpp#L552)
+        let vid_encoder_ptr = self
+            .curr_video_encoder
+            .read()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
+            .as_ref()
+            .map(|enc| enc.as_ptr())
+            .unwrap_or(Sendable(ptr::null_mut()));
+
+        let audio_encoder_ptr = self
+            .audio_encoders
+            .read()
+            .map_err(|e| ObsError::LockError(e.to_string()))?
+            .as_ref()
+            .map(|enc| enc.encoder.clone())
+            .unwrap_or(Sendable(ptr::null_mut()));
+
+        let output_ptr = self.output.clone();
+        let res = run_with_obs!(
+            self.runtime,
+            (output_ptr, vid_encoder_ptr, audio_encoder_ptr),
+            move || unsafe {
+                libobs::obs_encoder_set_video(vid_encoder_ptr, libobs::obs_get_video());
+                libobs::obs_encoder_set_audio(audio_encoder_ptr, libobs::obs_get_audio());
+                libobs::obs_output_start(output_ptr)
+            }
+        )?;
+
+        if res {
+            return Ok(());
+        }
+
+        let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            Sendable(libobs::obs_output_get_last_error(output_ptr))
+        })?;
+
+        let c_str = unsafe { CStr::from_ptr(err.0) };
+        let err_str = c_str.to_str().ok().map(|x| x.to_string());
+
+        Err(ObsError::OutputStartFailure(err_str))
     }
 
-    /// Pause or resume the output.
+    /// Pause or resume the output (with a default completion timeout of 5s).
     ///
     /// # Arguments
     ///
@@ -396,36 +369,60 @@ impl ObsOutputRef {
     /// * `Ok(())` - The output was paused or resumed successfully.
     /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
     pub fn pause(&self, pause: bool) -> Result<(), ObsError> {
+        self.pause_with_timeout(pause, Duration::from_secs(5))
+    }
+
+    /// This pauses or resumes the given output, and waits until the output is fully paused or the timeout is reached.
+    ///
+    /// # Arguments
+    ///
+    /// * `pause` - `true` to pause the output, `false` to resume the output.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - The output was paused or resumed successfully.
+    /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
+    pub fn pause_with_timeout(&self, pause: bool, timeout: Duration) -> Result<(), ObsError> {
+        if !self.is_active()? {
+            return Err(ObsError::OutputPauseFailure(Some(
+                "Output is not active.".to_string(),
+            )));
+        }
+
         let output_ptr = self.output.clone();
-        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-            libobs::obs_output_active(output_ptr)
+
+        let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            libobs::obs_output_pause(output_ptr, pause)
         })?;
 
-        if output_active {
-            let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                libobs::obs_output_pause(output_ptr, pause)
+        if res {
+            log::debug!("Waiting for output to pause completely (timeout in 5s)...");
+            let start_wait = std::time::Instant::now();
+            while self.is_active()? {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if start_wait.elapsed() >= timeout {
+                    return Err(ObsError::OutputPauseFailure(Some(
+                        "Timeout waiting for output to pause.".to_string(),
+                    )));
+                }
+            }
+
+            log::trace!("Wait time was: {}ms", start_wait.elapsed().as_millis());
+
+            Ok(())
+        } else {
+            let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+                Sendable(libobs::obs_output_get_last_error(output_ptr))
             })?;
 
-            if res {
-                Ok(())
-            } else {
-                let err = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                    Sendable(libobs::obs_output_get_last_error(output_ptr))
-                })?;
+            let c_str = unsafe { CStr::from_ptr(err.0) };
+            let err_str = c_str.to_str().ok().map(|x| x.to_string());
 
-                let c_str = unsafe { CStr::from_ptr(err.0) };
-                let err_str = c_str.to_str().ok().map(|x| x.to_string());
-
-                Err(ObsError::OutputPauseFailure(err_str))
-            }
-        } else {
-            Err(ObsError::OutputPauseFailure(Some(
-                "Output is not active.".to_string(),
-            )))
+            Err(ObsError::OutputPauseFailure(err_str))
         }
     }
 
-    /// Stops the output.
+    /// Stops the output with a default timeout of 5s.
     ///
     /// This ends the encoding and streaming/recording process.
     /// The method waits for a stop signal and returns the result.
@@ -434,29 +431,63 @@ impl ObsOutputRef {
     /// A Result indicating success or an error with details about why stopping failed
     //TODO There should be some kind of "wait" for other methods to finish, generally we don't want to have multiple different methods calling methods
     pub fn stop(&mut self) -> Result<(), ObsError> {
+        self.stop_with_timeout(Duration::from_secs(5))
+    }
+
+    /// Stops the output with a given timeout. Note that the timeout is only for waiting for the output to fully stop.
+    ///
+    /// This ends the encoding and streaming/recording process.
+    /// The method waits for a stop signal and returns the result.
+    ///
+    /// # Returns
+    /// A Result indicating success or an error with details about why stopping failed
+    //TODO There should be some kind of "wait" for other methods to finish, generally we don't want to have multiple different methods calling methods
+    pub fn stop_with_timeout(&mut self, timeout: Duration) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             libobs::obs_output_active(output_ptr)
         })?;
 
-        if output_active {
-            let mut rx = self.signal_manager.on_stop()?;
-            run_with_obs!(self.runtime, (output_ptr), move || unsafe {
-                libobs::obs_output_stop(output_ptr)
-            })?;
+        if !output_active {
+            return Err(ObsError::OutputStopFailure(Some(
+                "Output is not active.".to_string(),
+            )));
+        }
 
-            let signal = rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;
-            log::debug!("Signal: {:?}", signal);
-            if signal == ObsOutputStopSignal::Success {
-                return Ok(());
-            }
+        let mut rx = self.signal_manager.on_stop()?;
+        run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            libobs::obs_output_stop(output_ptr)
+        })?;
 
+        let signal = rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;
+        log::debug!("Signal: {:?}", signal);
+        if signal != ObsOutputStopSignal::Success {
             return Err(ObsError::OutputStopFailure(Some(signal.to_string())));
         }
 
-        Err(ObsError::OutputStopFailure(Some(
-            "Output is not active.".to_string(),
-        )))
+        log::debug!("Waiting for output to stop completely (timeout in 5s)...");
+        let start_wait = std::time::Instant::now();
+        while self.is_active()? {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            if start_wait.elapsed() >= timeout {
+                return Err(ObsError::OutputStopFailure(Some(
+                    "Timeout waiting for output to stop.".to_string(),
+                )));
+            }
+        }
+
+        log::trace!("Wait time was: {}ms", start_wait.elapsed().as_millis());
+
+        Ok(())
+    }
+
+    pub fn is_active(&self) -> Result<bool, ObsError> {
+        let output_ptr = self.output.clone();
+        let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
+            libobs::obs_output_active(output_ptr)
+        })?;
+
+        Ok(output_active)
     }
 
     pub fn as_ptr(&self) -> Sendable<*mut obs_output> {
