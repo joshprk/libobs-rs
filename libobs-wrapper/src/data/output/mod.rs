@@ -1,5 +1,4 @@
 use std::sync::{Arc, RwLock};
-use std::time::Duration;
 use std::{ffi::CStr, ptr};
 
 use anyhow::bail;
@@ -358,7 +357,7 @@ impl ObsOutputRef {
         Err(ObsError::OutputStartFailure(err_str))
     }
 
-    /// Pause or resume the output (with a default completion timeout of 5s).
+    /// This pauses or resumes the given output, and waits until the output is fully paused.
     ///
     /// # Arguments
     ///
@@ -369,20 +368,6 @@ impl ObsOutputRef {
     /// * `Ok(())` - The output was paused or resumed successfully.
     /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
     pub fn pause(&self, pause: bool) -> Result<(), ObsError> {
-        self.pause_with_timeout(pause, Duration::from_secs(5))
-    }
-
-    /// This pauses or resumes the given output, and waits until the output is fully paused or the timeout is reached.
-    ///
-    /// # Arguments
-    ///
-    /// * `pause` - `true` to pause the output, `false` to resume the output.
-    ///
-    /// # Returns
-    ///
-    /// * `Ok(())` - The output was paused or resumed successfully.
-    /// * `Err(ObsError::OutputPauseFailure(Some(String)))` - The output failed to pause or resume.
-    pub fn pause_with_timeout(&self, pause: bool, timeout: Duration) -> Result<(), ObsError> {
         if !self.is_active()? {
             return Err(ObsError::OutputPauseFailure(Some(
                 "Output is not active.".to_string(),
@@ -391,23 +376,18 @@ impl ObsOutputRef {
 
         let output_ptr = self.output.clone();
 
+        let mut rx = if pause {
+            self.signal_manager.on_pause()?
+        } else {
+            self.signal_manager.on_unpause()?
+        };
+
         let res = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             libobs::obs_output_pause(output_ptr, pause)
         })?;
 
         if res {
-            log::debug!("Waiting for output to pause completely (timeout in 5s)...");
-            let start_wait = std::time::Instant::now();
-            while self.is_active()? {
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                if start_wait.elapsed() >= timeout {
-                    return Err(ObsError::OutputPauseFailure(Some(
-                        "Timeout waiting for output to pause.".to_string(),
-                    )));
-                }
-            }
-
-            log::trace!("Wait time was: {}ms", start_wait.elapsed().as_millis());
+            rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;
 
             Ok(())
         } else {
@@ -422,7 +402,7 @@ impl ObsOutputRef {
         }
     }
 
-    /// Stops the output with a default timeout of 5s.
+    /// Stops the output.
     ///
     /// This ends the encoding and streaming/recording process.
     /// The method waits for a stop signal and returns the result.
@@ -431,18 +411,6 @@ impl ObsOutputRef {
     /// A Result indicating success or an error with details about why stopping failed
     //TODO There should be some kind of "wait" for other methods to finish, generally we don't want to have multiple different methods calling methods
     pub fn stop(&mut self) -> Result<(), ObsError> {
-        self.stop_with_timeout(Duration::from_secs(5))
-    }
-
-    /// Stops the output with a given timeout. Note that the timeout is only for waiting for the output to fully stop.
-    ///
-    /// This ends the encoding and streaming/recording process.
-    /// The method waits for a stop signal and returns the result.
-    ///
-    /// # Returns
-    /// A Result indicating success or an error with details about why stopping failed
-    //TODO There should be some kind of "wait" for other methods to finish, generally we don't want to have multiple different methods calling methods
-    pub fn stop_with_timeout(&mut self, timeout: Duration) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             libobs::obs_output_active(output_ptr)
@@ -455,28 +423,22 @@ impl ObsOutputRef {
         }
 
         let mut rx = self.signal_manager.on_stop()?;
+        let mut rx_deactivate = self.signal_manager.on_deactivate()?;
+
         run_with_obs!(self.runtime, (output_ptr), move || unsafe {
             libobs::obs_output_stop(output_ptr)
         })?;
 
         let signal = rx.blocking_recv().map_err(|_| ObsError::NoSenderError)?;
-        log::debug!("Signal: {:?}", signal);
+
+        log::trace!("Received stop signal: {:?}", signal);
         if signal != ObsOutputStopSignal::Success {
             return Err(ObsError::OutputStopFailure(Some(signal.to_string())));
         }
 
-        log::debug!("Waiting for output to stop completely (timeout in 5s)...");
-        let start_wait = std::time::Instant::now();
-        while self.is_active()? {
-            std::thread::sleep(std::time::Duration::from_millis(100));
-            if start_wait.elapsed() >= timeout {
-                return Err(ObsError::OutputStopFailure(Some(
-                    "Timeout waiting for output to stop.".to_string(),
-                )));
-            }
-        }
-
-        log::trace!("Wait time was: {}ms", start_wait.elapsed().as_millis());
+        rx_deactivate
+            .blocking_recv()
+            .map_err(|_| ObsError::NoSenderError)?;
 
         Ok(())
     }
