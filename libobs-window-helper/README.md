@@ -1,6 +1,6 @@
 # libOBS Window Helper
 
-This is just a helper crate for the (to be released) `libobs-sources` crate. It provides a way to get a list of all windows that OBS can capture (eiter `window_capture` or `game_capture`). If you want to use this crate nevertheless, here's an example.
+This is just a helper crate for the `libobs-sources` crate. It provides a way to get a list of all windows that OBS can capture (eiter `window_capture` or `game_capture`). If you want to use this crate nevertheless, here's an example.
 
 ## Example
 
