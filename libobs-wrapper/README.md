@@ -178,8 +178,10 @@ For more advanced usage examples, check out:
 For even easier source creation and management, consider using the [`libobs-sources`](https://crates.io/crates/libobs-sources) crate which builds on top of this wrapper.
 
 ## Features
-
-- `blocking` - Provides a blocking API instead of async (useful for applications that don't need async)
+- `no_blocking_drops` - Spawns a tokio thread using `tokio::task::spawn_blocking`, so drops don't block your Application (experimental)
+- `generate_bindings` - When enabled, forces the underlying bindings from `libobs` to generate instead of using the cached ones.
+- `color-logger` - Enables coloring for the console
+- `dialog_crash_handler` - Adds a default crash handler, which shows the error and an option to copy the stacktrace to the clipboard
 
 ## Common Issues
 
@@ -192,12 +194,11 @@ If you're experiencing crashes or missing DLL errors:
 
 ### Memory Leaks
 
-The library handles most memory management automatically, but you should avoid resetting the OBS context repeatedly as this can cause small memory leaks (due to an OBS limitation). 
-Also notice that dropping Obs structs leads to a blocking call to the runtime.
+The library handles most memory management automatically, but you should avoid resetting the OBS context repeatedly as this can cause small memory leaks (due to an OBS limitation). There is `1` memory leak caused by `obs_add_data_path` (which is called internally from this lib). Unfortunately, this memory leak can not be fixed because of how OBS internally works.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GPL-3.0 License - see the LICENSE file for details.
 
 ## Acknowledgments
 
