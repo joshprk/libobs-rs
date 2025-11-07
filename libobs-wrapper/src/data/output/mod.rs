@@ -210,18 +210,7 @@ impl ObsOutputRef {
     ) -> Result<Arc<ObsVideoEncoder>, ObsError> {
         let video_enc = ObsVideoEncoder::new_from_info(info, handler, self.runtime.clone())?;
 
-        let encoder_ptr = video_enc.encoder.clone();
-        let output_ptr = self.output.clone();
-
-        run_with_obs!(self.runtime, (encoder_ptr, output_ptr), move || unsafe {
-            libobs::obs_output_set_video_encoder(output_ptr, encoder_ptr);
-        })?;
-
-        self.curr_video_encoder
-            .write()
-            .map_err(|e| ObsError::LockError(e.to_string()))?
-            .replace(video_enc.clone());
-
+        self.set_video_encoder(video_enc.clone())?;
         Ok(video_enc)
     }
 
@@ -327,18 +316,7 @@ impl ObsOutputRef {
         let audio_enc =
             ObsAudioEncoder::new_from_info(info, mixer_idx, handler, self.runtime.clone())?;
 
-        let encoder_ptr = audio_enc.encoder.clone();
-        let output_ptr = self.output.clone();
-
-        run_with_obs!(self.runtime, (encoder_ptr, output_ptr), move || unsafe {
-            libobs::obs_output_set_audio_encoder(output_ptr, encoder_ptr, mixer_idx);
-        })?;
-
-        self.audio_encoders
-            .write()
-            .map_err(|e| ObsError::LockError(e.to_string()))?
-            .replace(audio_enc.clone());
-
+        self.set_audio_encoder(audio_enc.clone(), mixer_idx)?;
         Ok(audio_enc)
     }
 
