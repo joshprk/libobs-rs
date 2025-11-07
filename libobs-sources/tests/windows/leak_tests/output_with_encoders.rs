@@ -58,9 +58,7 @@ pub fn test_output_with_encoders() {
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
-    output
-        .create_and_set_audio_encoder(audio_info, 0)
-        .unwrap();
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
     // Output and context will be dropped here, testing for memory leaks
 }

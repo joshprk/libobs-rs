@@ -57,9 +57,7 @@ pub fn test_scene() {
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
-    output
-        .create_and_set_audio_encoder(audio_info, 0)
-        .unwrap();
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
     // Create a scene
     let scene = context.scene("main").unwrap();

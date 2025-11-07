@@ -1,4 +1,3 @@
-
 /// Standalone reproduction for OBS crash when switching encoders
 ///
 /// Expected result: Crash eventually occurs on NVENC
@@ -98,11 +97,8 @@ impl ReproState {
         audio_settings.set_int("bitrate", 160)?;
         let audio_info =
             AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
-        let audio_encoder = ObsAudioEncoder::new_from_info(
-            audio_info,
-            0,
-            obs_context.runtime().clone(),
-        )?;
+        let audio_encoder =
+            ObsAudioEncoder::new_from_info(audio_info, 0, obs_context.runtime().clone())?;
 
         let mut scene = obs_context.scene("main")?;
         let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();

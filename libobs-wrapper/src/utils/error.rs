@@ -47,7 +47,7 @@ pub enum ObsError {
     Unexpected(String),
 
     /// Encoder is still active, stop the attached output before proceeding
-    EncoderActive
+    EncoderActive,
 }
 
 impl Display for ObsError {
