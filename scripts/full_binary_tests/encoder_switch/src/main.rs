@@ -26,6 +26,8 @@ enum EncoderType {
 }
 
 impl EncoderType {
+    // Chill clippy, this is just a test repro
+    #[allow(clippy::wrong_self_convention)]
     fn to_obs_encoder_type(&self) -> ObsVideoEncoderType {
         match self {
             EncoderType::X264 => ObsVideoEncoderType::OBS_X264,
@@ -62,8 +64,8 @@ struct ReproState {
 
     // Key point: storing encoders by type to reuse them (like production code)
     video_encoders: HashMap<EncoderType, Arc<ObsVideoEncoder>>,
-    scene: libobs_wrapper::scenes::ObsSceneRef,
-    monitor_capture: libobs_wrapper::sources::ObsSourceRef,
+    _scene: libobs_wrapper::scenes::ObsSceneRef,
+    _monitor_capture: libobs_wrapper::sources::ObsSourceRef,
 }
 
 impl ReproState {
@@ -116,8 +118,8 @@ impl ReproState {
             output,
             audio_encoder,
             video_encoders: HashMap::new(),
-            scene,
-            monitor_capture,
+            _scene: scene,
+            _monitor_capture: monitor_capture,
         })
     }
 
