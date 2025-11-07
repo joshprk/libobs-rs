@@ -454,6 +454,7 @@ impl ObsOutputRef {
     ///
     /// # Returns
     /// A Result indicating success or an error with details about why stopping failed
+    //TODO There should be some kind of "wait" for other methods to finish, generally we don't want to have multiple different methods calling methods
     pub fn stop(&mut self) -> Result<(), ObsError> {
         let output_ptr = self.output.clone();
         let output_active = run_with_obs!(self.runtime, (output_ptr), move || unsafe {
