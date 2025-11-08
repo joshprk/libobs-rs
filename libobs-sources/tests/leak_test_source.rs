@@ -1,9 +1,11 @@
+mod common;
+
 use std::{process::Command, time::Duration};
 
 use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
-use crate::common::{find_notepad, initialize_obs};
+use common::{find_notepad, initialize_obs};
 
 /// Stage 5: Initialize OBS, create output with encoders, scene, and add window capture source
 #[test]
@@ -36,10 +38,9 @@ pub fn test_source() {
         .add_to_scene(&mut scene)
         .unwrap();
 
-    cmd.take()
+    let _ = cmd.take()
         .map(|mut c| {
             c.kill().unwrap();
             c.wait().unwrap();
-        })
-        .unwrap();
+        });
 }

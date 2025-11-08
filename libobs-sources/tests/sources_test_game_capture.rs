@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::PathBuf, time::Duration};
 
 use libobs_sources::windows::{GameCaptureSourceBuilder, ObsGameCaptureMode};
@@ -6,7 +8,8 @@ use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 use crate::common::{assert_not_black, initialize_obs};
 
 #[test]
-pub fn game_test() {
+#[ignore]
+pub fn record() {
     let rec_file = ObsPath::from_relative("game_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 

@@ -1,3 +1,5 @@
+mod common;
+
 use std::{path::PathBuf, time::Duration};
 
 use libobs_sources::windows::{
@@ -20,7 +22,7 @@ pub fn monitor_list_check() {
 const ENABLE_DXGI_TEST: bool = false;
 
 #[test]
-pub fn monitor_test() {
+pub fn record() {
     let rec_file = ObsPath::from_relative("monitor_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 

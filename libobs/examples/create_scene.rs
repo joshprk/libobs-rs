@@ -5,8 +5,8 @@ use std::{
 };
 
 pub(crate) unsafe extern "C" fn main_crash_handler(
-    format: *const i8,
-    args: *mut i8,
+    _format: *const i8,
+    _args: *mut i8,
     _params: *mut c_void,
 ) {
     println!("Some crash");

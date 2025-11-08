@@ -5,9 +5,9 @@ use libobs_wrapper::{
     utils::{AudioEncoderInfo, OutputInfo, StartupInfo},
 };
 
-/// Stage 3: Initialize OBS and create output with video and audio encoders
+/// Stage 4: Initialize OBS with output, encoders, and create a scene
 #[test]
-pub fn test_output_with_encoders() {
+pub fn test_scene() {
     let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
         .is_test(true)
         .try_init();
@@ -20,7 +20,6 @@ pub fn test_output_with_encoders() {
     let rec_file = "test_recording.mp4";
     output_settings.set_string("path", rec_file).unwrap();
 
-    // Create output
     let output_name = "output";
     let output_info = OutputInfo::new("ffmpeg_muxer", output_name, Some(output_settings), None);
     let mut output = context.output(output_info).unwrap();
@@ -60,5 +59,9 @@ pub fn test_output_with_encoders() {
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
     output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
-    // Output and context will be dropped here, testing for memory leaks
+    // Create a scene
+    let scene = context.scene("main").unwrap();
+    scene.set_to_channel(0).unwrap();
+
+    // Scene, output, and context will be dropped here, testing for memory leaks
 }

@@ -1,0 +1,7 @@
+[test-groups]
+actual-source-capture = { max-threads = 1 }
+
+
+[[profile.default.overrides]]
+filter = 'binary(/^sources_test/)'
+test-group = 'actual-source-capture'

@@ -1,3 +1,5 @@
+mod common;
+
 use std::{
     cmp,
     io::{stdout, Write},
@@ -19,7 +21,7 @@ use libobs_wrapper::{
 
 #[test]
 // For this test to work, notepad must be open
-pub fn test_window_capture() {
+pub fn record() {
     let rec_file = ObsPath::from_relative("window_capture.mp4").build();
     let path_out = PathBuf::from(rec_file.to_string());
 
@@ -78,6 +80,7 @@ pub fn test_window_capture() {
 
     if let Some(mut c) = cmd {
         let _ = c.kill();
+        c.wait().unwrap();
     }
 
     assert_not_black(&path_out, 1.0);
