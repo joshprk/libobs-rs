@@ -1917,7 +1917,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "3.1.0"
+version = "3.2.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1939,7 +1939,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-window-helper"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "anyhow",
  "serde",
@@ -1950,7 +1950,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "5.1.0"
+version = "5.2.0"
 dependencies = [
  "anyhow",
  "arboard",
