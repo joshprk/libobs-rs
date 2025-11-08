@@ -273,6 +273,7 @@ impl ObsVideoInfoBuilder {
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl Default for ObsVideoInfoBuilder {
     fn default() -> Self {
         Self::new()

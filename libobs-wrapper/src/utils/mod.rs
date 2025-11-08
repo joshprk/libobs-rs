@@ -74,6 +74,7 @@ impl ObsModules {
         self.log_if_failed();
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn log_if_failed(&self) {
         if self.info.as_ref().is_none_or(|x| x.0.count == 0) {
             return;

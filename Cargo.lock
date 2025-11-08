@@ -1934,6 +1934,7 @@ dependencies = [
  "num-traits",
  "paste",
  "serde_json",
+ "winit",
 ]
 
 [[package]]

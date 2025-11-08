@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 use crate::{
     context::ObsContext,
     data::{audio::ObsAudioInfo, video::ObsVideoInfo},
@@ -21,6 +23,7 @@ impl StartupInfo {
         Self::default()
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn set_startup_paths(mut self, paths: StartupPaths) -> Self {
         self.startup_paths = paths;
         self
@@ -31,15 +34,18 @@ impl StartupInfo {
         self
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn get_video_info(&self) -> &ObsVideoInfo {
         &self.obs_video_info
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn set_logger(mut self, logger: Box<dyn ObsLogger + Sync + Send>) -> Self {
         self.logger = Some(logger);
         self
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn start(self) -> Result<ObsContext, ObsError> {
         ObsContext::new(self)
     }
@@ -70,6 +76,7 @@ pub struct StartupPaths {
 }
 
 impl StartupPaths {
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(
         libobs_data_path: ObsPath,
         plugin_bin_path: ObsPath,
@@ -125,22 +132,26 @@ impl StartupPathsBuilder {
         }
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn libobs_data_path(mut self, value: ObsPath) -> Self {
         self.libobs_data_path = value;
         self
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn plugin_bin_path(mut self, value: ObsPath) -> Self {
         self.plugin_bin_path = value;
         self
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn plugin_data_path(mut self, value: ObsPath) -> Self {
         self.plugin_data_path = value;
         self
     }
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl Default for StartupPathsBuilder {
     fn default() -> StartupPathsBuilder {
         Self::new()

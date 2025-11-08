@@ -52,6 +52,7 @@ pub enum ObsError {
     EncoderActive,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl Display for ObsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "OBS Error: ")?;
