@@ -1,7 +1,10 @@
 mod common;
 
 use libobs_wrapper::{
-    context::ObsContext, data::properties::ObsPropertyObject, encoders::{ObsContextEncoders, ObsVideoEncoderType}, utils::StartupInfo
+    context::ObsContext,
+    data::properties::ObsPropertyObject,
+    encoders::{ObsContextEncoders, ObsVideoEncoderType},
+    utils::StartupInfo,
 };
 
 /// Integration test: Test accessing available video encoders

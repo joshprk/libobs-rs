@@ -24,9 +24,9 @@ pub mod status_handler;
 mod version;
 
 #[cfg(test)]
-mod version_tests;
-#[cfg(test)]
 mod options_tests;
+#[cfg(test)]
+mod version_tests;
 
 pub use error::ObsBootstrapError;
 

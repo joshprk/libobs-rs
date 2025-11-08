@@ -6,6 +6,5 @@ pub(crate) mod win_iterator;
 pub use helper::get_window_info;
 pub use validators::{is_microsoft_internal_exe, is_window_valid, WindowSearchMode};
 
-
 #[cfg(test)]
 mod string_conv_tests;

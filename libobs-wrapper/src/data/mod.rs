@@ -99,10 +99,7 @@ impl ObsData {
         Ok(self)
     }
 
-    pub fn get_string<T: Into<ObsString> + Send + Sync>(
-        &self,
-        key: T,
-    ) -> Result<String, ObsError> {
+    pub fn get_string<T: Into<ObsString> + Send + Sync>(&self, key: T) -> Result<String, ObsError> {
         let key = key.into();
 
         let key_ptr = key.as_ptr();
@@ -117,7 +114,9 @@ impl ObsData {
         }
 
         let result = unsafe { CStr::from_ptr(result.0) };
-        let result = result.to_str().map_err(|_| ObsError::StringConversionError)?;
+        let result = result
+            .to_str()
+            .map_err(|_| ObsError::StringConversionError)?;
 
         Ok(result.to_string())
     }
@@ -204,10 +203,7 @@ impl ObsData {
         Ok(self)
     }
 
-    pub fn get_double<T: Into<ObsString> + Sync + Send>(
-        &self,
-        key: T,
-    ) -> Result<f64, ObsError> {
+    pub fn get_double<T: Into<ObsString> + Sync + Send>(&self, key: T) -> Result<f64, ObsError> {
         let key = key.into();
 
         let key_ptr = key.as_ptr();

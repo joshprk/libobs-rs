@@ -1,9 +1,6 @@
 mod common;
 
-use libobs_wrapper::{
-    context::ObsContext,
-    utils::StartupInfo,
-};
+use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
 
 /// Integration test: Test creating a scene
 #[test]
@@ -47,10 +44,10 @@ pub fn test_multiple_scenes() {
     // Create multiple scenes
     let scene1 = context.scene("scene1");
     assert!(scene1.is_ok());
-    
+
     let scene2 = context.scene("scene2");
     assert!(scene2.is_ok());
-    
+
     let scene3 = context.scene("scene3");
     assert!(scene3.is_ok());
 }
@@ -71,7 +68,7 @@ pub fn test_scene_lifecycle() {
 
         // Scene should be usable here
     }
-    
+
     // After scope ends, scene is dropped
     // Context should still be valid
     let scene2 = context.scene("another_scene");

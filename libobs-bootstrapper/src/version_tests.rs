@@ -14,14 +14,24 @@ mod tests {
     fn test_should_update_invalid_format_two_parts() {
         let result = should_update("30.2");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid version string"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid version string")
+        );
     }
 
     #[test]
     fn test_should_update_invalid_format_four_parts() {
         let result = should_update("30.2.2.1");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid version string"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid version string")
+        );
     }
 
     #[test]
@@ -34,21 +44,36 @@ mod tests {
     fn test_should_update_invalid_major_non_numeric() {
         let result = should_update("abc.2.2");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid version string"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid version string")
+        );
     }
 
     #[test]
     fn test_should_update_invalid_minor_non_numeric() {
         let result = should_update("30.abc.2");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid version string"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid version string")
+        );
     }
 
     #[test]
     fn test_should_update_invalid_patch_non_numeric() {
         let result = should_update("30.2.abc");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid version string"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Invalid version string")
+        );
     }
 
     #[test]

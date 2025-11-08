@@ -12,29 +12,25 @@ mod tests {
 
     #[test]
     fn test_set_repository() {
-        let options = ObsBootstrapperOptions::new()
-            .set_repository("custom/repo");
+        let options = ObsBootstrapperOptions::new().set_repository("custom/repo");
         assert_eq!(options.get_repository(), "custom/repo");
     }
 
     #[test]
     fn test_set_update_true() {
-        let options = ObsBootstrapperOptions::new()
-            .set_update(true);
+        let options = ObsBootstrapperOptions::new().set_update(true);
         assert!(options.update);
     }
 
     #[test]
     fn test_set_update_false() {
-        let options = ObsBootstrapperOptions::new()
-            .set_update(false);
+        let options = ObsBootstrapperOptions::new().set_update(false);
         assert!(!options.update);
     }
 
     #[test]
     fn test_set_no_restart() {
-        let options = ObsBootstrapperOptions::new()
-            .set_no_restart();
+        let options = ObsBootstrapperOptions::new().set_no_restart();
         assert!(!options.restart_after_update);
     }
 
@@ -44,7 +40,7 @@ mod tests {
             .set_repository("test/repo")
             .set_update(false)
             .set_no_restart();
-        
+
         assert_eq!(options.get_repository(), "test/repo");
         assert!(!options.update);
         assert!(!options.restart_after_update);
@@ -60,8 +56,7 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let options1 = ObsBootstrapperOptions::new()
-            .set_repository("test/repo");
+        let options1 = ObsBootstrapperOptions::new().set_repository("test/repo");
         let options2 = options1.clone();
         assert_eq!(options1.get_repository(), options2.get_repository());
     }
