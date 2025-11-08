@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 use getters0::Getters;
 
 #[cfg(not(windows))]
@@ -19,6 +21,7 @@ pub mod enums;
 pub mod utils;
 
 // Add the macros module to the public exports
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod macros;
 
 #[derive(Debug, Clone, Copy, Getters)]
