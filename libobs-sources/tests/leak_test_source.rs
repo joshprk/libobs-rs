@@ -38,9 +38,8 @@ pub fn test_source() {
         .add_to_scene(&mut scene)
         .unwrap();
 
-    let _ = cmd.take()
-        .map(|mut c| {
-            c.kill().unwrap();
-            c.wait().unwrap();
-        });
+    let _ = cmd.take().map(|mut c| {
+        c.kill().unwrap();
+        c.wait().unwrap();
+    });
 }
