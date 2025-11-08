@@ -119,7 +119,7 @@ impl ReproState {
         );
 
         // Create a dummy output path (replace with your own)
-        let output_path = format!("test_recording_{}.mp4", encoder_type.id());
+        let output_path = format!("encoder_test_switch_{}.mp4", encoder_type.id());
         let output_path = ObsPath::from_relative(&output_path).build();
 
         // KEY FIX: Reset video settings between recordings (like production code does)
