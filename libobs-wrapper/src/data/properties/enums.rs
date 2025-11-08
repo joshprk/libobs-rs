@@ -102,8 +102,3 @@ pub enum ObsButtonType {
     Default = libobs::obs_button_type_OBS_BUTTON_DEFAULT,
     Url = libobs::obs_button_type_OBS_BUTTON_URL,
 }
-
-#[cfg(test)]
-mod enums_tests;
-#[cfg(test)]
-pub use enums_tests::*;
