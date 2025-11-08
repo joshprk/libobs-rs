@@ -8,11 +8,9 @@ members = [
     "libobs-window-helper",
     "libobs-wrapper",
     "libobs-bootstrapper",
-    "examples/*"
+    "examples/*",
 ]
-exclude = [
-    "examples/tauri-app",
-]
+exclude = ["examples/tauri-app"]
 
 [workspace.dependencies]
 libobs = { path = "./libobs", version = "3.0.0" }

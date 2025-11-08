@@ -16,7 +16,7 @@ pub fn test_output() {
 
     // Set up output settings
     let mut output_settings = context.data().unwrap();
-    let rec_file = "test_recording.mp4";
+    let rec_file = "leak_test_output.mp4";
     output_settings.set_string("path", rec_file).unwrap();
 
     // Create basic output without encoders

@@ -67,10 +67,7 @@ pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsCont
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
 
-    let audio_handler = context.get_audio_ptr().unwrap();
-    output
-        .create_and_set_audio_encoder(audio_info, 0, audio_handler)
-        .unwrap();
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
     (context, output)
 }

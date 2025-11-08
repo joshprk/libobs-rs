@@ -5,7 +5,7 @@ use libobs_wrapper::{
     utils::{AudioEncoderInfo, OutputInfo, StartupInfo},
 };
 
-/// Stage 3: Initialize OBS with output and encoders
+/// Stage 4: Initialize OBS with output, encoders, and create a scene
 #[test]
 pub fn test_scene() {
     let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
@@ -57,10 +57,7 @@ pub fn test_scene() {
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
-    let audio_handler = context.get_audio_ptr().unwrap();
-    output
-        .create_and_set_audio_encoder(audio_info, 0, audio_handler)
-        .unwrap();
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
     // Create a scene
     let scene = context.scene("main").unwrap();

@@ -4,15 +4,8 @@ use std::{
     ptr,
 };
 
-pub(crate) unsafe extern "C" fn main_crash_handler(
-    _format: *const i8,
-    _args: *mut i8,
-    _params: *mut c_void,
-) {
-    println!("Some crash");
-}
-
-fn main() {
+#[test]
+fn test_create_source() {
     // STARTUP
     unsafe {
         println!("Starting OBS initialization process");
@@ -35,9 +28,6 @@ fn main() {
 
         #[cfg(target_os = "windows")]
         {
-            libobs::obs_init_win32_crash_handler();
-
-            libobs::base_set_crash_handler(Some(main_crash_handler), std::ptr::null_mut());
             println!("Setting log handler on Windows");
             libobs::base_set_log_handler(Some(log_handler), ptr::null_mut());
             println!("Log handler set successfully");
@@ -155,11 +145,13 @@ fn main() {
         libobs::obs_post_load_modules();
         println!("Module loading complete");
 
-        let scene = libobs::obs_scene_create(CString::new("Test scene").unwrap().as_ptr());
-        let scene_source = libobs::obs_scene_get_source(scene);
-        libobs::obs_source_release(scene_source);
-
-        libobs::obs_scene_release(scene);
+        let audio_source = libobs::obs_source_create(
+            CString::new("wasapi_output_capture").unwrap().as_ptr(),
+            CString::new("Audio Capture Source").unwrap().as_ptr(),
+            ptr::null_mut(),
+            ptr::null_mut(),
+        );
+        libobs::obs_source_release(audio_source);
 
         // Clear sources
         libobs::obs_set_output_source(0, ptr::null_mut()); // 0 = VIDEO CHANNEL
@@ -167,20 +159,9 @@ fn main() {
         libobs::obs_remove_data_path(data_path.as_ptr());
         libobs::obs_shutdown();
 
-        println!(
-            "OBS shutdown completed with {} memleaks",
-            libobs::bnum_allocs()
-        );
+        let allocs = libobs::bnum_allocs();
+        assert_eq!(allocs, 1, "Memory leaks detected: {}", allocs);
     }
-}
-
-#[cfg(not(target_os = "windows"))]
-fn x_open_display(display: *mut c_void) -> *mut c_void {
-    extern "C" {
-        fn XOpenDisplay(display: *mut c_void) -> *mut c_void;
-    }
-
-    unsafe { XOpenDisplay(display) }
 }
 
 #[cfg(target_os = "windows")]

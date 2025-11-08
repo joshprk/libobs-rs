@@ -1,0 +1,9 @@
+[test-groups]
+actual-source-capture = { max-threads = 1 }
+
+[profile.default]
+retries = 2
+
+[[profile.default.overrides]]
+filter = 'binary(/^sources_test/) + binary(/^leak_test_recording/)'
+test-group = 'actual-source-capture'

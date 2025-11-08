@@ -17,7 +17,7 @@ pub fn test_output_with_encoders() {
 
     // Set up output settings
     let mut output_settings = context.data().unwrap();
-    let rec_file = "test_recording.mp4";
+    let rec_file = "leak_test_output_with_encoders.mp4";
     output_settings.set_string("path", rec_file).unwrap();
 
     // Create output
@@ -58,10 +58,7 @@ pub fn test_output_with_encoders() {
 
     let audio_info =
         AudioEncoderInfo::new("ffmpeg_aac", "audio_encoder", Some(audio_settings), None);
-    let audio_handler = context.get_audio_ptr().unwrap();
-    output
-        .create_and_set_audio_encoder(audio_info, 0, audio_handler)
-        .unwrap();
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
     // Output and context will be dropped here, testing for memory leaks
 }

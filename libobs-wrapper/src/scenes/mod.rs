@@ -19,7 +19,6 @@ struct _SceneDropGuard {
 }
 
 impl_obs_drop!(_SceneDropGuard, (scene), move || unsafe {
-    println!("Dropping scene");
     let scene_source = libobs::obs_scene_get_source(scene);
     libobs::obs_source_release(scene_source);
     libobs::obs_scene_release(scene);

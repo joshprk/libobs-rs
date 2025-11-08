@@ -9,6 +9,7 @@ use libobs_sources::windows::WindowCaptureSourceBuilder;
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::unsafe_send::Sendable;
 
+#[allow(dead_code)]
 fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     let parts: Vec<&str> = duration.split(':').collect();
     if parts.len() != 3 {
@@ -23,6 +24,7 @@ fn parse_ffmpeg_duration(duration: &str) -> anyhow::Result<f64> {
     Ok(total_seconds)
 }
 
+#[allow(dead_code)]
 pub fn assert_not_black(vid_path: &Path, divider: f64) {
     ffmpeg_sidecar::download::auto_download().unwrap();
 
@@ -154,6 +156,7 @@ pub async fn assert_motion(path: &str, min_variance: f64) {
     assert!(found, "No motion info found");
 }
 
+#[allow(dead_code)]
 pub fn find_notepad() -> Option<Sendable<WindowInfo>> {
     let windows =
         WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap();

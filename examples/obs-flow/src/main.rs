@@ -39,20 +39,16 @@ fn main() -> anyhow::Result<()> {
     println!("Properties: {:?}", properties);
 
     // Property name as key and its value can be passed as settings to the encoder while creating or updating the encoder
-
-    // Adding a default video and audio encoder
-    let vid_ptr = context.get_video_ptr()?;
-    let audio_ptr = context.get_audio_ptr()?;
-
-    output.create_and_set_video_encoder(
-        VideoEncoderInfo::new(ObsVideoEncoderType::OBS_X264, "video_encoder", None, None),
-        vid_ptr,
-    )?;
+    output.create_and_set_video_encoder(VideoEncoderInfo::new(
+        ObsVideoEncoderType::OBS_X264,
+        "video_encoder",
+        None,
+        None,
+    ))?;
     output.create_and_set_audio_encoder(
         //TODO use FFMPEG_AAC after fixing the enum mapping
         AudioEncoderInfo::new(ObsAudioEncoderType::FFMPEG_AAC, "audio_encoder", None, None),
         0,
-        audio_ptr,
     )?;
 
     // In case we already have the encoder and we want to use the same encoder for multiple outputs, use:

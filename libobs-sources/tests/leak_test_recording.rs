@@ -1,14 +1,17 @@
-use std::{process::Command, time::Duration};
+mod common;
+
+use std::{path::PathBuf, process::Command, time::Duration};
 
 use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
-use crate::common::{find_notepad, initialize_obs};
+use common::{assert_not_black, find_notepad, initialize_obs};
 
-/// Stage 5: Initialize OBS, create output with encoders, scene, and add window capture source
+/// Stage 6: Initialize OBS, create output with encoders, scene, add source, and record
 #[test]
-pub fn test_source() {
-    let rec_file = ObsPath::from_relative("window_capture.mp4").build();
+pub fn test_recording() {
+    let rec_file = ObsPath::from_relative("leak_test_recording.mp4").build();
+    let path_out = PathBuf::from(rec_file.to_string());
 
     let mut window = find_notepad();
     let mut cmd = None;
@@ -23,7 +26,7 @@ pub fn test_source() {
 
     println!("Recording {:?}", window.0.obs_id);
 
-    let (mut context, mut _output) = initialize_obs(rec_file);
+    let (mut context, mut output) = initialize_obs(rec_file);
     let mut scene = context.scene("main").unwrap();
     scene.set_to_channel(0).unwrap();
 
@@ -36,10 +39,24 @@ pub fn test_source() {
         .add_to_scene(&mut scene)
         .unwrap();
 
+    // Start recording
+    output.start().unwrap();
+    println!("Recording started");
+
+    // Record for 3 seconds
+    std::thread::sleep(Duration::from_secs(3));
+
+    println!("Recording stop");
+    output.stop().unwrap();
+
+    // Clean up notepad process if we started it
     cmd.take()
         .map(|mut c| {
             c.kill().unwrap();
             c.wait().unwrap();
         })
-        .unwrap();
+        .unwrap_or_default();
+
+    // Verify the recording isn't black
+    assert_not_black(&path_out, 1.0);
 }

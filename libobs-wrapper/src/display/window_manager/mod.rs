@@ -278,11 +278,6 @@ impl DisplayWindowManager {
         }
     }
 
-    #[deprecated(note = "Use `get_window_handle` instead.")]
-    pub fn get_child_handle(&self) -> HWND {
-        self.get_window_handle()
-    }
-
     pub fn get_window_handle(&self) -> HWND {
         self.hwnd.0
     }

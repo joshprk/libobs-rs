@@ -26,3 +26,6 @@ generate_bindings = ["dep:bindgen"]
 
 [dev-dependencies]
 vsprintf = "2.0.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
