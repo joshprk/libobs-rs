@@ -32,6 +32,12 @@ pub struct Vec2 {
     y: f32,
 }
 
+impl Vec2 {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
 impl From<libobs::vec2> for Vec2 {
     fn from(raw: libobs::vec2) -> Self {
         let inner = unsafe { raw.__bindgen_anon_1.__bindgen_anon_1 };
@@ -62,4 +68,34 @@ fn test_vec2() {
     assert_eq!(original.y, 2.0);
     assert_ne!(original.x, 0.0);
     assert_ne!(original.y, 0.0);
+}
+
+#[test]
+fn test_vec2_new() {
+    let vec = Vec2::new(3.5, 4.5);
+    assert_eq!(vec.x, 3.5);
+    assert_eq!(vec.y, 4.5);
+}
+
+#[test]
+fn test_vec2_clone() {
+    let vec1 = Vec2::new(1.0, 2.0);
+    let vec2 = vec1.clone();
+    assert_eq!(vec1.x, vec2.x);
+    assert_eq!(vec1.y, vec2.y);
+}
+
+#[test]
+fn test_vec2_copy() {
+    let vec1 = Vec2::new(1.0, 2.0);
+    let vec2 = vec1; // Copy, not move
+    assert_eq!(vec1.x, vec2.x);
+    assert_eq!(vec1.y, vec2.y);
+}
+
+#[test]
+fn test_vec2_debug() {
+    let vec = Vec2::new(1.0, 2.0);
+    let debug_str = format!("{:?}", vec);
+    assert!(debug_str.contains("Vec2"));
 }

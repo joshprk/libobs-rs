@@ -249,3 +249,8 @@ impl ObsLogLevel {
         }
     }
 }
+
+#[cfg(test)]
+mod enums_tests;
+#[cfg(test)]
+pub use enums_tests::*;
