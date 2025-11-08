@@ -1,3 +1,5 @@
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 use std::{env, path::PathBuf, process};
 
 use anyhow::Context;
@@ -10,13 +12,22 @@ use lazy_static::lazy_static;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
 use tokio::{fs::File, io::AsyncWriteExt, process::Command};
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod download;
 mod error;
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod extract;
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod github_types;
 mod options;
 pub mod status_handler;
 mod version;
+
+#[cfg(test)]
+mod options_tests;
+#[cfg(test)]
+mod version_tests;
+
 pub use error::ObsBootstrapError;
 
 pub use options::ObsBootstrapperOptions;

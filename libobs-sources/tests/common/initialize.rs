@@ -7,6 +7,7 @@ use libobs_wrapper::{
 };
 
 /// The string returned is the name of the obs output
+#[allow(dead_code)]
 pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsContext, ObsOutputRef) {
     let _ = env_logger::Builder::from_env(Env::default().default_filter_or("debug"))
         .is_test(true)
@@ -53,6 +54,7 @@ pub fn initialize_obs<T: Into<ObsString> + Send + Sync>(rec_file: T) -> (ObsCont
             let t = e.get_encoder_id();
             t == &ObsVideoEncoderType::H264_TEXTURE_AMF
                 || t == &ObsVideoEncoderType::AV1_TEXTURE_AMF
+                || t == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
         })
         .unwrap();
 

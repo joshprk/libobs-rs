@@ -3,15 +3,20 @@
 //! so they can be captured with the `window_capture` or `game_capture` source in OBS.
 //! <br> The function you probably want to use is `get_all_windows` which returns a list of `WindowInfo` structs.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #[cfg(not(windows))]
 compile_error!("This library only supports windows!");
 
 #[cfg(not(target_pointer_width = "64"))]
 compile_error!("compilation is only allowed for 64-bit targets");
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod game;
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod monitor;
 mod util;
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod window;
 
 pub use util::*;

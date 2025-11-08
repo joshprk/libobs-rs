@@ -1,3 +1,8 @@
+//! Sendable wrapper types for non-Send types
+//!
+//! This module provides wrapper types that allow non-Send types to be sent
+//! across thread boundaries. Use with caution - these are unsafe by design.
+
 #[derive(Debug, Clone)]
 pub struct Sendable<T>(pub T);
 

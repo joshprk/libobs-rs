@@ -16,6 +16,9 @@ keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
 license = "GPL-3.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = "1.0.97"
 libobs = { workspace = true, features = [] }

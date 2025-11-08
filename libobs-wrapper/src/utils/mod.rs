@@ -5,6 +5,12 @@ mod obs_string;
 mod path;
 pub mod traits;
 
+#[cfg(test)]
+mod obs_string_tests;
+
+#[cfg(test)]
+mod path_tests;
+
 use std::ffi::CStr;
 
 pub use error::*;
@@ -68,6 +74,7 @@ impl ObsModules {
         self.log_if_failed();
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn log_if_failed(&self) {
         if self.info.as_ref().is_none_or(|x| x.0.count == 0) {
             return;

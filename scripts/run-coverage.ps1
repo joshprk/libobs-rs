@@ -1,1 +1,1 @@
-cargo llvm-cov --ignore-filename-regex 'bindings.rs' nextest
+cargo +nightly llvm-cov nextest --html

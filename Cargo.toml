@@ -21,3 +21,7 @@ libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.1.0" }
 
 [workspace.metadata]
 libobs-cache-dir = "../obs-build"
+
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
