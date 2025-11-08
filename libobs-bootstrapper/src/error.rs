@@ -17,3 +17,8 @@ impl std::fmt::Display for ObsBootstrapError {
     }
 }
 impl std::error::Error for ObsBootstrapError {}
+
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
+pub use error_tests::*;

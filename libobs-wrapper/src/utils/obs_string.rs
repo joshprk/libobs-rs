@@ -153,3 +153,8 @@ impl From<String> for ObsString {
         }
     }
 }
+
+#[cfg(test)]
+mod obs_string_tests;
+#[cfg(test)]
+pub use obs_string_tests::*;

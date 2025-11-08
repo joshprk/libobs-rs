@@ -82,3 +82,8 @@ impl Display for ObsError {
 }
 
 impl std::error::Error for ObsError {}
+
+#[cfg(test)]
+mod error_tests;
+#[cfg(test)]
+pub use error_tests::*;
