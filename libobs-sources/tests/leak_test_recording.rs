@@ -42,10 +42,10 @@ pub fn test_recording() {
     // Start recording
     output.start().unwrap();
     println!("Recording started");
-    
+
     // Record for 3 seconds
     std::thread::sleep(Duration::from_secs(3));
-    
+
     println!("Recording stop");
     output.stop().unwrap();
 
