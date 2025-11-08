@@ -9,9 +9,6 @@
 //! This crate provides bindings to the [LibOBS](https://obsproject.com/) library for rust.
 //! Furthermore, this crate provides a safe wrapper around the unsafe functions, which can be found in the [`libobs-wrapper`](https://crates.io/crates/libobs-wrapper) crate.
 
-#[cfg(test)]
-mod test;
-
 mod bindings {
     #[cfg(feature = "generate_bindings")]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
