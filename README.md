@@ -1,5 +1,9 @@
 # libobs-rs
- 
+![Build](https://img.shields.io/github/actions/workflow/status/joshprk/libobs-rs/validation.yml?branch=main&label=build&style=flat)
+![Docs](https://img.shields.io/github/actions/workflow/status/joshprk/libobs-rs/build-docs.yml?branch=main&label=docs&style=flat)
+![Coverage](https://img.shields.io/badge/coverage-55%25-orange?style=flat)
+
+
 
 
 Simple and safe video recording through libobs.
