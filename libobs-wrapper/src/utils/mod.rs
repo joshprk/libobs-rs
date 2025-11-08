@@ -5,6 +5,12 @@ mod obs_string;
 mod path;
 pub mod traits;
 
+#[cfg(test)]
+mod obs_string_tests;
+
+#[cfg(test)]
+mod path_tests;
+
 use std::ffi::CStr;
 
 pub use error::*;

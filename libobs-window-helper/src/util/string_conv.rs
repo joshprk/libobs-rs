@@ -28,8 +28,3 @@ impl<T: AsRef<[u16]>> ToUtf8String for T {
             .to_string()
     }
 }
-
-#[cfg(test)]
-mod string_conv_tests;
-#[cfg(test)]
-pub use string_conv_tests::*;

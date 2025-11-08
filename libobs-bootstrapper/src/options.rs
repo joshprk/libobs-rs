@@ -44,8 +44,3 @@ impl Default for ObsBootstrapperOptions {
         ObsBootstrapperOptions::new()
     }
 }
-
-#[cfg(test)]
-mod options_tests;
-#[cfg(test)]
-pub use options_tests::*;

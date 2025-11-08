@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::{StrLen, ToUtf8String};
+    use crate::util::string_conv::{StrLen, ToUtf8String};
 
     #[test]
     fn test_strlen_empty_slice() {

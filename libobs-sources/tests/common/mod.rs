@@ -4,6 +4,7 @@ use std::{path::Path, process::Command};
 
 use anyhow::bail;
 use ffmpeg_sidecar::{ffprobe::ffprobe_path, paths::ffmpeg_path};
+#[allow(unused_imports)]
 pub use initialize::*;
 use libobs_sources::windows::WindowCaptureSourceBuilder;
 use libobs_window_helper::{WindowInfo, WindowSearchMode};

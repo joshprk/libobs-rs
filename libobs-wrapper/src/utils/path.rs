@@ -98,8 +98,3 @@ impl From<ObsPath> for ObsString {
         val.build()
     }
 }
-
-#[cfg(test)]
-mod path_tests;
-#[cfg(test)]
-pub use path_tests::*;

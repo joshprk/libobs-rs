@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::{ObsBootstrapperOptions, GITHUB_REPO};
+    use crate::{ObsBootstrapperOptions, options::GITHUB_REPO};
 
     #[test]
     fn test_default_options() {

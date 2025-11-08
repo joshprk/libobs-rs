@@ -38,3 +38,6 @@ log = "0.4.28"
 
 [features]
 generate_bindings = ["libobs/generate_bindings"]
+
+[lints]
+workspace = true

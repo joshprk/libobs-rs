@@ -99,6 +99,29 @@ impl ObsData {
         Ok(self)
     }
 
+    pub fn get_string<T: Into<ObsString> + Send + Sync>(
+        &self,
+        key: T,
+    ) -> Result<String, ObsError> {
+        let key = key.into();
+
+        let key_ptr = key.as_ptr();
+        let data_ptr = self.obs_data.clone();
+
+        let result = run_with_obs!(self.runtime, (data_ptr, key_ptr), move || unsafe {
+            Sendable(libobs::obs_data_get_string(data_ptr, key_ptr))
+        })?;
+
+        if result.0.is_null() {
+            return Err(ObsError::NullPointer);
+        }
+
+        let result = unsafe { CStr::from_ptr(result.0) };
+        let result = result.to_str().map_err(|_| ObsError::StringConversionError)?;
+
+        Ok(result.to_string())
+    }
+
     /// Sets an int in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
     pub fn set_int<T: Into<ObsString> + Sync + Send>(
@@ -116,6 +139,19 @@ impl ObsData {
         })?;
 
         Ok(self)
+    }
+
+    pub fn get_int<T: Into<ObsString> + Sync + Send>(&self, key: T) -> Result<i64, ObsError> {
+        let key = key.into();
+
+        let key_ptr = key.as_ptr();
+        let data_ptr = self.obs_data.clone();
+
+        let result = run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
+            libobs::obs_data_get_int(data_ptr, key_ptr)
+        })?;
+
+        Ok(result)
     }
 
     /// Sets a bool in `obs_data` and stores the key
@@ -136,6 +172,19 @@ impl ObsData {
         Ok(self)
     }
 
+    pub fn get_bool<T: Into<ObsString> + Sync + Send>(&self, key: T) -> Result<bool, ObsError> {
+        let key = key.into();
+
+        let key_ptr = key.as_ptr();
+        let data_ptr = self.obs_data.clone();
+
+        let result = run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
+            libobs::obs_data_get_bool(data_ptr, key_ptr)
+        })?;
+
+        Ok(result)
+    }
+
     /// Sets a double in `obs_data` and stores the key
     /// in `ObsData` so it does not get freed.
     pub fn set_double<T: Into<ObsString> + Sync + Send>(
@@ -153,6 +202,22 @@ impl ObsData {
         })?;
 
         Ok(self)
+    }
+
+    pub fn get_double<T: Into<ObsString> + Sync + Send>(
+        &self,
+        key: T,
+    ) -> Result<f64, ObsError> {
+        let key = key.into();
+
+        let key_ptr = key.as_ptr();
+        let data_ptr = self.obs_data.clone();
+
+        let result = run_with_obs!(self.runtime, (key_ptr, data_ptr), move || unsafe {
+            libobs::obs_data_get_double(data_ptr, key_ptr)
+        })?;
+
+        Ok(result)
     }
 
     pub fn from_json(json: &str, runtime: ObsRuntime) -> Result<Self, ObsError> {

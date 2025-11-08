@@ -6,7 +6,6 @@ pub trait ObsBootstrapStatusHandler: Debug + Send + Sync {
     fn handle_extraction(&mut self, progress: f32, message: String) -> anyhow::Result<()>;
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
 #[derive(Debug)]
 pub struct ObsBootstrapConsoleHandler;
 

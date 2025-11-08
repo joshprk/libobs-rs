@@ -61,8 +61,3 @@ pub fn should_update(version_str: &str) -> anyhow::Result<bool> {
         || minor != LIBOBS_API_MINOR_VER as u64
         || patch < LIBOBS_API_PATCH_VER as u64)
 }
-
-#[cfg(test)]
-mod version_tests;
-#[cfg(test)]
-pub use version_tests::*;

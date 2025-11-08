@@ -28,8 +28,8 @@ pub fn test_scene_set_to_channel() {
 
     let mut context = ObsContext::new(StartupInfo::default()).unwrap();
 
-    let mut scene = context.scene("channel_test_scene").unwrap();
-    
+    let scene = context.scene("channel_test_scene").unwrap();
+
     // Set scene to channel 0
     let result = scene.set_to_channel(0);
     assert!(result.is_ok(), "Failed to set scene to channel 0");
@@ -66,9 +66,9 @@ pub fn test_scene_lifecycle() {
 
     {
         // Scene is created within this scope
-        let mut scene = context.scene("lifecycle_scene").unwrap();
+        let scene = context.scene("lifecycle_scene").unwrap();
         scene.set_to_channel(0).unwrap();
-        
+
         // Scene should be usable here
     }
     
@@ -88,9 +88,9 @@ pub fn test_scene_different_channels() {
     let mut context = ObsContext::new(StartupInfo::default()).unwrap();
 
     // Test setting scenes to different channels
-    let mut scene0 = context.scene("channel_0_scene").unwrap();
+    let scene0 = context.scene("channel_0_scene").unwrap();
     assert!(scene0.set_to_channel(0).is_ok());
-    
-    let mut scene1 = context.scene("channel_1_scene").unwrap();
+
+    let scene1 = context.scene("channel_1_scene").unwrap();
     assert!(scene1.set_to_channel(1).is_ok());
 }

@@ -22,6 +22,12 @@ mod github_types;
 mod options;
 pub mod status_handler;
 mod version;
+
+#[cfg(test)]
+mod version_tests;
+#[cfg(test)]
+mod options_tests;
+
 pub use error::ObsBootstrapError;
 
 pub use options::ObsBootstrapperOptions;

@@ -29,6 +29,8 @@ pub enum ObsError {
     OutputPauseFailure(Option<String>),
     OutputNotFound,
     SourceNotFound,
+    /// Error converting a string between Rust and OBS
+    StringConversionError,
 
     /// Native error from the Windows API when creating a display
     DisplayCreationError(String),
@@ -77,6 +79,7 @@ impl Display for ObsError {
             ObsError::LockError(e) => write!(f, "Error locking a mutex or RwLock: {:?}", e),
             ObsError::Unexpected(e) => write!(f, "Unexpected error: {:?}", e),
             ObsError::EncoderActive => write!(f, "Encoder is still active, stop the attached output before proceeding"),
+            ObsError::StringConversionError => write!(f, "Error converting a string between Rust and OBS"),
         }
     }
 }

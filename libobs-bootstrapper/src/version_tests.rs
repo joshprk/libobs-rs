@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::should_update;
+    use crate::version::should_update;
 
     #[test]
     fn test_should_update_same_version() {
