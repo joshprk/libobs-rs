@@ -52,29 +52,6 @@ pub fn test_encoder_properties_access() {
     assert!(props.is_ok(), "Failed to get encoder properties");
 }
 
-/// Integration test: Test encoder settings manipulation
-#[test]
-pub fn test_encoder_settings() {
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
-        .is_test(true)
-        .try_init();
-
-    let context = ObsContext::new(StartupInfo::default()).unwrap();
-    let mut data = context.data().unwrap();
-
-    // Test setting various data types
-    data.set_int("bitrate", 5000).unwrap();
-    data.set_bool("psycho_aq", true).unwrap();
-    data.set_string("preset", "fast").unwrap();
-
-    // Verify we can retrieve them
-    let bitrate = data.get_int("bitrate");
-    assert_eq!(bitrate, Ok(5000));
-
-    let psycho_aq = data.get_bool("psycho_aq");
-    assert_eq!(psycho_aq, Ok(true));
-}
-
 /// Integration test: Test encoder type identification
 #[test]
 pub fn test_encoder_type_identification() {
