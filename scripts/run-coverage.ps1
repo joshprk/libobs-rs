@@ -1,0 +1,1 @@
+cargo llvm-cov --ignore-filename-regex 'bindings.rs' nextest
