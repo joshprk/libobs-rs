@@ -1,6 +1,5 @@
 use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
 
-
 /// Integration test: Test encoder settings manipulation
 #[test]
 pub fn test_data_set() {
@@ -25,7 +24,7 @@ pub fn test_data_set() {
     assert_eq!(psycho_aq, Ok(true));
 
     let preset = data.get_string("preset");
-    assert_eq!(preset, Ok(libobs_wrapper::utils::ObsString::new("fast")));
+    assert_eq!(preset, Ok("fast".to_string()));
 
     let preset_double = data.get_double("preset");
     assert_eq!(preset_double, Ok(1.5));
