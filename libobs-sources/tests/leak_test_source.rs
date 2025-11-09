@@ -12,13 +12,13 @@ pub fn test_source() {
 
     //let mut window = find_notepad();
     //let mut cmd = None;
-/*     if window.is_none() {
-        cmd = Some(Command::new("notepad.exe").spawn().unwrap());
-        std::thread::sleep(Duration::from_millis(350));
+    /*     if window.is_none() {
+           cmd = Some(Command::new("notepad.exe").spawn().unwrap());
+           std::thread::sleep(Duration::from_millis(350));
 
-        window = find_notepad();
-    }
- */
+           window = find_notepad();
+       }
+    */
     //let window = window.expect("Couldn't find notepad window");
 
     //println!("Recording {:?}", window.0.obs_id);
@@ -35,10 +35,10 @@ pub fn test_source() {
         //.set_window(&window)
         .add_to_scene(&mut scene)
         .unwrap();
-/*
-    let _ = cmd.take().map(|mut c| {
-        c.kill().unwrap();
-        c.wait().unwrap();
-    });
-*/
+    /*
+        let _ = cmd.take().map(|mut c| {
+            c.kill().unwrap();
+            c.wait().unwrap();
+        });
+    */
 }
