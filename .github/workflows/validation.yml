@@ -20,9 +20,19 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
+            obs-build
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: taiki-e/install-action@nextest
+      - name: Install cargo-obs-build from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-obs-build
 
+      - name: Install OBS build dependencies
+        run: cargo obs-build --out-dir target/debug/deps
+
+      - name: Install OBS build dependencies
+        run: cargo obs-build --out-dir target/nextest-all-features/debug/deps
       # Check if formatting is correct
       - name: Check Rust formatting
         run: cargo fmt -- --check

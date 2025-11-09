@@ -5,5 +5,10 @@ actual-source-capture = { max-threads = 1 }
 retries = 2
 
 [[profile.default.overrides]]
-filter = 'binary(/^sources_test/) + binary(/^leak_test_recording/)'
+filter = 'binary(/^gpu_/)'
 test-group = 'actual-source-capture'
+
+[profile.ci]
+# Do not cancel the test run on the first failure.
+fail-fast = false
+default-filter = "not binary(/^gpu_/)"
