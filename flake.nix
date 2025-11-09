@@ -34,12 +34,14 @@
           src = ./.;
 
           LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          LD_LIBRARY_PATH = "${pkgs.obs-studio}/lib";
 
           buildInputs = with pkgs; [
             clang
             openssl
             pkg-config
             rust-bin.stable.latest.default
+            obs-studio
             simde
           ];
         };
