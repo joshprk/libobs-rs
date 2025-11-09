@@ -35,21 +35,30 @@
 //! ```
 
 use std::ffi::CStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, Mutex};
-use std::{fmt::Debug, thread::JoinHandle};
+use std::sync::Arc;
 use std::{ptr, thread};
 
 use crate::crash_handler::main_crash_handler;
 use crate::enums::{ObsLogLevel, ObsResetVideoStatus};
 use crate::logger::{extern_log_callback, internal_log_global, LOGGER};
-use crate::unsafe_send::Sendable;
 use crate::utils::initialization::load_debug_privilege;
 use crate::utils::{ObsError, ObsModules, ObsString};
 use crate::{context::OBS_THREAD_ID, utils::StartupInfo};
 
+#[cfg(feature = "enable_runtime")]
+use crate::unsafe_send::Sendable;
+use std::fmt::Debug;
+#[cfg(feature = "enable_runtime")]
+use std::sync::atomic::{AtomicUsize, Ordering};
+#[cfg(feature = "enable_runtime")]
+use std::sync::mpsc::{channel, Sender};
+#[cfg(feature = "enable_runtime")]
+use std::sync::Mutex;
+#[cfg(feature = "enable_runtime")]
+use std::thread::JoinHandle;
+
 /// Command type for operations to perform on the OBS thread
+#[cfg(feature = "enable_runtime")]
 enum ObsCommand {
     /// Execute a function on the OBS thread and send result back
     Execute(
@@ -78,7 +87,9 @@ enum ObsCommand {
 /// ```
 #[derive(Debug, Clone)]
 pub struct ObsRuntime {
+    #[cfg(feature = "enable_runtime")]
     command_sender: Arc<Sender<ObsCommand>>,
+    #[cfg(feature = "enable_runtime")]
     queued_commands: Arc<AtomicUsize>,
     _guard: Arc<_ObsRuntimeGuard>,
 }
@@ -142,6 +153,22 @@ impl ObsRuntime {
     /// Internal initialization method
     ///
     /// Creates the OBS thread and performs core initialization.
+    #[cfg(not(feature = "enable_runtime"))]
+    fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
+        let (startup, mut modules) = Self::initialize_inner(info)?;
+
+        let runtime = Self {
+            _guard: Arc::new(_ObsRuntimeGuard {}),
+        };
+
+        modules.runtime = Some(runtime.clone());
+        Ok((runtime, modules, startup))
+    }
+
+    /// Internal initialization method
+    ///
+    /// Creates the OBS thread and performs core initialization.
+    #[cfg(feature = "enable_runtime")]
     fn init(info: StartupInfo) -> anyhow::Result<(ObsRuntime, ObsModules, StartupInfo)> {
         let (command_sender, command_receiver) = channel();
         let (init_tx, init_rx) = oneshot::channel();
@@ -272,34 +299,43 @@ impl ObsRuntime {
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
     {
-        let (tx, rx) = oneshot::channel();
+        #[cfg(feature = "enable_runtime")]
+        {
+            let (tx, rx) = oneshot::channel();
 
-        // Create a wrapper closure that boxes the result as Any
-        let wrapper = move || -> Box<dyn std::any::Any + Send> {
-            let result = operation();
-            Box::new(result)
-        };
+            // Create a wrapper closure that boxes the result as Any
+            let wrapper = move || -> Box<dyn std::any::Any + Send> {
+                let result = operation();
+                Box::new(result)
+            };
 
-        let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
-        if val > 50 {
-            log::warn!("More than 50 queued commands. Try to batch them together.");
+            let val = self.queued_commands.fetch_add(1, Ordering::SeqCst);
+            if val > 50 {
+                log::warn!("More than 50 queued commands. Try to batch them together.");
+            }
+
+            self.command_sender
+                .send(ObsCommand::Execute(Box::new(wrapper), tx))
+                .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
+
+            let result = rx
+                .recv()
+                .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
+
+            // Downcast the Any type back to T
+            let res = result
+                .downcast::<T>()
+                .map(|boxed| *boxed)
+                .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))?;
+
+            Ok(res)
         }
 
-        self.command_sender
-            .send(ObsCommand::Execute(Box::new(wrapper), tx))
-            .map_err(|_| anyhow::anyhow!("Failed to send command to OBS thread"))?;
-
-        let result = rx
-            .recv()
-            .map_err(|_| anyhow::anyhow!("OBS thread dropped the response channel"))?;
-
-        // Downcast the Any type back to T
-        let res = result
-            .downcast::<T>()
-            .map(|boxed| *boxed)
-            .map_err(|_| anyhow::anyhow!("Failed to downcast result to the expected type"))?;
-
-        Ok(res)
+        #[cfg(not(feature = "enable_runtime"))]
+        {
+            let result = operation();
+            Ok(result)
+        }
     }
 
     /// Initializes the libobs context and prepares it for recording.
@@ -459,7 +495,7 @@ impl ObsRuntime {
                     format!("Number of memory leaks: {}{}", allocs, notice),
                 );
 
-                #[cfg(any(feature = "__panic_on_leak", test))]
+                #[cfg(any(feature = "__test_environment", test))]
                 {
                     assert_eq!(allocs, 1, "Memory leaks detected: {}", allocs);
                 }
@@ -489,11 +525,22 @@ impl ObsRuntime {
 #[derive(Debug)]
 pub struct _ObsRuntimeGuard {
     /// Thread handle for the OBS thread
+    #[cfg(feature = "enable_runtime")]
+    #[cfg_attr(
+        all(
+            feature = "no_blocking_drops",
+            not(feature = "__test_environment"),
+            not(test)
+        ),
+        allow(dead_code)
+    )]
     handle: Arc<Mutex<Option<JoinHandle<()>>>>,
     /// Sender channel for the OBS thread
+    #[cfg(feature = "enable_runtime")]
     command_sender: Arc<Sender<ObsCommand>>,
 }
 
+#[cfg(feature = "enable_runtime")]
 impl Drop for _ObsRuntimeGuard {
     /// Ensures the OBS thread is properly shut down when the runtime is dropped
     fn drop(&mut self) {
@@ -510,7 +557,11 @@ impl Drop for _ObsRuntimeGuard {
         }
 
         r.unwrap();
-        #[cfg(not(feature = "no_blocking_drops"))]
+        #[cfg(any(
+            not(feature = "no_blocking_drops"),
+            test,
+            feature = "__test_environment"
+        ))]
         {
             // Wait for the thread to finish
             let handle = self.handle.lock();
@@ -524,5 +575,20 @@ impl Drop for _ObsRuntimeGuard {
 
             handle.join().expect("Failed to join OBS thread");
         }
+    }
+}
+
+#[cfg(not(feature = "enable_runtime"))]
+impl Drop for _ObsRuntimeGuard {
+    /// Ensures the OBS thread is properly shut down when the runtime is dropped
+    fn drop(&mut self) {
+        log::trace!("Dropping ObsRuntime and shutting down OBS thread");
+        let r = ObsRuntime::shutdown_inner();
+
+        if thread::panicking() {
+            return;
+        }
+
+        r.unwrap();
     }
 }

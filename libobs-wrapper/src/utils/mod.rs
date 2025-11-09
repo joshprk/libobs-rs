@@ -102,7 +102,11 @@ impl Drop for ObsModules {
         let paths = self.paths.clone();
         let runtime = self.runtime.take().unwrap();
 
-        #[cfg(not(feature = "no_blocking_drops"))]
+        #[cfg(any(
+            not(feature = "no_blocking_drops"),
+            test,
+            feature = "__test_environment"
+        ))]
         {
             let r = run_with_obs!(runtime, move || unsafe {
                 libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
@@ -115,9 +119,13 @@ impl Drop for ObsModules {
             r.unwrap();
         }
 
-        #[cfg(feature = "no_blocking_drops")]
+        #[cfg(all(
+            feature = "no_blocking_drops",
+            not(test),
+            not(feature = "__test_environment")
+        ))]
         {
-            let _ = tokio::task::spawn_blocking(move || unsafe {
+            let _ = tokio::task::spawn_blocking(move || {
                 run_with_obs!(runtime, move || unsafe {
                     libobs::obs_remove_data_path(paths.libobs_data_path().as_ptr().0);
                 })

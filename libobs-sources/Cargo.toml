@@ -32,15 +32,16 @@ libobs-window-helper = { workspace = true, optional = true }
 ffmpeg-sidecar = "2.2.0"
 
 [features]
-default = ["window-list"]
+default = ["window-list", "enable_runtime"]
 generate_bindings = ["libobs/generate_bindings"]
 window-list = ["dep:libobs-window-helper"]
+enable_runtime = ["libobs-wrapper/enable_runtime"]
 
 [dev-dependencies]
 env_logger = "0.11.8"
 lazy_static = "1.5.0"
 serde_json = "1.0.145"
-libobs-wrapper = { workspace = true, features = ["__panic_on_leak"] }
+libobs-wrapper = { workspace = true, features = ["__test_environment"] }
 winit = "0.30.12"
 
 [lints]

@@ -60,12 +60,13 @@ duplicate = "2.0.0"
 tokio = { version = "1.48.0", default-features = false, features = ["sync"] }
 
 [features]
-default = ["color-logger", "dialog_crash_handler"]
+default = ["color-logger", "dialog_crash_handler", "enable_runtime"]
 no_blocking_drops = ["tokio/rt"]
 generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
+enable_runtime = []
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
-__panic_on_leak = []
+__test_environment = []
 
 [dev-dependencies]
 serde_json = "1.0.145"

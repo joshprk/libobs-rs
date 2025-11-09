@@ -72,7 +72,7 @@ pub fn record() {
 
         println!("Recording for {} seconds", i);
         stdout().flush().unwrap();
-        std::thread::sleep(Duration::from_secs(5));
+        std::thread::sleep(Duration::from_secs(1));
     }
     println!("Recording stop");
 

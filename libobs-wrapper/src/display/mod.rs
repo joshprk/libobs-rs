@@ -196,7 +196,11 @@ impl Drop for _DisplayDropGuard {
         let self_ptr = self.self_ptr.clone();
         let r = self.runtime.clone();
 
-        #[cfg(not(feature = "no_blocking_drops"))]
+        #[cfg(any(
+            not(feature = "no_blocking_drops"),
+            test,
+            feature = "__test_environment"
+        ))]
         {
             let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
             if std::thread::panicking() {
@@ -206,7 +210,11 @@ impl Drop for _DisplayDropGuard {
             r.unwrap();
         }
 
-        #[cfg(feature = "no_blocking_drops")]
+        #[cfg(all(
+            feature = "no_blocking_drops",
+            not(test),
+            not(feature = "__test_environment")
+        ))]
         {
             tokio::task::spawn_blocking(move || {
                 _DisplayDropGuard::inner_drop(r, display, self_ptr).unwrap();
