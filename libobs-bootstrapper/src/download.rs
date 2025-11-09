@@ -123,7 +123,7 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
 
         // Calculating local hash
         let local_hash = hasher.finalize();
-        if local_hash.as_slice() != remote_hash {
+        if local_hash.to_vec() != remote_hash {
             yield DownloadStatus::Error(anyhow::anyhow!("Hash mismatch"));
             return;
         }
