@@ -5,7 +5,6 @@ edition = "2024"
 publish = false
 
 [dependencies]
-libobs-bootstrapper = { workspace = true}
 libobs-wrapper = { workspace = true }
 libobs-sources = { path = "../../libobs-sources" }
 anyhow = "1.0.98"

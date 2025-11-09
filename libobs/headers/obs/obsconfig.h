@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define OBS_VERSION "unknown"
 #define OBS_DATA_PATH "../../data"
