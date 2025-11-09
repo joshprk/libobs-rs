@@ -52,8 +52,7 @@ cargo obs-build --out-dir target/release
 cargo obs-build --out-dir target/(debug|release)/deps
 ```
 
-> [!NOTE]
-> You can specify a `GITHUB_TOKEN` environment variable to increase the rate limit when downloading releases from GitHub. This is especially useful for CI environments.
+More details can be found in the [cargo-obs-build documentation](./cargo-obs-build/README.md).
 
 ### Option 2: Using the OBS Bootstrapper (Recommended for distribution)
 
