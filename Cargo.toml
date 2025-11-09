@@ -13,7 +13,7 @@ members = [
 exclude = ["examples/tauri-app"]
 
 [workspace.dependencies]
-libobs = { path = "./libobs", version = "3.0.0" }
+libobs = { path = "./libobs", version = "3.0.1" }
 libobs-wrapper = { path = "./libobs-wrapper", version = "5.2.2" }
 libobs-source-macro = { path = "./libobs-source-macro", version = "5.0.0" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.1.7" }
