@@ -21,10 +21,14 @@ pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<Rele
     let url = Uri::try_from(url.as_str())?;
 
     let mut body = Vec::new(); //Container for body of a response.
-    let res = Request::new(&url)
-        .header("User-Agent", "cargo-obs-build")
-        .send(&mut body)?;
+    let mut req = Request::new(&url);
+    req.header("User-Agent", "cargo-obs-build");
 
+    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        req.header("Authorization", &format!("Bearer {}", token));
+    }
+
+    let res = req.send(&mut body)?;
     if res.status_code() != StatusCode::new(200) {
         bail!(
             "Failed to fetch latest release: {} with {}",
@@ -90,9 +94,14 @@ pub fn fetch_latest_patch_release(
     let url = Uri::try_from(url.as_str())?;
 
     let mut body = Vec::new();
-    let res = Request::new(&url)
-        .header("User-Agent", "cargo-obs-build")
-        .send(&mut body)?;
+    let mut req = Request::new(&url);
+
+    req.header("User-Agent", "cargo-obs-build");
+    if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+        req.header("Authorization", &format!("Bearer {}", token));
+    }
+
+    let res = req.send(&mut body)?;
 
     if res.status_code() != StatusCode::new(200) {
         bail!(

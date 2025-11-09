@@ -36,7 +36,8 @@ Add the following to your `Cargo.toml`
 ```toml
 [package.metadata]
 # The libobs version to use (can either be a specific version or "latest")
-libobs-version="31.0.3"
+# This is optional; if not specified, the version will be selected based on the libobs crate version.
+# libobs-version="31.0.3"
 # The directory in which to store the OBS build (optional)
 # libobs-cache-dir="../obs-build"
 
@@ -51,6 +52,9 @@ cargo obs-build --out-dir target/release
 # for testing
 cargo obs-build --out-dir target/(debug|release)/deps
 ```
+
+> [!NOTE]
+> You can specify a `GITHUB_TOKEN` environment variable to increase the rate limit when downloading releases from GitHub. This is especially useful for CI environments.
 
 
 ## Quick Start
