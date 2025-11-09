@@ -33,10 +33,14 @@
 
           src = ./.;
 
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+
           buildInputs = with pkgs; [
+            clang
             openssl
             pkg-config
             rust-bin.stable.latest.default
+            simde
           ];
         };
       };
