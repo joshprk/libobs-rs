@@ -20,6 +20,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: taiki-e/install-action@nextest
 
       # Check if formatting is correct
       - name: Check Rust formatting
@@ -30,4 +31,10 @@ jobs:
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
+        shell: pwsh
+      - name: Run tests (no default features)
+        run: cargo nextest r --no-default-features --features "__test_environment"
+        shell: pwsh
+      - name: Run tests (with default features)
+        run: cargo nextest r --all-features --target-dir target/nextest-all-features
         shell: pwsh
