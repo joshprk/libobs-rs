@@ -99,10 +99,12 @@ impl ObsBootstrapStatusHandler for CustomProgressHandler {
 
 ### Setup Steps
 
-1. Add a placeholder `obs.dll` file to your executable directory:
-   - Download a dummy DLL from [libobs-builds releases](https://github.com/sshcrack/libobs-builds/releases)
-   - Use the version matching your target OBS version
-   - Rename the downloaded file to `obs.dll`
+1. You can either: <br>
+   **a) RECOMMENDED** enable the `install_dummy_dll` feature for this crate <br>
+   **b)** Add a placeholder `obs.dll` file to your executable directory:
+     - Download a dummy DLL from [libobs-builds releases](https://github.com/sshcrack/libobs-builds/releases)
+     - Use the version matching your target OBS version
+     - Rename the downloaded file to `obs.dll`
 
 2. Call `ObsBootstrapper::bootstrap()` at application startup
 

@@ -19,6 +19,7 @@
       <sourceFolder url="file://$MODULE_DIR$/examples/obs-flow/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/libobs-bootstrapper/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/libobs/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/bootstrap-tester/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/cargo-obs-build/target" />
       <excludeFolder url="file://$MODULE_DIR$/obs-build" />
       <excludeFolder url="file://$MODULE_DIR$/target" />

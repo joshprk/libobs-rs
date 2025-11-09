@@ -237,17 +237,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-trait"
-version = "0.1.89"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9035ad2d096bed7955a320ee7e2230574d28fd3c3a0f186cbea1ff3c7eed5dbb"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.109",
-]
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -443,7 +432,6 @@ dependencies = [
  "log",
  "process_alive",
  "regex",
- "serde",
  "serde_json",
  "sha2",
  "toml",
@@ -550,7 +538,7 @@ checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
 dependencies = [
  "glob",
  "libc",
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -901,7 +889,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330c60081dcc4c72131f8eb70510f1ac07223e5d4163db481a04a0befcffa412"
 dependencies = [
- "libloading",
+ "libloading 0.8.9",
 ]
 
 [[package]]
@@ -924,7 +912,6 @@ name = "download-at-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "futures-util",
  "indicatif 0.17.11",
  "libobs-bootstrapper",
  "libobs-wrapper",
@@ -1170,28 +1157,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "futures"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
-dependencies = [
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-io",
- "futures-sink",
- "futures-task",
- "futures-util",
-]
-
-[[package]]
 name = "futures-channel"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dff15bf788c671c1934e366d07e30c1814a8ef514e1af724a602e8a2fbe1b10"
 dependencies = [
  "futures-core",
- "futures-sink",
 ]
 
 [[package]]
@@ -1199,17 +1170,6 @@ name = "futures-core"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f29059c0c2090612e8d742178b0580d2dc940c837851ad723096f87af6663e"
-
-[[package]]
-name = "futures-executor"
-version = "0.3.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e28d1d997f585e54aebc3f97d39e72338912123a67330d723fdbb564d646c9f"
-dependencies = [
- "futures-core",
- "futures-task",
- "futures-util",
-]
 
 [[package]]
 name = "futures-io"
@@ -1246,7 +1206,6 @@ version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9fa08315bb612088cc391249efdc3bc77536f16c91f6cf495e6fbe85b20a4a81"
 dependencies = [
- "futures-channel",
  "futures-core",
  "futures-io",
  "futures-macro",
@@ -1870,8 +1829,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if 1.0.4",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "libobs"
-version = "3.0.0"
+version = "3.0.0+32.0.2"
 dependencies = [
  "bindgen",
  "vsprintf",
@@ -1879,18 +1848,16 @@ dependencies = [
 
 [[package]]
 name = "libobs-bootstrapper"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "async-stream",
- "async-trait",
  "futures-core",
  "futures-util",
  "hex",
  "lazy_static",
- "libloading",
+ "libloading 0.9.0",
  "libobs",
- "libobs-wrapper",
  "log",
  "reqwest",
  "semver",
@@ -1905,7 +1872,6 @@ dependencies = [
 name = "libobs-source-macro"
 version = "5.0.0"
 dependencies = [
- "num-traits",
  "proc-macro2",
  "quote",
  "syn 2.0.109",
@@ -1913,14 +1879,12 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "3.2.1"
+version = "3.2.2+32.0.2"
 dependencies = [
  "anyhow",
- "async-trait",
  "display-info",
  "env_logger",
  "ffmpeg-sidecar",
- "lazy_static",
  "libobs",
  "libobs-source-macro",
  "libobs-window-helper",
@@ -1946,7 +1910,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "5.2.1"
+version = "5.2.2+32.0.2"
 dependencies = [
  "anyhow",
  "arboard",
@@ -1955,24 +1919,15 @@ dependencies = [
  "dialog",
  "display-info",
  "duplicate",
- "futures",
- "futures-util",
  "getters0",
- "hex",
  "lazy_static",
- "libloading",
  "libobs",
  "log",
  "num-derive",
  "num-traits",
  "oneshot",
- "parking_lot",
  "paste",
- "reqwest",
- "serde",
- "serde_json",
  "tokio",
- "uuid",
  "vsprintf",
  "windows 0.62.2",
 ]
@@ -2119,7 +2074,6 @@ name = "monitor-capture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
 ]
@@ -2635,7 +2589,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
 ]
@@ -2646,11 +2599,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "futures",
- "libobs-bootstrapper",
  "libobs-sources",
  "libobs-wrapper",
- "tokio",
  "winit",
 ]
 
@@ -4936,7 +4886,7 @@ dependencies = [
  "as-raw-xcb-connection",
  "gethostname",
  "libc",
- "libloading",
+ "libloading 0.8.9",
  "once_cell",
  "rustix 1.1.2",
  "x11rb-protocol",

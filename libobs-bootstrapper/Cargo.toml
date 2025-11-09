@@ -1,6 +1,7 @@
 [package]
 name = "libobs-bootstrapper"
-version = "0.1.0"
+version = "0.1.1"
+build = "build.rs"
 description = "Downloads OBS binaries at runtime and bootstraps libobs"
 readme = "./README.md"
 repository = "https://github.com/joshprk/libobs-rs"
@@ -25,19 +26,19 @@ hex = "0.4.3"
 lazy_static = "1.5.0"
 tokio = { version = "1.48.0", features = ["process", "macros"], default-features = false }
 libobs = { workspace = true }
-libobs-wrapper = { workspace = true }
 semver = "1.0.27"
 sevenz-rust = "0.6.1"
 sha2 = "0.10.9"
 uuid = { version = "1.18.1", features = ["v4"] }
 reqwest = { version = "0.12.24", features = ["stream", "json"] }
 serde = { version = "1.0.228", features = ["derive"] }
-libloading = "0.8.9"
-async-trait = "0.1.89"
+libloading = "0.9.0"
 log = "0.4.28"
 
 [features]
+default = ["install_dummy_dll"]
 generate_bindings = ["libobs/generate_bindings"]
+install_dummy_dll = []
 
 [lints]
 workspace = true
