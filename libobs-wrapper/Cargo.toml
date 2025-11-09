@@ -55,7 +55,7 @@ windows = { version = "0.62.0", features = [
     "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
     "Win32_Security"
-] }
+], optional = true }
 duplicate = "2.0.0"
 tokio = { version = "1.48.0", default-features = false, features = ["sync"] }
 
@@ -66,6 +66,7 @@ generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
 enable_runtime = []
 dialog_crash_handler = ["dep:arboard", "dep:dialog"]
+windows = ["dep:windows"]
 __test_environment = []
 
 [dev-dependencies]
