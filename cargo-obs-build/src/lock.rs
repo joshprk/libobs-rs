@@ -48,10 +48,13 @@ pub struct LockGuard {
 impl Drop for LockGuard {
     fn drop(&mut self) {
         let e = fs::remove_file(&self.lock);
-        if cfg!(feature="cli") {
-        e.unwrap();
+        if cfg!(feature = "cli") {
+            e.unwrap();
         } else {
-            eprintln!("cargo:warning=Failed to remove lock file: {}", e.unwrap_err());
+            eprintln!(
+                "cargo:warning=Failed to remove lock file: {}",
+                e.unwrap_err()
+            );
         }
     }
 }

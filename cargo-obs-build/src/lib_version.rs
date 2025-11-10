@@ -6,7 +6,8 @@ use log::{debug, info, warn};
 use regex::Regex;
 
 pub fn get_lib_obs_version() -> anyhow::Result<(u32, u32, u32)> {
-    let re = Regex::new(r"^(#define LIBOBS_API_(MAJOR|MINOR|PATCH)_VER\s*)(\d+)$").context("Extracting OBS version from bindings.rs")?;
+    let re = Regex::new(r"^(#define LIBOBS_API_(MAJOR|MINOR|PATCH)_VER\s*)(\d+)$")
+        .context("Extracting OBS version from bindings.rs")?;
 
     info!("Getting libobs version from bindings...");
     let meta = MetadataCommand::new().exec()?;
