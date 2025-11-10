@@ -44,8 +44,8 @@ jobs:
         run: cargo check --all
         shell: pwsh
       - name: Run tests (no default features)
-        run: cargo nextest r --no-default-features --features "__test_environment"
+        run: cargo nextest r --profile ci --no-default-features --features "__test_environment"
         shell: pwsh
       - name: Run tests (with default features)
-        run: cargo nextest r --all-features --target-dir target/nextest-all-features
+        run: cargo nextest r --profile ci --all-features --target-dir target/nextest-all-features
         shell: pwsh
