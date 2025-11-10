@@ -1,3 +1,4 @@
+#[cfg(target_family = "windows")]
 use std::{
     fs::File,
     io::{stdout, BufReader, Write},
@@ -7,8 +8,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(target_family = "windows")]
 use anyhow::{anyhow, bail};
+#[cfg(target_family = "windows")]
 use colored::Colorize;
+#[cfg(target_family = "windows")]
 use http_req::{
     chunked::ChunkReader,
     request::RequestMessage,
@@ -16,14 +20,20 @@ use http_req::{
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
 };
+#[cfg(target_family = "windows")]
 use indicatif::{ProgressBar, ProgressStyle};
+#[cfg(target_family = "windows")]
 use log::{debug, error, info, trace};
+#[cfg(target_family = "windows")]
 use sha2::{Digest, Sha256};
 
+#[cfg(target_family = "windows")]
 use crate::git::ReleaseInfo;
 
+#[cfg(target_family = "windows")]
 const DEFAULT_REQ_TIMEOUT: u64 = 60 * 60;
 
+#[cfg(target_family = "windows")]
 pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result<PathBuf> {
     let architecture = if cfg!(target_arch = "x86_64") {
         "x64"
@@ -72,6 +82,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 }
 
 /// Returns hash
+#[cfg(target_family = "windows")]
 pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
     debug!("Downloading OBS binaries from {}", url.green());

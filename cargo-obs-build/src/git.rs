@@ -6,7 +6,9 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct ReleaseInfo {
     pub tag: String,
+    #[allow(dead_code)]
     pub assets: Vec<Value>,
+    #[allow(dead_code)]
     pub checksums: HashMap<String, String>,
 }
 

@@ -1,28 +1,10 @@
-use download::download_binaries;
-use git::{fetch_latest_patch_release, fetch_release, ReleaseInfo};
-use lock::{acquire_lock, wait_for_lock};
-use log::{debug, info, warn};
-use metadata::{fetch_latest_release_tag, get_meta_info};
-use std::{
-    env::{self, args},
-    fs::{self, File},
-    path::{Path, PathBuf},
-};
-use util::{copy_to_dir, delete_all_except};
-use walkdir::WalkDir;
-use zip::ZipArchive;
+use std::env::{self, args};
+use std::path::PathBuf;
 
 use clap::Parser;
 use colored::Colorize;
 
-use crate::lib_version::get_lib_obs_version;
-
-mod download;
-mod git;
-mod lib_version;
-mod lock;
-mod metadata;
-mod util;
+use cargo_obs_build::{build_obs_binaries, ObsBuildConfig};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -100,239 +82,18 @@ fn main() -> anyhow::Result<()> {
 
     let args = RunArgs::parse_from(args);
 
-    let RunArgs {
-        mut cache_dir,
-        repo_id,
-        out_dir,
-        rebuild,
-        browser,
-        mut tag,
-        override_zip,
-        skip_compatibility_check,
-    } = args;
-
-    let mut obs_ver = None;
-    if tag.is_none() {
-        obs_ver = Some(get_lib_obs_version()?);
-        let (major, minor, patch) = obs_ver.as_ref().unwrap();
-        let lib_tag = format!("{}.{}.{}", major, minor, patch);
-
-        // Check if a newer version of libobs (same major/minor, higher patch) exists in releases.
-        // If found, use that tag; otherwise fall back to the crate version tag.
-        match fetch_latest_patch_release(&repo_id, *major, *minor) {
-            Ok(Some(found_tag)) => {
-                let parts: Vec<&str> = found_tag.trim_start_matches('v').split('.').collect();
-                let found_patch = parts
-                    .get(2)
-                    .and_then(|s| s.parse::<u32>().ok())
-                    .unwrap_or(0);
-                if found_patch > *patch {
-                    info!(
-                        "Found newer libobs binaries release {} (crate: {}). Using {}",
-                        found_tag.green(),
-                        lib_tag,
-                        found_tag.green()
-                    );
-                    tag = Some(found_tag);
-                } else {
-                    // no newer patch found -> use crate version
-                    tag = Some(lib_tag);
-                }
-            }
-            Ok(None) => {
-                // none found -> use crate version
-                tag = Some(lib_tag);
-            }
-            Err(e) => {
-                // On error, log debug and fall back to crate version
-                warn!("Failed to check for newer compatible libobs release: {}", e);
-                tag = Some(lib_tag);
-            }
-        }
-    }
-
-    let mut tag = tag.unwrap();
-    let target_out_dir = PathBuf::new().join(&out_dir);
-    get_meta_info(&mut cache_dir, &mut tag)?;
-
-    let tag = if tag.trim() == "latest" {
-        fetch_latest_release_tag(&repo_id)?
-    } else {
-        tag
+    let config = ObsBuildConfig {
+        out_dir: PathBuf::from(args.out_dir),
+        cache_dir: args.cache_dir,
+        repo_id: args.repo_id,
+        override_zip: args.override_zip,
+        rebuild: args.rebuild,
+        browser: args.browser,
+        tag: args.tag,
+        skip_compatibility_check: args.skip_compatibility_check,
     };
 
-    if !skip_compatibility_check {
-        let (major, minor, patch) = if let Some(v) = obs_ver {
-            v
-        } else {
-            get_lib_obs_version()?
-        };
-
-        info!(
-            "Detected libobs crate version: {}.{}.{}",
-            major, minor, patch
-        );
-        let tag_parts: Vec<&str> = tag.trim_start_matches('v').split('.').collect();
-        let tag_parts = tag_parts
-            .iter()
-            .map(|e| e.parse::<u32>().unwrap_or(0))
-            .collect::<Vec<u32>>();
-
-        if tag_parts.len() < 3 {
-            info!(
-                "{}",
-                "Warning: Could not determine libobs compatibility, tag does not have 3 parts"
-                    .red()
-            );
-        } else {
-            let (tag_major, tag_minor, tag_patch) = (tag_parts[0], tag_parts[1], tag_parts[2]);
-            if major != tag_major || minor != tag_minor {
-                use log::warn;
-
-                warn!(
-                    "{}",
-                    format!("libobs (crate) version {}.{}.{} may not be compatible with libobs (binaries) {}.{}.{}",
-                        major, minor, patch, tag_major, tag_minor, tag_patch).red()
-                );
-                warn!(
-                    "{} {} {}",
-                    "Set the `libobs-version` in `[workspace.metadata]` to".red(),
-                    format!("{}.{}.{}", major, minor, patch).red(),
-                    "to avoid runtime issues"
-                );
-            } else {
-                info!(
-                        "{}",
-                        format!(
-                            "libobs (crate) version {}.{}.{} should be compatible with libobs (binaries) {}.{}.{}",
-                            major, minor, patch, tag_major, tag_minor, tag_patch
-                        )
-                        .green()
-                    );
-            }
-        }
-    }
-
-    let repo_dir = cache_dir.join(&tag);
-    let repo_exists = repo_dir.is_dir();
-
-    if !repo_exists {
-        fs::create_dir_all(&repo_dir)?;
-    }
-
-    let build_out = repo_dir.join("build_out");
-    let lock_file = cache_dir.join(format!("{}.lock", tag));
-    let success_file = repo_dir.join(".success");
-
-    wait_for_lock(&lock_file)?;
-
-    if !success_file.is_file() || rebuild {
-        let lock = acquire_lock(&lock_file)?;
-        if repo_exists || rebuild {
-            debug!("{}", "Cleaning up old build...".bright_black());
-            delete_all_except(&repo_dir, None)?;
-        }
-
-        debug!("Fetching {} version of OBS Studio...", tag.on_blue());
-
-        let release = fetch_release(&repo_id, &Some(tag.clone()))?;
-        build_obs(release, &build_out, browser, override_zip)?;
-
-        File::create(&success_file)?;
-        drop(lock);
-    }
-
-    info!(
-        "Copying files from {} to {}",
-        build_out.display().to_string().green(),
-        target_out_dir.display().to_string().green()
-    );
-    copy_to_dir(&build_out, &target_out_dir, None)?;
-
-    info!("Done!");
-
-    Ok(())
-}
-
-fn build_obs(
-    release: ReleaseInfo,
-    build_out: &Path,
-    include_browser: bool,
-    override_zip: Option<PathBuf>,
-) -> anyhow::Result<()> {
-    #[cfg(not(target_family = "windows"))]
-    panic!("Unsupported platform");
-
-    fs::create_dir_all(build_out)?;
-
-    let obs_path = if let Some(e) = override_zip {
-        e
-    } else {
-        download_binaries(build_out, &release)?
-    };
-
-    let obs_archive = File::open(&obs_path)?;
-    let mut archive = ZipArchive::new(&obs_archive)?;
-
-    info!("{} OBS Studio binaries...", "Extracting".on_blue());
-    archive.extract(build_out)?;
-    let bin_path = build_out.join("bin").join("64bit");
-    copy_to_dir(&bin_path, build_out, None)?;
-    fs::remove_dir_all(build_out.join("bin"))?;
-
-    clean_up_files(build_out, include_browser)?;
-
-    fs::remove_file(&obs_path)?;
-
-    Ok(())
-}
-
-fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()> {
-    let mut to_exclude = vec![
-        "obs64",
-        "frontend",
-        "obs-webrtc",
-        "obs-websocket",
-        "decklink",
-        "obs-scripting",
-        "qt6",
-        "qminimal",
-        "qwindows",
-        "imageformats",
-        "obs-studio",
-        "aja-output-ui",
-        "obs-vst",
-    ];
-
-    if !include_browser {
-        to_exclude.append(&mut vec![
-            "obs-browser",
-            "obs-browser-page",
-            "chrome_",
-            "resources",
-            "cef",
-            "snapshot",
-            "locales",
-        ]);
-    }
-
-    info!("{}", "Cleaning up unnecessary files...".red());
-    for entry in WalkDir::new(build_out).into_iter().flatten() {
-        let path = entry.path();
-        if to_exclude.iter().any(|e| {
-            path.file_name().is_some_and(|x| {
-                let x_l = x.to_string_lossy().to_lowercase();
-                x_l.contains(e) || x_l == *e
-            })
-        }) {
-            debug!("Deleting: {}", path.display().to_string().red());
-            if path.is_dir() {
-                fs::remove_dir_all(path)?;
-            } else {
-                fs::remove_file(path)?;
-            }
-        }
-    }
+    build_obs_binaries(config)?;
 
     Ok(())
 }
