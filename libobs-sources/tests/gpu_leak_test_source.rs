@@ -5,7 +5,9 @@ use std::{process::Command, time::Duration};
 use libobs_sources::windows::{ObsWindowCaptureMethod, WindowCaptureSourceBuilder};
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::ObsPath};
 
-use common::{find_notepad, initialize_obs};
+use common::initialize_obs;
+
+use crate::common::find_notepad;
 
 /// Stage 5: Initialize OBS, create output with encoders, scene, and add window capture source
 #[test]
@@ -20,7 +22,6 @@ pub fn test_source() {
 
         window = find_notepad();
     }
-
     let window = window.expect("Couldn't find notepad window");
 
     println!("Recording {:?}", window.0.obs_id);

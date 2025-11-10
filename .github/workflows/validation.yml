@@ -5,6 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   build-test:
@@ -19,8 +20,19 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
+            obs-build
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: taiki-e/install-action@nextest
+      - name: Install cargo-obs-build from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-obs-build
 
+      - name: Install OBS build dependencies
+        run: cargo obs-build --out-dir target/debug/deps
+
+      - name: Install OBS build dependencies
+        run: cargo obs-build --out-dir target/nextest-all-features/debug/deps
       # Check if formatting is correct
       - name: Check Rust formatting
         run: cargo fmt -- --check
@@ -30,4 +42,10 @@ jobs:
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
+        shell: pwsh
+      - name: Run tests (no default features)
+        run: cargo nextest r --profile ci --no-default-features --features "__test_environment"
+        shell: pwsh
+      - name: Run tests (with default features)
+        run: cargo nextest r --profile ci --all-features --target-dir target/nextest-all-features
         shell: pwsh
