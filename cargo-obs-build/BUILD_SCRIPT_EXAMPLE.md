@@ -32,8 +32,7 @@ fn main() {
     let target_dir = PathBuf::from(&out_dir)
         .parent().unwrap()
         .parent().unwrap()
-        .parent().unwrap()
-        .join("obs-binaries");
+        .parent().unwrap();
 
     let config = ObsBuildConfig {
         out_dir: target_dir,
@@ -77,7 +76,7 @@ You can also configure the library version and cache directory in your `Cargo.to
 ```toml
 [workspace.metadata]
 libobs-version = "30.2.2"  # Specific version to use
-libobs-cache-dir = "../obs-build"  # Shared cache directory
+libobs-cache-dir = "../obs-build"  # this is relative to your Cargo.toml
 ```
 
-These settings will be automatically picked up by the library.
+These settings will be automatically picked up by the library if the default install function is used.
