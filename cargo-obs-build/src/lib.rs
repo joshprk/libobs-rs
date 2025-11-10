@@ -46,7 +46,7 @@ fn check_ci_environment(cache_dir: &Path) {
     if env::var("GITHUB_TOKEN").is_err() {
         warnings.push(
             "GITHUB_TOKEN environment variable not set in CI. \
-             This may cause GitHub API rate limiting issues.",
+This may cause GitHub API rate limiting issues.",
         );
     }
 
@@ -54,7 +54,8 @@ fn check_ci_environment(cache_dir: &Path) {
     if !cache_dir.exists() {
         warnings.push(
             "OBS build cache directory does not exist. \
-             Consider caching this directory in your CI configuration to speed up builds.",
+Consider caching this directory in your CI configuration to speed up builds. \
+Ignore if this is the first run.",
         );
     }
 
@@ -125,7 +126,7 @@ impl Default for ObsBuildConfig {
 ///
 /// This automatically:
 /// - Determines the target directory from the OUT_DIR environment variable
-/// - Uses default cache directory ("obs-build")
+/// - Uses default cache directory ("obs-build") if none is specified in metadata
 /// - Auto-detects the OBS version from the libobs crate
 /// - Handles all caching and locking
 ///
@@ -192,7 +193,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 
         // Check if a newer version of libobs (same major/minor, higher patch) exists in releases.
         // If found, use that tag; otherwise fall back to the crate version tag.
-        match fetch_latest_patch_release(&repo_id, *major, *minor) {
+        match fetch_latest_patch_release(&repo_id, *major, *minor, &cache_dir) {
             Ok(Some(found_tag)) => {
                 let parts: Vec<&str> = found_tag.trim_start_matches('v').split('.').collect();
                 let found_patch = parts

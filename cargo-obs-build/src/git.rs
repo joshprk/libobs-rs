@@ -20,6 +20,13 @@ fn load_cached_release(cache_path: &Path) -> Option<ReleaseInfo> {
         return None;
     }
 
+    if let Ok(metadata) = fs::metadata(cache_path) {
+        if metadata.modified().ok()?.elapsed().ok()?.as_secs() > 86400 {
+            // Cache is older than 1 day
+            return None;
+        }
+    };
+
     let content = fs::read_to_string(cache_path).ok()?;
     let data: Value = serde_json::from_str(&content).ok()?;
 
@@ -175,14 +182,11 @@ pub fn fetch_latest_patch_release(
     repo_id: &str,
     major: u32,
     minor: u32,
+    cache_dir: &Path,
 ) -> anyhow::Result<Option<String>> {
     // Create cache key based on repo and version
     let cache_key = format!("{}-releases-{}.{}", repo_id.replace('/', "_"), major, minor);
-    let cache_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .or_else(|_| std::env::var("OUT_DIR"))
-        .ok()
-        .map(|d| Path::new(&d).join("obs-build").join(".api-cache"))
-        .unwrap_or_else(|| Path::new("obs-build/.api-cache").to_path_buf());
+    let cache_dir = cache_dir.join(".api-cache");
     let cache_path = cache_dir.join(format!("{}.json", cache_key));
 
     // Try to load from cache first

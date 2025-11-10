@@ -22,6 +22,8 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
 //TODO: This has to be checked again, I'm unsure with pinning and draw callbacks from OBS
 /// # NEVER STORE THIS REF DIRECTLY!!
+/// ALWAYS store the std::pin::Pin<Box<ObsDisplayRef>> that is created from ObsContext::display!
+///
 /// This is a wrapper around the obs_display struct and contains direct memory references.
 /// You should ALWAYS use the context to get to this struct, and as said NEVER store it.
 pub struct ObsDisplayRef {

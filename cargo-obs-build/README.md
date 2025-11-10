@@ -95,7 +95,7 @@ libobs-cache-dir = "../obs-build" # Optional, defaults to "obs-build", relative 
 Cache both the `obs-build` directory and the API cache to avoid re-downloading binaries and reduce API calls:
 
 **The library automatically:**
-- Caches GitHub API responses in `obs-build/.api-cache/`
+- Caches GitHub API responses in `obs-build/.api-cache/` (1 day expiration)
 - Warns you in CI if GITHUB_TOKEN is not set
 - Warns you in CI if the cache directory doesn't exist
 

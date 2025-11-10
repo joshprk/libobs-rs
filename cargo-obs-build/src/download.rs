@@ -154,18 +154,16 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
         bail!("Content length is 0");
     }
 
-    #[cfg(feature="cli")]
-    let style = ProgressStyle::default_bar()
-    .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-    .map_err(|e| anyhow!("Couldn't create style {:#?}", e))?
-    .progress_chars("#>-");
-
-    #[cfg(feature = "cli")]
     let pb = ProgressBar::new(content_len);
     #[cfg(feature = "cli")]
-    pb.set_style(style);
-    #[cfg(feature = "cli")]
-    pb.set_message("Downloading OBS binaries".to_string());
+    {
+        let style = ProgressStyle::default_bar()
+            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+            .map_err(|e| anyhow!("Couldn't create style {:#?}", e))?
+            .progress_chars("#>-");
+        pb.set_style(style);
+        pb.set_message("Downloading OBS binaries".to_string());
+    }
 
     let mut file =
         File::create(path).or(Err(anyhow!("Failed to create file '{}'", path.display())))?;

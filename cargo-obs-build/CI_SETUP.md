@@ -65,7 +65,6 @@ libobs-cache-dir = "obs-build"  # Cache directory location
 When you specify a version, the library will:
 - Skip checking for newer patch releases
 - Make fewer API calls
-- **Not warn** you about incompatible versions
 
 ## Troubleshooting
 
