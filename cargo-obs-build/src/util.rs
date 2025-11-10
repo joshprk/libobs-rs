@@ -8,14 +8,14 @@ pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow:
             continue;
         }
 
-        let entry = entry.unwrap();
+        let entry = entry?;
         let path = entry.path();
 
         if except_dir.is_some_and(|e| path.starts_with(e)) {
             continue;
         }
 
-        let copy_to = out.join(path.strip_prefix(src).unwrap());
+        let copy_to = out.join(path.strip_prefix(src)?);
         if path.is_dir() {
             fs::create_dir_all(&copy_to)?;
             continue;
@@ -33,7 +33,7 @@ pub fn delete_all_except(src: &Path, except_dir: Option<&Path>) -> anyhow::Resul
             continue;
         }
 
-        let entry = entry.unwrap();
+        let entry = entry?;
         let path = entry.path();
 
         if except_dir.is_some_and(|e| path.starts_with(e)) {
@@ -41,9 +41,9 @@ pub fn delete_all_except(src: &Path, except_dir: Option<&Path>) -> anyhow::Resul
         }
 
         if path.is_dir() {
-            fs::remove_dir_all(path).unwrap();
+            fs::remove_dir_all(path)?;
         } else {
-            fs::remove_file(path).unwrap();
+            fs::remove_file(path)?;
         }
     }
 

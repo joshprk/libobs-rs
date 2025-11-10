@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail};
-#[cfg(feature = "colored")]
+#[cfg(feature = "cli")]
 use colored::Colorize;
 use http_req::{
     chunked::ChunkReader,
@@ -17,8 +17,9 @@ use http_req::{
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
 };
+#[cfg(feature = "cli")]
 use indicatif::{ProgressBar, ProgressStyle};
-#[cfg(feature = "colored")]
+#[cfg(feature = "cli")]
 use log::{debug, info};
 use log::{error, trace};
 use sha2::{Digest, Sha256};
@@ -147,19 +148,23 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
         }
     }
 
-    sender_supp.send(params).unwrap();
+    sender_supp.send(params)?;
 
     if content_len == 0 {
         bail!("Content length is 0");
     }
 
+    #[cfg(feature="cli")]
     let style = ProgressStyle::default_bar()
     .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
     .map_err(|e| anyhow!("Couldn't create style {:#?}", e))?
     .progress_chars("#>-");
 
+    #[cfg(feature = "cli")]
     let pb = ProgressBar::new(content_len);
+    #[cfg(feature = "cli")]
     pb.set_style(style);
+    #[cfg(feature = "cli")]
     pb.set_message("Downloading OBS binaries".to_string());
 
     let mut file =
@@ -176,7 +181,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
             break;
         }
 
-        let chunk = item.unwrap();
+        let chunk = item?;
 
         hasher.write_all(&chunk)?;
         file.write_all(&chunk)
@@ -184,11 +189,13 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
 
         let new = std::cmp::min(downloaded + (chunk.len() as u64), content_len);
         downloaded = new;
+        #[cfg(feature = "cli")]
         pb.set_position(new);
     }
 
+    #[cfg(feature = "cli")]
     pb.finish_with_message(format!("Downloaded OBS to {}", path.display()));
     trace!("Hashing...");
-    stdout().flush().unwrap();
+    let _ = stdout().flush();
     Ok(hex::encode(hasher.finalize()))
 }
