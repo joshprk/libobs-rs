@@ -69,7 +69,7 @@ fn save_cached_release(cache_path: &Path, data: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<ReleaseInfo> {
+pub fn fetch_release(repo_id: &str, tag: &Option<String>, cache_dir: &Path) -> anyhow::Result<ReleaseInfo> {
     let tag_str = tag.clone();
     let tag_param = if tag_str.is_none() {
         "latest"
@@ -83,11 +83,7 @@ pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<Rele
         repo_id.replace('/', "_"),
         tag_param.replace('/', "_")
     );
-    let cache_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .or_else(|_| std::env::var("OUT_DIR"))
-        .ok()
-        .map(|d| Path::new(&d).join("obs-build").join(".api-cache"))
-        .unwrap_or_else(|| Path::new("obs-build/.api-cache").to_path_buf());
+    let cache_dir = cache_dir.join(".api-cache");
     let cache_path = cache_dir.join(format!("{}.json", cache_key));
 
     // Try to load from cache first

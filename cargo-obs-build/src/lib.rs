@@ -141,15 +141,15 @@ pub fn install() -> anyhow::Result<()> {
     let out_dir = env::var("OUT_DIR")
         .map_err(|_| anyhow::anyhow!("OUT_DIR environment variable not set. This function should only be called from a build script."))?;
 
-    let target_dir = PathBuf::from(&out_dir)
+    let target_dir = PathBuf::from(&out_dir);
+    let target_dir = target_dir
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
-        .map(|p| p.join("obs-binaries"))
         .ok_or_else(|| anyhow::anyhow!("Failed to determine target directory from OUT_DIR"))?;
 
     let config = ObsBuildConfig {
-        out_dir: target_dir,
+        out_dir: target_dir.to_path_buf(),
         ..Default::default()
     };
 
@@ -164,6 +164,8 @@ pub fn install() -> anyhow::Result<()> {
 /// - Caching to avoid re-downloads
 /// - Locking to prevent concurrent builds
 /// - Copying binaries to the target directory
+///
+/// NOTE: Cargo.toml currently overwrites the ObsBuildConfig
 pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     let ObsBuildConfig {
         mut cache_dir,
@@ -224,7 +226,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     check_ci_environment(&cache_dir);
 
     let tag = if tag.trim() == "latest" {
-        fetch_latest_release_tag(&repo_id)?
+        fetch_latest_release_tag(&repo_id, &cache_dir)?
     } else {
         tag
     };
@@ -292,7 +294,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 
         debug!("Fetching {} version of OBS Studio...", tag);
 
-        let release = fetch_release(&repo_id, &Some(tag.clone()))?;
+        let release = fetch_release(&repo_id, &Some(tag.clone()), &cache_dir)?;
         build_obs(release, &build_out, browser, override_zip)?;
 
         File::create(&success_file)?;

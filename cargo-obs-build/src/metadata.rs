@@ -1,4 +1,4 @@
-use std::{env::current_dir, path::PathBuf};
+use std::{env::current_dir, path::{Path, PathBuf}};
 
 use crate::git::fetch_release;
 use anyhow::{anyhow, Context, Result};
@@ -53,7 +53,7 @@ pub fn get_meta_info(cache_dir: &mut PathBuf, tag: &mut String) -> anyhow::Resul
     Ok(())
 }
 
-pub fn fetch_latest_release_tag(repo_id: &str) -> anyhow::Result<String> {
-    let release = fetch_release(repo_id, &None)?;
+pub fn fetch_latest_release_tag(repo_id: &str, cache_dir: &Path) -> anyhow::Result<String> {
+    let release = fetch_release(repo_id, &None, cache_dir)?;
     Ok(release.tag)
 }
