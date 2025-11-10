@@ -1,50 +1,17 @@
-use std::env::{self, args};
-use std::path::PathBuf;
+#[cfg(feature="cli")]
+mod args;
 
-use clap::Parser;
+#[cfg(feature="cli")]
+use std::env::{self, args};
+#[cfg(feature="cli")]
+use std::path::PathBuf;
+#[cfg(feature="cli")]
 use colored::Colorize;
 
+#[cfg(feature="cli")]
 use cargo_obs_build::{build_obs_binaries, ObsBuildConfig};
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct RunArgs {
-    /// The directory the OBS Studio binaries should be copied to
-    #[arg(short, long)]
-    out_dir: String,
-
-    /// The location where the OBS Studio sources should be cloned to
-    #[arg(short, long, default_value = "obs-build")]
-    cache_dir: PathBuf,
-
-    /// The github repository to clone OBS Studio from
-    #[arg(long, default_value = "obsproject/obs-studio")]
-    repo_id: String,
-
-    #[arg(long)]
-    /// If this is specified, the specified zip file will be used instead of downloading the latest release
-    /// This is useful for testing purposes, but it is not recommended to use this in production
-    override_zip: Option<PathBuf>,
-
-    /// When this flag is active, the cache will be cleared and a new build will be started
-    #[arg(short, long, default_value_t = false)]
-    rebuild: bool,
-
-    /// If the browser should be included in the build
-    #[arg(short, long, default_value_t = false)]
-    browser: bool,
-
-    /// The tag of the OBS Studio release to build.
-    /// If none is specified, the matching release for the libobs crate will be used.
-    /// Use `latest` for the latest obs release. If a version in the `workspace.metadata` is set, that version will be used.
-    #[arg(short, long)]
-    tag: Option<String>,
-
-    /// If the browser should be included in the build
-    #[arg(short, long, default_value_t = false)]
-    skip_compatibility_check: bool,
-}
-
+#[cfg(feature="cli")]
 fn setup_logger() -> Result<(), fern::InitError> {
     let level = env::var("RUST_LOG")
         .ok()
@@ -72,7 +39,10 @@ fn setup_logger() -> Result<(), fern::InitError> {
     Ok(())
 }
 
+#[cfg(feature="cli")]
 fn main() -> anyhow::Result<()> {
+    use clap::Parser;
+
     setup_logger()?;
 
     let mut args: Vec<_> = args().collect();
@@ -80,7 +50,7 @@ fn main() -> anyhow::Result<()> {
         args.remove(1);
     }
 
-    let args = RunArgs::parse_from(args);
+    let args = args::RunArgs::parse_from(args);
 
     let config = ObsBuildConfig {
         out_dir: PathBuf::from(args.out_dir),
@@ -96,4 +66,10 @@ fn main() -> anyhow::Result<()> {
     build_obs_binaries(config)?;
 
     Ok(())
+}
+
+#[cfg(not(feature="cli"))]
+fn main() {
+    eprintln!("This binary requires the 'cli' feature to be enabled.");
+    std::process::exit(1);
 }

@@ -11,6 +11,7 @@ use std::{
 #[cfg(target_family = "windows")]
 use anyhow::{anyhow, bail};
 #[cfg(target_family = "windows")]
+#[cfg(feature="colored")]
 use colored::Colorize;
 #[cfg(target_family = "windows")]
 use http_req::{
@@ -23,7 +24,9 @@ use http_req::{
 #[cfg(target_family = "windows")]
 use indicatif::{ProgressBar, ProgressStyle};
 #[cfg(target_family = "windows")]
-use log::{debug, error, info, trace};
+use log::{error, trace};
+#[cfg(feature="colored")]
+use log::{debug, info};
 #[cfg(target_family = "windows")]
 use sha2::{Digest, Sha256};
 
@@ -62,6 +65,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 
     let download_path = build_dir.join("obs-prebuilt-windows.zip");
 
+    #[cfg(feature = "colored")]
     println!("Downloading OBS from {}", url.green());
     let hash = download_file(url, &download_path)?;
 
@@ -72,6 +76,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         if checksum.to_lowercase() != hash.to_lowercase() {
             bail!("Checksums do not match");
         } else {
+            #[cfg(feature = "colored")]
             info!("{}", "Checksums match".on_green());
         }
     } else {
@@ -85,6 +90,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 #[cfg(target_family = "windows")]
 pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
+    #[cfg(feature = "colored")]
     debug!("Downloading OBS binaries from {}", url.green());
 
     let uri = Uri::try_from(url)?;
