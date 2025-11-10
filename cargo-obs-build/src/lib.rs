@@ -48,7 +48,7 @@ fn check_ci_environment(cache_dir: &Path) {
     if env::var("GITHUB_TOKEN").is_err() {
         warnings.push(
             "GITHUB_TOKEN environment variable not set in CI. \
-             This may cause GitHub API rate limiting issues."
+             This may cause GitHub API rate limiting issues.",
         );
     }
 
@@ -56,7 +56,7 @@ fn check_ci_environment(cache_dir: &Path) {
     if !cache_dir.exists() {
         warnings.push(
             "OBS build cache directory does not exist. \
-             Consider caching this directory in your CI configuration to speed up builds."
+             Consider caching this directory in your CI configuration to speed up builds.",
         );
     }
 
@@ -78,28 +78,28 @@ fn check_ci_environment(cache_dir: &Path) {
 pub struct ObsBuildConfig {
     /// The directory the OBS Studio binaries should be copied to
     pub out_dir: PathBuf,
-    
+
     /// The location where the OBS Studio sources should be cloned to
     pub cache_dir: PathBuf,
-    
+
     /// The github repository to clone OBS Studio from
     pub repo_id: String,
-    
+
     /// If this is specified, the specified zip file will be used instead of downloading the latest release
     /// This is useful for testing purposes, but it is not recommended to use this in production
     pub override_zip: Option<PathBuf>,
-    
+
     /// When this flag is active, the cache will be cleared and a new build will be started
     pub rebuild: bool,
-    
+
     /// If the browser should be included in the build
     pub browser: bool,
-    
+
     /// The tag of the OBS Studio release to build.
     /// If none is specified, the matching release for the libobs crate will be used.
     /// Use `latest` for the latest obs release. If a version in the `workspace.metadata` is set, that version will be used.
     pub tag: Option<String>,
-    
+
     /// If the compatibility check should be skipped
     pub skip_compatibility_check: bool,
 }
@@ -137,22 +137,22 @@ impl Default for ObsBuildConfig {
 /// and the out_dir set to `$OUT_DIR/../../obs-binaries`.
 pub fn install() -> anyhow::Result<()> {
     use std::env;
-    
+
     let out_dir = env::var("OUT_DIR")
         .map_err(|_| anyhow::anyhow!("OUT_DIR environment variable not set. This function should only be called from a build script."))?;
-    
+
     let target_dir = PathBuf::from(&out_dir)
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
         .map(|p| p.join("obs-binaries"))
         .ok_or_else(|| anyhow::anyhow!("Failed to determine target directory from OUT_DIR"))?;
-    
+
     let config = ObsBuildConfig {
         out_dir: target_dir,
         ..Default::default()
     };
-    
+
     build_obs_binaries(config)
 }
 
@@ -216,10 +216,10 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 
     let mut tag = tag.unwrap();
     let target_out_dir = PathBuf::new().join(&out_dir);
-    
+
     // Get metadata which may update cache_dir and tag
     get_meta_info(&mut cache_dir, &mut tag)?;
-    
+
     // Check CI environment configuration AFTER we have the final cache_dir
     check_ci_environment(&cache_dir);
 
@@ -247,9 +247,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
             .collect::<Vec<u32>>();
 
         if tag_parts.len() < 3 {
-            info!(
-                "Warning: Could not determine libobs compatibility, tag does not have 3 parts"
-            );
+            info!("Warning: Could not determine libobs compatibility, tag does not have 3 parts");
         } else {
             let (tag_major, tag_minor, tag_patch) = (tag_parts[0], tag_parts[1], tag_parts[2]);
             if major != tag_major || minor != tag_minor {
