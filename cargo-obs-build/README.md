@@ -26,7 +26,15 @@ Add to your `Cargo.toml`:
 cargo-obs-build = { version = "1.2.4", default-features = false }
 ```
 
-Example `build.rs`:
+**Simple Usage (Recommended)**:
+
+```rust
+fn main() {
+    cargo_obs_build::install().expect("Failed to install OBS binaries");
+}
+```
+
+**Advanced Usage** with custom configuration:
 
 ```rust
 use cargo_obs_build::{build_obs_binaries, ObsBuildConfig};
@@ -43,7 +51,7 @@ fn main() {
 
     let config = ObsBuildConfig {
         out_dir: target_dir,
-        cache_dir: PathBuf::from("obs-build"),
+        browser: true, // Include browser support
         ..Default::default()
     };
 
@@ -51,7 +59,7 @@ fn main() {
 }
 ```
 
-See [BUILD_SCRIPT_EXAMPLE.md](BUILD_SCRIPT_EXAMPLE.md) for a complete example with detailed explanations.
+See [BUILD_SCRIPT_EXAMPLE.md](BUILD_SCRIPT_EXAMPLE.md) for more examples and detailed explanations.
 
 ## Configuration
 

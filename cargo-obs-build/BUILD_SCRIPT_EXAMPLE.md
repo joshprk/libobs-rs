@@ -1,6 +1,26 @@
 # Example build.rs for using cargo-obs-build as a library
 
-This is an example `build.rs` file that demonstrates how to use the `cargo-obs-build` library in a build script to automatically download and install OBS binaries.
+This demonstrates how to use the `cargo-obs-build` library in a build script to automatically download and install OBS binaries.
+
+## Simple Usage (Recommended)
+
+The simplest way to use the library is with the `install()` function:
+
+```rust
+fn main() {
+    cargo_obs_build::install().expect("Failed to install OBS binaries");
+}
+```
+
+That's it! This will automatically:
+- Install OBS binaries to the target directory
+- Auto-detect the correct OBS version from your `libobs` dependency
+- Handle caching to avoid re-downloads
+- Set up proper locking for concurrent builds
+
+## Advanced Usage
+
+For more control, you can use the `build_obs_binaries()` function with custom configuration:
 
 ```rust
 use cargo_obs_build::{build_obs_binaries, ObsBuildConfig};
@@ -8,46 +28,21 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // Set up logging (optional, but recommended)
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
-
-    // Get the target directory from cargo
     let out_dir = env::var("OUT_DIR").unwrap();
     let target_dir = PathBuf::from(&out_dir)
-        .parent()
-        .and_then(|p| p.parent())
-        .and_then(|p| p.parent())
-        .map(|p| p.join("obs-binaries"))
-        .expect("Failed to determine target directory");
+        .parent().unwrap()
+        .parent().unwrap()
+        .parent().unwrap()
+        .join("obs-binaries");
 
-    // Configure the build
     let config = ObsBuildConfig {
-        out_dir: target_dir.clone(),
-        cache_dir: PathBuf::from("obs-build"), // Cache directory for downloads
-        repo_id: "obsproject/obs-studio".to_string(),
-        override_zip: None,
-        rebuild: false,
-        browser: false, // Set to true if you need browser support
-        tag: None, // Will auto-detect from libobs crate version
-        skip_compatibility_check: false,
+        out_dir: target_dir,
+        cache_dir: PathBuf::from("obs-build"),
+        browser: true, // Include browser support
+        ..Default::default()
     };
 
-    // Build and install OBS binaries
-    match build_obs_binaries(config) {
-        Ok(_) => {
-            println!("cargo:warning=OBS binaries successfully installed to {}", target_dir.display());
-            
-            // Tell cargo to link to the OBS libraries
-            println!("cargo:rustc-link-search=native={}", target_dir.display());
-            
-            // Rerun if the cache directory changes
-            println!("cargo:rerun-if-changed=obs-build");
-        }
-        Err(e) => {
-            eprintln!("Failed to build OBS binaries: {}", e);
-            std::process::exit(1);
-        }
-    }
+    build_obs_binaries(config).expect("Failed to build OBS binaries");
 }
 ```
 
@@ -58,7 +53,6 @@ Add this to your `[build-dependencies]`:
 ```toml
 [build-dependencies]
 cargo-obs-build = { version = "1.2.4", default-features = false }
-env_logger = "0.11" # Optional, for logging
 ```
 
 Note: We use `default-features = false` to avoid pulling in CLI-specific dependencies (clap, colored, fern) that aren't needed in a build script.

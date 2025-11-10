@@ -70,6 +70,45 @@ impl Default for ObsBuildConfig {
     }
 }
 
+/// Simple installation method for use in build scripts.
+///
+/// This automatically:
+/// - Determines the target directory from the OUT_DIR environment variable
+/// - Uses default cache directory ("obs-build")
+/// - Auto-detects the OBS version from the libobs crate
+/// - Handles all caching and locking
+///
+/// # Example
+///
+/// ```rust,no_run
+/// fn main() {
+///     cargo_obs_build::install().expect("Failed to install OBS binaries");
+/// }
+/// ```
+///
+/// This is equivalent to calling `build_obs_binaries()` with default configuration
+/// and the out_dir set to `$OUT_DIR/../../obs-binaries`.
+pub fn install() -> anyhow::Result<()> {
+    use std::env;
+    
+    let out_dir = env::var("OUT_DIR")
+        .map_err(|_| anyhow::anyhow!("OUT_DIR environment variable not set. This function should only be called from a build script."))?;
+    
+    let target_dir = PathBuf::from(&out_dir)
+        .parent()
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+        .map(|p| p.join("obs-binaries"))
+        .ok_or_else(|| anyhow::anyhow!("Failed to determine target directory from OUT_DIR"))?;
+    
+    let config = ObsBuildConfig {
+        out_dir: target_dir,
+        ..Default::default()
+    };
+    
+    build_obs_binaries(config)
+}
+
 /// Build and install OBS binaries according to the provided configuration
 ///
 /// This is the main entry point for the library. It handles:
