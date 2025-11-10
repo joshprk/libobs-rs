@@ -5,3 +5,5 @@ rtmp-services
 win-capture
 *.dmp
 *.mp4
+
+.idea
