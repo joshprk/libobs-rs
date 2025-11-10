@@ -20,5 +20,5 @@ fn test_build_script_project() {
         .status()
         .expect("Failed to run cargo build on test project");
 
-    assert!(status.success(), "Cargo build failed for test project");
+    assert!(status.success(), "Cargo run failed for test project");
 }
