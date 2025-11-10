@@ -8,3 +8,6 @@ libobs = { path = "../../../libobs" }
 
 [build-dependencies]
 cargo-obs-build = { path = "../../../cargo-obs-build" }
+
+[package.metadata]
+libobs-cache-dir = "../../../obs-build"

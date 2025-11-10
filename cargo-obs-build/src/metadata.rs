@@ -48,7 +48,19 @@ pub fn get_meta_info(
 
     if let Some(meta) = meta {
         if let Ok(dir) = read_val_from_meta(&meta, "libobs-cache-dir").map(PathBuf::from) {
-            *cache_dir = Some(dir);
+            let d = if dir.is_relative() {
+                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").ok().map(PathBuf::from);
+
+                if let Some(manifest_dir) = manifest_dir {
+                    manifest_dir.join(dir)
+                } else {
+                    dir
+                }
+            } else {
+                dir
+            };
+
+            *cache_dir = Some(d);
         }
 
         if let Ok(version) = read_val_from_meta(&meta, "libobs-version") {
