@@ -61,13 +61,14 @@ Note: We use `default-features = false` to avoid pulling in CLI-specific depende
 
 You can customize the build by modifying the `ObsBuildConfig`:
 
-- `out_dir`: Where to copy the final binaries
-- `cache_dir`: Where to cache downloaded files (useful for CI caching)
+- `out_dir`: Where to copy the final binaries (this should be the same directory as your executable)
+- `cache_dir`: Where to cache downloaded files (useful for CI caching and to prevent re-downloads)
 - `repo_id`: Use a different OBS repository
 - `browser`: Include browser support in the binaries
-- `tag`: Specify a specific OBS version (or "latest")
-- `rebuild`: Force a rebuild even if cached
+- `tag`: Specify a specific OBS version (or "latest"). If set to none, it will auto-detect from your `libobs` dependency.
+- `rebuild`: Force a rebuild even if cached (it's called `rebuild` but it actually just re-downloads and reinstalls)
 - `skip_compatibility_check`: Skip version compatibility warnings
+- `remove_pdbs`: Remove .pdb files from the final output to reduce size
 
 ## Workspace Metadata
 

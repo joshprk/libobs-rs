@@ -10,7 +10,7 @@ The CLI tool automatically prepares the environment by putting the required OBS 
 
 ```bash
 cargo install cargo-obs-build
-cargo obs-build --out-dir ./obs-binaries
+cargo obs-build --out-dir ./target/debug # or ./target/release, this should be the directory where your binary will be built
 ```
 
 Run `cargo obs-build --help` for all available options.
@@ -81,7 +81,7 @@ libobs-cache-dir = "../obs-build" # Optional, defaults to "obs-build", relative 
 ## Features
 
 - **Automatic Version Detection**: Automatically selects the correct OBS version based on your `libobs` crate version
-- **Smart Caching**: 
+- **Smart Caching**:
   - Downloads are cached to avoid re-downloading binaries
   - GitHub API responses are cached to prevent rate limiting
   - Respects CI environment and warns if caching is not configured

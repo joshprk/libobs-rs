@@ -27,21 +27,6 @@ Set the `GITHUB_TOKEN` environment variable to authenticate API requests, which 
   run: cargo build
 ```
 
-**GitLab CI:**
-```yaml
-build:
-  script:
-    - cargo build
-  variables:
-    GITHUB_TOKEN: $CI_JOB_TOKEN
-```
-
-**Other CI Providers:**
-```bash
-export GITHUB_TOKEN=your_token_here
-cargo build
-```
-
 ## Caching the OBS Build Directory
 
 To avoid re-downloading OBS binaries on every CI run, cache the `obs-build` directory. This directory contains:
@@ -69,43 +54,18 @@ To avoid re-downloading OBS binaries on every CI run, cache the `obs-build` dire
   run: cargo build
 ```
 
-**GitLab CI:**
-```yaml
-build:
-  cache:
-    key: obs-build-$CI_COMMIT_REF_SLUG
-    paths:
-      - obs-build/
-  script:
-    - cargo build
-```
-
-**CircleCI:**
-```yaml
-- save_cache:
-    key: obs-build-{{ .Branch }}-{{ checksum "Cargo.lock" }}
-    paths:
-      - obs-build
-- restore_cache:
-    keys:
-      - obs-build-{{ .Branch }}-{{ checksum "Cargo.lock" }}
-      - obs-build-{{ .Branch }}
-```
-
 ## Workspace Metadata Configuration
-
 You can specify a fixed OBS version in your `Cargo.toml` to reduce API calls:
-
 ```toml
 [workspace.metadata]
-libobs-version = "30.2.2"  # Specific version to use
+libobs-version = "30.2.2"  # Specific version to use, only set this if you know what you are doing
 libobs-cache-dir = "obs-build"  # Cache directory location
 ```
 
 When you specify a version, the library will:
 - Skip checking for newer patch releases
 - Make fewer API calls
-- Be more predictable in CI environments
+- **Not warn** you about incompatible versions
 
 ## Troubleshooting
 
@@ -142,10 +102,10 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: windows-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Cache OBS binaries
         uses: actions/cache@v3
         with:
@@ -153,27 +113,23 @@ jobs:
           key: obs-build-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             obs-build-${{ runner.os }}-
-      
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-      
+
       - name: Build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: cargo build --release
-      
-      - name: Test
-        run: cargo test --release
 ```
 
 ## Best Practices
 
 1. **Always set GITHUB_TOKEN in CI** - This prevents rate limiting issues
 2. **Always cache the obs-build directory** - This saves time and reduces API calls
-3. **Use workspace metadata for version pinning** - This makes builds more predictable
-4. **Monitor your GitHub API rate limit** - Check [GitHub API rate limit status](https://api.github.com/rate_limit)
+3. **Monitor your GitHub API rate limit** - Check [GitHub API rate limit status](https://api.github.com/rate_limit)
 
 ## Additional Resources
 

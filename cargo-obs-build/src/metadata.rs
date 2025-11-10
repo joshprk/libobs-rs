@@ -40,16 +40,19 @@ pub fn read_val_from_meta(m: &Map<String, Value>, key: &str) -> anyhow::Result<S
     Ok(tag.to_string())
 }
 
-pub fn get_meta_info(cache_dir: &mut PathBuf, tag: &mut String) -> anyhow::Result<()> {
+pub fn get_meta_info(
+    cache_dir: &mut Option<PathBuf>,
+    tag: &mut Option<String>,
+) -> anyhow::Result<()> {
     let meta = get_main_meta()?;
 
     if let Some(meta) = meta {
         if let Ok(dir) = read_val_from_meta(&meta, "libobs-cache-dir").map(PathBuf::from) {
-            *cache_dir = dir;
+            *cache_dir = Some(dir);
         }
 
         if let Ok(version) = read_val_from_meta(&meta, "libobs-version") {
-            *tag = version;
+            *tag = Some(version);
         }
     }
 

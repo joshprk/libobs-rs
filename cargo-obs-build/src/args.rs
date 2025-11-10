@@ -8,9 +8,9 @@ pub struct RunArgs {
     #[arg(short, long)]
     pub out_dir: String,
 
-    /// The location where the OBS Studio sources should be cloned to
-    #[arg(short, long, default_value = "obs-build")]
-    pub cache_dir: PathBuf,
+    /// The location where the OBS Studio sources should be cloned to, defaults to the Cargo.toml metadata or `obs-build`
+    #[arg(short, long)]
+    pub cache_dir: Option<PathBuf>,
 
     /// The github repository to clone OBS Studio from
     #[arg(long, default_value = "obsproject/obs-studio")]
@@ -38,4 +38,8 @@ pub struct RunArgs {
     /// If the browser should be included in the build
     #[arg(short, long, default_value_t = false)]
     pub skip_compatibility_check: bool,
+
+    /// If .pdb files should be removed from the final output, this reduces size significantly
+    #[arg(short, long, default_value_t = false)]
+    pub remove_pdbs: bool,
 }

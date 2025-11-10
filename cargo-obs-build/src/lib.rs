@@ -1,23 +1,21 @@
 use git::{fetch_latest_patch_release, fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
 use log::{debug, info, warn};
-use metadata::{fetch_latest_release_tag, get_meta_info};
+use metadata::fetch_latest_release_tag;
 use std::{
     env,
     fs::{self, File},
     path::{Path, PathBuf},
 };
 use util::{copy_to_dir, delete_all_except};
-#[cfg(target_family = "windows")]
 use walkdir::WalkDir;
 
 use lib_version::get_lib_obs_version;
 
-#[cfg(target_family = "windows")]
 use download::download_binaries;
-#[cfg(target_family = "windows")]
 use zip::ZipArchive;
 
+pub use metadata::get_meta_info;
 mod download;
 mod git;
 mod lib_version;
@@ -76,14 +74,14 @@ fn check_ci_environment(cache_dir: &Path) {
 /// Configuration options for building OBS binaries
 #[derive(Debug, Clone)]
 pub struct ObsBuildConfig {
-    /// The directory the OBS Studio binaries should be copied to
+    /// The directory the libobs binaries should be installed to (this is typically your `target/debug` or `target/release` directory)
     pub out_dir: PathBuf,
 
-    /// The location where the OBS Studio sources should be cloned to
-    pub cache_dir: PathBuf,
+    /// The location where the OBS Studio binaries should be downloaded to. If this is set to None, it defaults to reading the `Cargo.toml` metadata. If no metadata is set, it defaults to `obs-build`.
+    pub cache_dir: Option<PathBuf>,
 
-    /// The github repository to clone OBS Studio from
-    pub repo_id: String,
+    /// The GitHub repository to clone OBS Studio from, if not specified it defaults to `obsproject/obs-studio`
+    pub repo_id: Option<String>,
 
     /// If this is specified, the specified zip file will be used instead of downloading the latest release
     /// This is useful for testing purposes, but it is not recommended to use this in production
@@ -96,25 +94,29 @@ pub struct ObsBuildConfig {
     pub browser: bool,
 
     /// The tag of the OBS Studio release to build.
-    /// If none is specified, the matching release for the libobs crate will be used.
-    /// Use `latest` for the latest obs release. If a version in the `workspace.metadata` is set, that version will be used.
+    /// If none is specified, first the `Cargo.toml` metadata will be checked, if the version is not set it'll find the matching release for the libobs crate will be used.
+    /// Use `latest` for the latest obs release.
     pub tag: Option<String>,
 
     /// If the compatibility check should be skipped
     pub skip_compatibility_check: bool,
+
+    /// If set, PDBs will be deleted after extraction to save space, saving disk space.
+    pub remove_pdbs: bool,
 }
 
 impl Default for ObsBuildConfig {
     fn default() -> Self {
         Self {
             out_dir: PathBuf::from("obs-out"),
-            cache_dir: PathBuf::from("obs-build"),
-            repo_id: "obsproject/obs-studio".to_string(),
+            cache_dir: None,
+            repo_id: None,
             override_zip: None,
             rebuild: false,
             browser: false,
             tag: None,
             skip_compatibility_check: false,
+            remove_pdbs: false,
         }
     }
 }
@@ -164,8 +166,6 @@ pub fn install() -> anyhow::Result<()> {
 /// - Caching to avoid re-downloads
 /// - Locking to prevent concurrent builds
 /// - Copying binaries to the target directory
-///
-/// NOTE: Cargo.toml currently overwrites the ObsBuildConfig
 pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     let ObsBuildConfig {
         mut cache_dir,
@@ -176,9 +176,15 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
         mut tag,
         override_zip,
         skip_compatibility_check,
+        remove_pdbs,
     } = config;
 
+    // Get metadata which may update cache_dir and tag
+    metadata::get_meta_info(&mut cache_dir, &mut tag)?;
+    let cache_dir = cache_dir.unwrap_or_else(|| PathBuf::from("obs-build"));
+
     let mut obs_ver = None;
+    let repo_id = repo_id.unwrap_or_else(|| "obsproject/obs-studio".to_string());
     if tag.is_none() {
         obs_ver = Some(get_lib_obs_version()?);
         let (major, minor, patch) = obs_ver.as_ref().unwrap();
@@ -216,11 +222,8 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
         }
     }
 
-    let mut tag = tag.unwrap();
+    let tag = tag.unwrap();
     let target_out_dir = PathBuf::new().join(&out_dir);
-
-    // Get metadata which may update cache_dir and tag
-    get_meta_info(&mut cache_dir, &mut tag)?;
 
     // Check CI environment configuration AFTER we have the final cache_dir
     check_ci_environment(&cache_dir);
@@ -295,7 +298,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
         debug!("Fetching {} version of OBS Studio...", tag);
 
         let release = fetch_release(&repo_id, &Some(tag.clone()), &cache_dir)?;
-        build_obs(release, &build_out, browser, override_zip)?;
+        build_obs(release, &build_out, browser, remove_pdbs, override_zip)?;
 
         File::create(&success_file)?;
         drop(lock);
@@ -314,45 +317,41 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 }
 
 fn build_obs(
-    _release: ReleaseInfo,
-    _build_out: &Path,
-    _include_browser: bool,
-    _override_zip: Option<PathBuf>,
+    release: ReleaseInfo,
+    build_out: &Path,
+    include_browser: bool,
+    remove_pdbs: bool,
+    override_zip: Option<PathBuf>,
 ) -> anyhow::Result<()> {
-    #[cfg(not(target_family = "windows"))]
-    {
-        anyhow::bail!("Unsupported platform: OBS binaries are only available for Windows");
-    }
+    fs::create_dir_all(build_out)?;
 
-    #[cfg(target_family = "windows")]
-    {
-        fs::create_dir_all(_build_out)?;
+    let obs_path = if let Some(e) = override_zip {
+        e
+    } else {
+        download_binaries(build_out, &release)?
+    };
 
-        let obs_path = if let Some(e) = _override_zip {
-            e
-        } else {
-            download_binaries(_build_out, &_release)?
-        };
+    let obs_archive = File::open(&obs_path)?;
+    let mut archive = ZipArchive::new(&obs_archive)?;
 
-        let obs_archive = File::open(&obs_path)?;
-        let mut archive = ZipArchive::new(&obs_archive)?;
+    info!("Extracting OBS Studio binaries...");
+    archive.extract(build_out)?;
+    let bin_path = build_out.join("bin").join("64bit");
+    copy_to_dir(&bin_path, build_out, None)?;
+    fs::remove_dir_all(build_out.join("bin"))?;
 
-        info!("Extracting OBS Studio binaries...");
-        archive.extract(_build_out)?;
-        let bin_path = _build_out.join("bin").join("64bit");
-        copy_to_dir(&bin_path, _build_out, None)?;
-        fs::remove_dir_all(_build_out.join("bin"))?;
+    clean_up_files(build_out, remove_pdbs, include_browser)?;
 
-        clean_up_files(_build_out, _include_browser)?;
+    fs::remove_file(&obs_path)?;
 
-        fs::remove_file(&obs_path)?;
-
-        Ok(())
-    }
+    Ok(())
 }
 
-#[cfg(target_family = "windows")]
-fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()> {
+fn clean_up_files(
+    build_out: &Path,
+    remove_pdbs: bool,
+    include_browser: bool,
+) -> anyhow::Result<()> {
     let mut to_exclude = vec![
         "obs64",
         "frontend",
@@ -368,6 +367,10 @@ fn clean_up_files(build_out: &Path, include_browser: bool) -> anyhow::Result<()>
         "aja-output-ui",
         "obs-vst",
     ];
+
+    if remove_pdbs {
+        to_exclude.push(".pdb");
+    }
 
     if !include_browser {
         to_exclude.append(&mut vec![
