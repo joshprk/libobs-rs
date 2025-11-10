@@ -563,17 +563,19 @@ impl Drop for _ObsRuntimeGuard {
             feature = "__test_environment"
         ))]
         {
-            // Wait for the thread to finish
-            let handle = self.handle.lock();
-            if handle.is_err() {
-                log::error!("Failed to lock OBS thread handle for shutdown");
-                return;
+            if cfg!(feature="enable_runtime") {
+                // Wait for the thread to finish
+                let handle = self.handle.lock();
+                if handle.is_err() {
+                    log::error!("Failed to lock OBS thread handle for shutdown");
+                    return;
+                }
+
+                let mut handle = handle.unwrap();
+                let handle = handle.take().expect("Handle can not be empty");
+
+                handle.join().expect("Failed to join OBS thread");
             }
-
-            let mut handle = handle.unwrap();
-            let handle = handle.take().expect("Handle can not be empty");
-
-            handle.join().expect("Failed to join OBS thread");
         }
     }
 }
