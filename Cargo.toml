@@ -10,7 +10,7 @@ members = [
     "libobs-bootstrapper",
     "examples/*",
 ]
-exclude = ["examples/tauri-app", "scripts/test_assets/test_build_script"]
+exclude = ["examples/tauri-app", "scripts/test_assets/test_cargo_obs_build"]
 
 [workspace.dependencies]
 libobs = { path = "./libobs", version = "3.0.1" }
