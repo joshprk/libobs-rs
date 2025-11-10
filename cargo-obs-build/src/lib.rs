@@ -3,6 +3,7 @@ use lock::{acquire_lock, wait_for_lock};
 use log::{debug, info, warn};
 use metadata::{fetch_latest_release_tag, get_meta_info};
 use std::{
+    env,
     fs::{self, File},
     path::{Path, PathBuf},
 };
@@ -23,6 +24,54 @@ mod lib_version;
 mod lock;
 mod metadata;
 mod util;
+
+/// Check if we're running in a CI environment
+fn is_ci_environment() -> bool {
+    env::var("CI").is_ok()
+        || env::var("GITHUB_ACTIONS").is_ok()
+        || env::var("GITLAB_CI").is_ok()
+        || env::var("CIRCLECI").is_ok()
+        || env::var("TRAVIS").is_ok()
+        || env::var("JENKINS_URL").is_ok()
+        || env::var("BUILDKITE").is_ok()
+}
+
+/// Check and warn about CI environment configuration issues
+fn check_ci_environment(cache_dir: &Path) {
+    if !is_ci_environment() {
+        return;
+    }
+
+    let mut warnings = Vec::new();
+
+    // Check if GitHub token is set
+    if env::var("GITHUB_TOKEN").is_err() {
+        warnings.push(
+            "GITHUB_TOKEN environment variable not set in CI. \
+             This may cause GitHub API rate limiting issues."
+        );
+    }
+
+    // Check if cache directory exists
+    if !cache_dir.exists() {
+        warnings.push(
+            "OBS build cache directory does not exist. \
+             Consider caching this directory in your CI configuration to speed up builds."
+        );
+    }
+
+    if !warnings.is_empty() {
+        println!("cargo:warning=");
+        println!("cargo:warning=⚠️  CI Environment Configuration Issues Detected:");
+        for warning in warnings {
+            println!("cargo:warning=  - {}", warning);
+        }
+        println!("cargo:warning=");
+        println!("cargo:warning=For detailed setup instructions, see:");
+        println!("cargo:warning=https://github.com/joshprk/libobs-rs/blob/main/cargo-obs-build/CI_SETUP.md");
+        println!("cargo:warning=");
+    }
+}
 
 /// Configuration options for building OBS binaries
 #[derive(Debug, Clone)]
@@ -81,9 +130,7 @@ impl Default for ObsBuildConfig {
 /// # Example
 ///
 /// ```rust,no_run
-/// fn main() {
-///     cargo_obs_build::install().expect("Failed to install OBS binaries");
-/// }
+/// cargo_obs_build::install().expect("Failed to install OBS binaries");
 /// ```
 ///
 /// This is equivalent to calling `build_obs_binaries()` with default configuration
@@ -169,7 +216,12 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 
     let mut tag = tag.unwrap();
     let target_out_dir = PathBuf::new().join(&out_dir);
+    
+    // Get metadata which may update cache_dir and tag
     get_meta_info(&mut cache_dir, &mut tag)?;
+    
+    // Check CI environment configuration AFTER we have the final cache_dir
+    check_ci_environment(&cache_dir);
 
     let tag = if tag.trim() == "latest" {
         fetch_latest_release_tag(&repo_id)?

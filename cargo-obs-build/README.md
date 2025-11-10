@@ -81,22 +81,34 @@ libobs-cache-dir = "../obs-build" # Optional, defaults to "obs-build", relative 
 ## Features
 
 - **Automatic Version Detection**: Automatically selects the correct OBS version based on your `libobs` crate version
-- **Caching**: Downloads are cached to avoid re-downloading binaries
+- **Smart Caching**: 
+  - Downloads are cached to avoid re-downloading binaries
+  - GitHub API responses are cached to prevent rate limiting
+  - Respects CI environment and warns if caching is not configured
 - **Locking**: Prevents concurrent builds from interfering with each other
 - **Version Compatibility**: Checks version compatibility between libobs crate and binaries
+- **CI-Aware**: Detects CI environments and provides helpful warnings about GITHUB_TOKEN and caching setup
 - **Flexible**: Can be used as both a CLI tool and a library
 
 ## Caching for CI
 
-You can cache the `obs-build` directory between CI runs to avoid re-downloading binaries and reduce API calls:
+Cache both the `obs-build` directory and the API cache to avoid re-downloading binaries and reduce API calls:
 
+**The library automatically:**
+- Caches GitHub API responses in `obs-build/.api-cache/`
+- Warns you in CI if GITHUB_TOKEN is not set
+- Warns you in CI if the cache directory doesn't exist
+
+**GitHub Actions Example:**
 ```yaml
-# Example for GitHub Actions
 - uses: actions/cache@v3
   with:
-    path: obs-build
+    path: |
+      obs-build
     key: obs-build-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 ```
+
+For detailed CI setup instructions, see [CI_SETUP.md](CI_SETUP.md).
 
 ## License
 
