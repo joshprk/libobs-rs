@@ -1,4 +1,3 @@
-
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -40,4 +39,3 @@ pub struct RunArgs {
     #[arg(short, long, default_value_t = false)]
     pub skip_compatibility_check: bool,
 }
-

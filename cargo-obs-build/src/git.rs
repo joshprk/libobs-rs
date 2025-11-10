@@ -69,7 +69,11 @@ fn save_cached_release(cache_path: &Path, data: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn fetch_release(repo_id: &str, tag: &Option<String>, cache_dir: &Path) -> anyhow::Result<ReleaseInfo> {
+pub fn fetch_release(
+    repo_id: &str,
+    tag: &Option<String>,
+    cache_dir: &Path,
+) -> anyhow::Result<ReleaseInfo> {
     let tag_str = tag.clone();
     let tag_param = if tag_str.is_none() {
         "latest"

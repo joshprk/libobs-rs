@@ -1,17 +1,17 @@
-#[cfg(feature="cli")]
+#[cfg(feature = "cli")]
 mod args;
 
-#[cfg(feature="cli")]
-use std::env::{self, args};
-#[cfg(feature="cli")]
-use std::path::PathBuf;
-#[cfg(feature="cli")]
+#[cfg(feature = "cli")]
 use colored::Colorize;
+#[cfg(feature = "cli")]
+use std::env::{self, args};
+#[cfg(feature = "cli")]
+use std::path::PathBuf;
 
-#[cfg(feature="cli")]
+#[cfg(feature = "cli")]
 use cargo_obs_build::{build_obs_binaries, ObsBuildConfig};
 
-#[cfg(feature="cli")]
+#[cfg(feature = "cli")]
 fn setup_logger() -> Result<(), fern::InitError> {
     let level = env::var("RUST_LOG")
         .ok()
@@ -39,7 +39,7 @@ fn setup_logger() -> Result<(), fern::InitError> {
     Ok(())
 }
 
-#[cfg(feature="cli")]
+#[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
     use clap::Parser;
 
@@ -68,7 +68,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[cfg(not(feature="cli"))]
+#[cfg(not(feature = "cli"))]
 fn main() {
     eprintln!("This binary requires the 'cli' feature to be enabled.");
     std::process::exit(1);

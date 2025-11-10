@@ -1,4 +1,7 @@
-use std::{env::current_dir, path::{Path, PathBuf}};
+use std::{
+    env::current_dir,
+    path::{Path, PathBuf},
+};
 
 use crate::git::fetch_release;
 use anyhow::{anyhow, Context, Result};

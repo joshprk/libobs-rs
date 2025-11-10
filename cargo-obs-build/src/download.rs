@@ -11,7 +11,7 @@ use std::{
 #[cfg(target_family = "windows")]
 use anyhow::{anyhow, bail};
 #[cfg(target_family = "windows")]
-#[cfg(feature="colored")]
+#[cfg(feature = "colored")]
 use colored::Colorize;
 #[cfg(target_family = "windows")]
 use http_req::{
@@ -23,10 +23,10 @@ use http_req::{
 };
 #[cfg(target_family = "windows")]
 use indicatif::{ProgressBar, ProgressStyle};
+#[cfg(feature = "colored")]
+use log::{debug, info};
 #[cfg(target_family = "windows")]
 use log::{error, trace};
-#[cfg(feature="colored")]
-use log::{debug, info};
 #[cfg(target_family = "windows")]
 use sha2::{Digest, Sha256};
 
