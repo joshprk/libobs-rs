@@ -1,0 +1,13 @@
+[package]
+name = "test_build_script"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libobs = { path = "../../../libobs" }
+
+[build-dependencies]
+cargo-obs-build = { path = "../../../cargo-obs-build" }
+
+[package.metadata]
+libobs-cache-dir = "../../../obs-build"
