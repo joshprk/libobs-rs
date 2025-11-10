@@ -40,6 +40,6 @@ pub struct RunArgs {
     pub skip_compatibility_check: bool,
 
     /// If .pdb files should be removed from the final output, this reduces size significantly
-    #[arg(short, long, default_value_t = false)]
+    #[arg(long, default_value_t = false)]
     pub remove_pdbs: bool,
 }

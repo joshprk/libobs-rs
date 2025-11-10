@@ -154,6 +154,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
         bail!("Content length is 0");
     }
 
+    #[cfg(feature="cli")]
     let pb = ProgressBar::new(content_len);
     #[cfg(feature = "cli")]
     {
