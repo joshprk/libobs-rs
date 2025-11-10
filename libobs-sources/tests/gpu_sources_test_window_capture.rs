@@ -57,7 +57,10 @@ pub fn record() {
     let windows = WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)
         .unwrap()
         .into_iter()
-        .filter(|e| e.0.obs_id.to_lowercase().contains("code"))
+        .filter(|e| {
+            e.0.obs_id.to_lowercase().contains("code")
+                || e.0.obs_id.to_lowercase().contains("rover")
+        })
         .collect::<Vec<_>>();
     for i in 0..cmp::min(5, windows.len()) {
         let w = windows.get(i).unwrap();
