@@ -563,7 +563,7 @@ impl Drop for _ObsRuntimeGuard {
             feature = "__test_environment"
         ))]
         {
-            if cfg!(feature="enable_runtime") {
+            if cfg!(feature = "enable_runtime") {
                 // Wait for the thread to finish
                 let handle = self.handle.lock();
                 if handle.is_err() {
