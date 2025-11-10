@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["build_obs_binaries","get_meta_info","install"],"struct":["ObsBuildConfig"]};
