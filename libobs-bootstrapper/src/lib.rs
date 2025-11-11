@@ -43,7 +43,7 @@ pub enum BootstrapStatus {
     Error(anyhow::Error),
     /// The application must be restarted to use the new version of OBS.
     /// This is because the obs.dll file is in use by the application and can not be replaced while running.
-    /// Therefore the "updater" is spawned to watch for the application to exit and rename the "obs_new.dll" file to "obs.dll".
+    /// Therefore, the "updater" is spawned to watch for the application to exit and rename the "obs_new.dll" file to "obs.dll".
     /// The updater will start the application again with the same arguments as the original application.
     RestartRequired,
 }
@@ -56,7 +56,7 @@ pub enum BootstrapStatus {
 /// If you want to use this bootstrapper to also install required OBS binaries at runtime,
 /// do the following:
 /// - Add a `obs.dll` file to your executable directory. This file will be replaced by the obs installer.
-///   Recommended to use is the a dll dummy (found [here](https://github.com/sshcrack/libobs-builds/releases), make sure you use the correct OBS version)
+///   Recommended to use is the dll dummy (found [here](https://github.com/sshcrack/libobs-builds/releases), make sure you use the correct OBS version)
 ///   and rename it to `obs.dll`.
 /// - Call `ObsBootstrapper::bootstrap()` at the start of your application. Options must be configured. For more documentation look at the [tauri example app](https://github.com/joshprk/libobs-rs/tree/main/examples/tauri-app). This will download the latest version of OBS and extract it in the executable directory.
 /// - If BootstrapStatus::RestartRequired is returned, call `ObsBootstrapper::spawn_updater()` to spawn the updater process.
@@ -85,7 +85,7 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
 }
 
 pub(crate) fn bootstrap(
-    options: &options::ObsBootstrapperOptions,
+    options: &ObsBootstrapperOptions,
 ) -> anyhow::Result<Option<impl Stream<Item = BootstrapStatus>>> {
     let repo = options.repository.to_string();
 
@@ -168,7 +168,7 @@ pub(crate) fn bootstrap(
     }))
 }
 
-pub(crate) async fn spawn_updater(options: options::ObsBootstrapperOptions) -> anyhow::Result<()> {
+pub(crate) async fn spawn_updater(options: ObsBootstrapperOptions) -> anyhow::Result<()> {
     let pid = process::id();
     let args = env::args().collect::<Vec<_>>();
     // Skip the first argument which is the executable path

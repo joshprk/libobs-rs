@@ -8,6 +8,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail};
+#[cfg(feature = "cli")]
 use colored::Colorize;
 use http_req::{
     chunked::ChunkReader,
@@ -16,8 +17,11 @@ use http_req::{
     stream::{Stream, ThreadReceive, ThreadSend},
     uri::Uri,
 };
+#[cfg(feature = "cli")]
 use indicatif::{ProgressBar, ProgressStyle};
-use log::{debug, error, info, trace};
+#[cfg(feature = "cli")]
+use log::{debug, info};
+use log::{error, trace};
 use sha2::{Digest, Sha256};
 
 use crate::git::ReleaseInfo;
@@ -52,6 +56,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 
     let download_path = build_dir.join("obs-prebuilt-windows.zip");
 
+    #[cfg(feature = "colored")]
     println!("Downloading OBS from {}", url.green());
     let hash = download_file(url, &download_path)?;
 
@@ -62,6 +67,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         if checksum.to_lowercase() != hash.to_lowercase() {
             bail!("Checksums do not match");
         } else {
+            #[cfg(feature = "colored")]
             info!("{}", "Checksums match".on_green());
         }
     } else {
@@ -74,6 +80,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
 /// Returns hash
 pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
     let timeout = Duration::from_secs(60);
+    #[cfg(feature = "colored")]
     debug!("Downloading OBS binaries from {}", url.green());
 
     let uri = Uri::try_from(url)?;
@@ -141,20 +148,23 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
         }
     }
 
-    sender_supp.send(params).unwrap();
+    sender_supp.send(params)?;
 
     if content_len == 0 {
         bail!("Content length is 0");
     }
 
-    let style = ProgressStyle::default_bar()
-    .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
-    .map_err(|e| anyhow!("Couldn't create style {:#?}", e))?
-    .progress_chars("#>-");
-
+    #[cfg(feature = "cli")]
     let pb = ProgressBar::new(content_len);
-    pb.set_style(style);
-    pb.set_message("Downloading OBS binaries".to_string());
+    #[cfg(feature = "cli")]
+    {
+        let style = ProgressStyle::default_bar()
+            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")
+            .map_err(|e| anyhow!("Couldn't create style {:#?}", e))?
+            .progress_chars("#>-");
+        pb.set_style(style);
+        pb.set_message("Downloading OBS binaries".to_string());
+    }
 
     let mut file =
         File::create(path).or(Err(anyhow!("Failed to create file '{}'", path.display())))?;
@@ -170,7 +180,7 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
             break;
         }
 
-        let chunk = item.unwrap();
+        let chunk = item?;
 
         hasher.write_all(&chunk)?;
         file.write_all(&chunk)
@@ -178,11 +188,13 @@ pub fn download_file(url: &str, path: &Path) -> anyhow::Result<String> {
 
         let new = std::cmp::min(downloaded + (chunk.len() as u64), content_len);
         downloaded = new;
+        #[cfg(feature = "cli")]
         pb.set_position(new);
     }
 
+    #[cfg(feature = "cli")]
     pb.finish_with_message(format!("Downloaded OBS to {}", path.display()));
     trace!("Hashing...");
-    stdout().flush().unwrap();
+    let _ = stdout().flush();
     Ok(hex::encode(hasher.finalize()))
 }

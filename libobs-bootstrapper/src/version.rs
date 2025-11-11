@@ -3,7 +3,7 @@ use std::path::Path;
 use libloading::Library;
 use libobs::{LIBOBS_API_MAJOR_VER, LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER};
 
-pub type GetVersionFunc = unsafe extern "C" fn() -> *const ::std::os::raw::c_char;
+pub type GetVersionFunc = unsafe extern "C" fn() -> *const std::os::raw::c_char;
 
 pub fn get_installed_version(obs_dll: &Path) -> anyhow::Result<Option<String>> {
     // The obs.dll should always exist
@@ -36,7 +36,7 @@ pub fn get_installed_version(obs_dll: &Path) -> anyhow::Result<Option<String>> {
         }
 
         lib.close()?;
-        Ok(Some(version_str.unwrap().to_string()))
+        Ok(Some(version_str?.to_string()))
     }
 }
 
@@ -53,9 +53,9 @@ pub fn should_update(version_str: &str) -> anyhow::Result<bool> {
         anyhow::bail!("Invalid version string: {}", version_str);
     }
 
-    let major = major.unwrap();
-    let minor = minor.unwrap();
-    let patch = patch.unwrap();
+    let major = major?;
+    let minor = minor?;
+    let patch = patch?;
 
     Ok(major != LIBOBS_API_MAJOR_VER as u64
         || minor != LIBOBS_API_MINOR_VER as u64

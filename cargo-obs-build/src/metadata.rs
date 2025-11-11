@@ -1,4 +1,7 @@
-use std::{env::current_dir, path::PathBuf};
+use std::{
+    env::current_dir,
+    path::{Path, PathBuf},
+};
 
 use crate::git::fetch_release;
 use anyhow::{anyhow, Context, Result};
@@ -37,23 +40,38 @@ pub fn read_val_from_meta(m: &Map<String, Value>, key: &str) -> anyhow::Result<S
     Ok(tag.to_string())
 }
 
-pub fn get_meta_info(cache_dir: &mut PathBuf, tag: &mut String) -> anyhow::Result<()> {
+pub fn get_meta_info(
+    cache_dir: &mut Option<PathBuf>,
+    tag: &mut Option<String>,
+) -> anyhow::Result<()> {
     let meta = get_main_meta()?;
 
     if let Some(meta) = meta {
         if let Ok(dir) = read_val_from_meta(&meta, "libobs-cache-dir").map(PathBuf::from) {
-            *cache_dir = dir;
+            let d = if dir.is_relative() {
+                let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").ok().map(PathBuf::from);
+
+                if let Some(manifest_dir) = manifest_dir {
+                    manifest_dir.join(dir)
+                } else {
+                    dir
+                }
+            } else {
+                dir
+            };
+
+            *cache_dir = Some(d);
         }
 
         if let Ok(version) = read_val_from_meta(&meta, "libobs-version") {
-            *tag = version;
+            *tag = Some(version);
         }
     }
 
     Ok(())
 }
 
-pub fn fetch_latest_release_tag(repo_id: &str) -> anyhow::Result<String> {
-    let release = fetch_release(repo_id, &None)?;
+pub fn fetch_latest_release_tag(repo_id: &str, cache_dir: &Path) -> anyhow::Result<String> {
+    let release = fetch_release(repo_id, &None, cache_dir)?;
     Ok(release.tag)
 }

@@ -70,7 +70,7 @@ pub(crate) async fn extract_obs(
 
                     break;
                 }
-            };
+            }
         }
 
         yield Ok((1.0, "Extraction done".to_string()));

@@ -2,22 +2,111 @@ use anyhow::{anyhow, bail};
 use http_req::{request::Request, response::StatusCode, uri::Uri};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 #[derive(Clone, Debug)]
 pub struct ReleaseInfo {
     pub tag: String,
+    #[allow(dead_code)]
     pub assets: Vec<Value>,
+    #[allow(dead_code)]
     pub checksums: HashMap<String, String>,
 }
 
-pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<ReleaseInfo> {
-    let tag = tag.clone();
-    let tag = if tag.is_none() {
+/// Try to load cached release info from disk
+fn load_cached_release(cache_path: &Path) -> Option<ReleaseInfo> {
+    if !cache_path.exists() {
+        return None;
+    }
+
+    if let Ok(metadata) = fs::metadata(cache_path) {
+        if metadata.modified().ok()?.elapsed().ok()?.as_secs() > 86400 {
+            // Cache is older than 1 day
+            return None;
+        }
+    };
+
+    let content = fs::read_to_string(cache_path).ok()?;
+    let data: Value = serde_json::from_str(&content).ok()?;
+
+    let tag = data["tag_name"].as_str()?.to_string();
+    let assets = data["assets"].as_array()?.clone();
+
+    let mut checksums = HashMap::new();
+    let note = data["body"].as_str().unwrap_or("");
+    let split = note.replace("\r", "");
+    let split = split.split("\n");
+
+    let mut is_checksums = false;
+    for line in split {
+        if line.to_lowercase().contains("checksums") {
+            is_checksums = true;
+            continue;
+        }
+
+        if !is_checksums {
+            continue;
+        }
+
+        let split: Vec<&str> = line.trim().split(":").collect();
+        if split.len() != 2 {
+            continue;
+        }
+
+        checksums.insert(
+            split[0].trim().to_lowercase().to_string(),
+            split[1].trim().to_string(),
+        );
+    }
+
+    Some(ReleaseInfo {
+        tag,
+        assets,
+        checksums,
+    })
+}
+
+/// Save release info to cache
+fn save_cached_release(cache_path: &Path, data: &str) -> anyhow::Result<()> {
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(cache_path, data)?;
+    Ok(())
+}
+
+pub fn fetch_release(
+    repo_id: &str,
+    tag: &Option<String>,
+    cache_dir: &Path,
+) -> anyhow::Result<ReleaseInfo> {
+    let tag_str = tag.clone();
+    let tag_param = if tag_str.is_none() {
         "latest"
     } else {
-        &format!("tags/{}", tag.unwrap())
+        &format!("tags/{}", tag_str.unwrap())
     };
-    let url = format!("https://api.github.com/repos/{}/releases/{}", repo_id, tag);
+
+    // Create cache key based on repo and tag
+    let cache_key = format!(
+        "{}-{}",
+        repo_id.replace('/', "_"),
+        tag_param.replace('/', "_")
+    );
+    let cache_dir = cache_dir.join(".api-cache");
+    let cache_path = cache_dir.join(format!("{}.json", cache_key));
+
+    // Try to load from cache first
+    if let Some(cached) = load_cached_release(&cache_path) {
+        log::debug!("Using cached release info for {}", tag_param);
+        return Ok(cached);
+    }
+
+    let url = format!(
+        "https://api.github.com/repos/{}/releases/{}",
+        repo_id, tag_param
+    );
     let url = Uri::try_from(url.as_str())?;
 
     let mut body = Vec::new(); //Container for body of a response.
@@ -38,6 +127,10 @@ pub fn fetch_release(repo_id: &str, tag: &Option<String>) -> anyhow::Result<Rele
     }
 
     let body = String::from_utf8(body)?;
+
+    // Save to cache for future use
+    let _ = save_cached_release(&cache_path, &body);
+
     let body: Value = serde_json::from_str(&body)?;
     let tag_name = body["tag_name"].as_str();
 
@@ -89,7 +182,23 @@ pub fn fetch_latest_patch_release(
     repo_id: &str,
     major: u32,
     minor: u32,
+    cache_dir: &Path,
 ) -> anyhow::Result<Option<String>> {
+    // Create cache key based on repo and version
+    let cache_key = format!("{}-releases-{}.{}", repo_id.replace('/', "_"), major, minor);
+    let cache_dir = cache_dir.join(".api-cache");
+    let cache_path = cache_dir.join(format!("{}.json", cache_key));
+
+    // Try to load from cache first
+    if cache_path.exists() {
+        if let Ok(content) = fs::read_to_string(&cache_path) {
+            if let Ok(arr) = serde_json::from_str::<Vec<Value>>(&content) {
+                log::debug!("Using cached releases list for {}.{}", major, minor);
+                return parse_releases_for_latest_patch(&arr, major, minor);
+            }
+        }
+    }
+
     let url = format!("https://api.github.com/repos/{}/releases", repo_id);
     let url = Uri::try_from(url.as_str())?;
 
@@ -112,8 +221,19 @@ pub fn fetch_latest_patch_release(
     }
 
     let body = String::from_utf8(body)?;
-    let arr: Vec<Value> = serde_json::from_str(&body)?;
 
+    // Save to cache for future use
+    let _ = save_cached_release(&cache_path, &body);
+
+    let arr: Vec<Value> = serde_json::from_str(&body)?;
+    parse_releases_for_latest_patch(&arr, major, minor)
+}
+
+fn parse_releases_for_latest_patch(
+    arr: &[Value],
+    major: u32,
+    minor: u32,
+) -> anyhow::Result<Option<String>> {
     let mut best_patch: Option<u32> = None;
     let mut best_tag: Option<String> = None;
 
