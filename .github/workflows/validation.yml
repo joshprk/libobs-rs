@@ -9,7 +9,10 @@ on:
 jobs:
   build-test:
     name: Build and Test
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Cache
@@ -19,7 +22,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       # Check if formatting is correct
       - name: Check Rust formatting
@@ -30,4 +33,3 @@ jobs:
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
-        shell: pwsh
