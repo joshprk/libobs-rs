@@ -13,7 +13,7 @@ fn main() {
             panic!("error: obs already initialized");
         }
         println!("OBS not yet initialized, continuing");
-
+        /*
         #[cfg(not(target_os = "windows"))]
         {
             println!("Setting NIX platform to X11_EGL");
@@ -23,7 +23,7 @@ fn main() {
             println!("X display pointer: {:?}", display);
             libobs::obs_set_nix_platform_display(display);
             println!("NIX platform display set");
-        }
+        } */
 
         #[cfg(target_os = "windows")]
         {

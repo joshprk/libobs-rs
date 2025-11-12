@@ -1,7 +1,6 @@
 use libobs::{gs_init_data, gs_window};
 use num_traits::ToPrimitive;
 
-
 use super::{GsColorFormat, GsZstencilFormat};
 
 #[derive(Clone)]
@@ -23,9 +22,9 @@ pub struct ObsDisplayCreationData {
 impl ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
     pub fn new(window_handle: isize, x: i32, y: i32, width: u32, height: u32) -> Self {
+        use crate::unsafe_send::Sendable;
         use std::os::raw::c_void;
         use windows::Win32::Foundation::HWND;
-        use crate::unsafe_send::Sendable;
 
         Self {
             window_handle: Sendable(HWND(window_handle as *mut c_void)),

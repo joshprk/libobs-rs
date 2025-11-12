@@ -41,10 +41,10 @@ use std::{
 };
 
 #[cfg(target_family = "windows")]
-use std::{pin::Pin, collections::HashMap};
+use std::{collections::HashMap, pin::Pin};
 
 #[cfg(windows)]
-use crate::display::{ObsDisplayRef, ObsDisplayCreationData};
+use crate::display::{ObsDisplayCreationData, ObsDisplayRef};
 use crate::{
     data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
     enums::{ObsLogLevel, ObsResetVideoStatus},

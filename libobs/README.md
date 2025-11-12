@@ -12,19 +12,19 @@ Before building this crate on Linux, you need to install the following system de
 #### Ubuntu/Debian
 ```bash
 sudo apt update
-sudo apt install -y clang libclang-dev libsimde-dev
+sudo apt install -y clang libclang-dev libsimde-dev libxcb1-dev libx11-dev
 ```
 
 #### Fedora/RHEL/CentOS
 ```bash
-sudo dnf install clang clang-devel simde-devel
+sudo dnf install clang clang-devel simde-devel libxcb-devel libX11-devel
 # or on older versions:
 # sudo yum install clang clang-devel simde-devel
 ```
 
 #### Arch Linux
 ```bash
-sudo pacman -S clang simde
+sudo pacman -S clang simde libxcb libx11
 ```
 
 ### Build Instructions
