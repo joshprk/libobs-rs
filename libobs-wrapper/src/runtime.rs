@@ -383,6 +383,7 @@ impl ObsRuntime {
 
         // Install DLL blocklist hook here
 
+        #[cfg(windows)]
         unsafe {
             libobs::obs_init_win32_crash_handler();
         }

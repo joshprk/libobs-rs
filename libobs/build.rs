@@ -19,11 +19,11 @@ fn main() {
         println!("cargo:rustc-link-search=native={}", path);
     }
 
-    #[cfg(feature = "generate_bindings")]
+    #[cfg(any(feature = "generate_bindings", not(target_family="windows")))]
     bindings::generate_bindings();
 }
 
-#[cfg(feature = "generate_bindings")]
+#[cfg(any(feature = "generate_bindings", not(target_family="windows")))]
 mod bindings {
     use std::{collections::HashSet, path::PathBuf};
 
