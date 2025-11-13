@@ -22,7 +22,7 @@ fn main() {
         }
         println!("OBS not yet initialized, continuing");
 
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "linux")]
         {
             println!("Setting NIX platform to X11_EGL");
             libobs::obs_set_nix_platform(libobs::obs_nix_platform_type_OBS_NIX_PLATFORM_X11_EGL);
@@ -31,6 +31,13 @@ fn main() {
             println!("X display pointer: {:?}", display);
             libobs::obs_set_nix_platform_display(display);
             println!("NIX platform display set");
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            println!("macOS detected - using native graphics backend");
+            // macOS doesn't need platform setup like Linux does
+            // It uses native Cocoa/Metal/OpenGL backends
         }
 
         #[cfg(target_os = "windows")]
@@ -174,7 +181,7 @@ fn main() {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 fn x_open_display(display: *mut c_void) -> *mut c_void {
     extern "C" {
         fn XOpenDisplay(display: *mut c_void) -> *mut c_void;
