@@ -8,7 +8,11 @@
 
 Simple and safe video recording through libobs.
 
-Currently only tested on Windows. Linux and MacOS likely work, but they are untested. These will receive support later down the road.
+## Platform Support
+
+- **Windows**: Fully supported with `cargo-obs-build`
+- **macOS**: Supported via `libobs-bootstrapper` (downloads official OBS DMG files)
+- **Linux**: Partial support (requires manual libobs installation or cargo-obs-build)
 
 The API is currently unstable and will definitely have breaking revisions in the future.
 
@@ -23,6 +27,16 @@ sudo apt-get libobs-dev llvm-dev libclang-dev clang
 
 
 ## Prerequisites
+
+### Option 1: Using libobs-bootstrapper (Recommended for macOS and distribution)
+
+> [!NOTE]
+> The `libobs-bootstrapper` crate downloads and installs OBS binaries at runtime, which is especially useful for macOS (downloads official signed DMG files) and for distributing applications without requiring users to install OBS separately.
+
+See the [libobs-bootstrapper documentation](https://crates.io/crates/libobs-bootstrapper) for detailed usage instructions.
+
+### Option 2: Using cargo-obs-build (Windows/Linux development)
+
 Make sure that the OBS binaries are in your target directory. There's even a tool to help you build OBS from source! <br>
 Install the tool
 ```bash
