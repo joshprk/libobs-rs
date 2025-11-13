@@ -16,7 +16,7 @@ fn main() {
     } else {
         // On Linux, try to link against system libobs
         // On Windows, look for obs.dll in the manifest directory
-        #[cfg(target_family = "windows")]
+        //#[cfg(target_family = "windows")]
         {
             println!(
                 "cargo:rustc-link-search=native={}",
