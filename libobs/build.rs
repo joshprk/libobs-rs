@@ -9,21 +9,28 @@ fn main() {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
-    println!(
-        "cargo:rustc-link-search=native={}",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    println!("cargo:rustc-link-lib=dylib=obs");
-
+    // For development, you can set LIBOBS_PATH to point to your custom libobs
     if let Ok(path) = std::env::var("LIBOBS_PATH") {
         println!("cargo:rustc-link-search=native={}", path);
+        println!("cargo:rustc-link-lib=dylib=obs");
+    } else {
+        // On Linux, try to link against system libobs
+        // On Windows, look for obs.dll in the manifest directory
+        //#[cfg(target_family = "windows")]
+        {
+            println!(
+                "cargo:rustc-link-search=native={}",
+                env!("CARGO_MANIFEST_DIR")
+            );
+        }
+        println!("cargo:rustc-link-lib=dylib=obs");
     }
 
-    #[cfg(feature = "generate_bindings")]
+    #[cfg(any(feature = "generate_bindings", not(target_family = "windows")))]
     bindings::generate_bindings();
 }
 
-#[cfg(feature = "generate_bindings")]
+#[cfg(any(feature = "generate_bindings", not(target_family = "windows")))]
 mod bindings {
     use std::{collections::HashSet, path::PathBuf};
 

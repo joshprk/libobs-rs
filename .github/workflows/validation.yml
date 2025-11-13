@@ -10,7 +10,10 @@ on:
 jobs:
   build-test:
     name: Build and Test
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Cache
@@ -42,10 +45,7 @@ jobs:
       # Run cargo check to ensure code will compile
       - name: Check code compilation
         run: cargo check --all
-        shell: pwsh
       - name: Run tests (no default features)
         run: cargo nextest r --profile ci --no-default-features --features "__test_environment"
-        shell: pwsh
       - name: Run tests (with default features)
         run: cargo nextest r --profile ci --all-features --target-dir target/nextest-all-features
-        shell: pwsh
