@@ -12,25 +12,64 @@ fn main() {
     // For development, you can set LIBOBS_PATH to point to your custom libobs
     if let Ok(path) = std::env::var("LIBOBS_PATH") {
         println!("cargo:rustc-link-search=native={}", path);
-        println!("cargo:rustc-link-lib=dylib=obs");
-    } else {
-        // On Linux, try to link against system libobs
-        // On Windows, look for obs.dll in the manifest directory
-        //#[cfg(target_family = "windows")]
+        
+        #[cfg(target_os = "macos")]
         {
-            println!(
-                "cargo:rustc-link-search=native={}",
-                env!("CARGO_MANIFEST_DIR")
-            );
+            // Try framework first, fall back to dylib
+            println!("cargo:rustc-link-search=framework={}", path);
+            println!("cargo:rustc-link-lib=framework=libobs");
         }
-        println!("cargo:rustc-link-lib=dylib=obs");
+        
+        #[cfg(not(target_os = "macos"))]
+        {
+            println!("cargo:rustc-link-lib=dylib=obs");
+        }
+    } else {
+        // Add search path to manifest directory (where cargo-obs-build puts libraries)
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        println!("cargo:rustc-link-search=native={}", manifest_dir);
+        
+        #[cfg(target_os = "macos")]
+        {
+            // macOS: Link to libobs.framework
+            println!("cargo:rustc-link-search=framework={}", manifest_dir);
+            println!("cargo:rustc-link-lib=framework=libobs");
+            
+            // Add macOS system frameworks that libobs depends on
+            println!("cargo:rustc-link-lib=framework=CoreFoundation");
+            println!("cargo:rustc-link-lib=framework=CoreVideo");
+            println!("cargo:rustc-link-lib=framework=CoreMedia");
+            println!("cargo:rustc-link-lib=framework=CoreGraphics");
+            println!("cargo:rustc-link-lib=framework=AppKit");
+            println!("cargo:rustc-link-lib=framework=IOKit");
+            println!("cargo:rustc-link-lib=framework=IOSurface");
+            println!("cargo:rustc-link-lib=framework=AudioToolbox");
+            println!("cargo:rustc-link-lib=framework=VideoToolbox");
+            
+            // Set rpath for dylib loading
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            // Linux: Link to libobs.so
+            println!("cargo:rustc-link-lib=dylib=obs");
+        }
+        
+        #[cfg(target_os = "windows")]
+        {
+            // Windows: Link to obs.dll
+            println!("cargo:rustc-link-lib=dylib=obs");
+        }
     }
 
-    #[cfg(any(feature = "generate_bindings", not(target_family = "windows")))]
+    // Only generate bindings if explicitly requested via feature flag
+    #[cfg(feature = "generate_bindings")]
     bindings::generate_bindings();
 }
 
-#[cfg(any(feature = "generate_bindings", not(target_family = "windows")))]
+#[cfg(feature = "generate_bindings")]
 mod bindings {
     use std::{collections::HashSet, path::PathBuf};
 
