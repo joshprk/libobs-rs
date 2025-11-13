@@ -226,27 +226,19 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
 
 #[cfg(target_os = "macos")]
 async fn copy_dir_recursive(src: &Path, dst: &Path) -> anyhow::Result<()> {
-    tokio::fs::create_dir_all(dst).await?;
+    use tokio::process::Command;
     
-    let mut entries = tokio::fs::read_dir(src).await?;
+    // Use ditto to preserve code signatures and extended attributes on macOS
+    tokio::fs::create_dir_all(dst.parent().unwrap_or(dst)).await?;
     
-    while let Some(entry) = entries.next_entry().await? {
-        let file_type = entry.file_type().await?;
-        let src_path = entry.path();
-        let file_name = entry.file_name();
-        let dst_path = dst.join(&file_name);
-        
-        if file_type.is_dir() {
-            Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
-        } else if file_type.is_file() {
-            tokio::fs::copy(&src_path, &dst_path).await?;
-        } else if file_type.is_symlink() {
-            let link_target = tokio::fs::read_link(&src_path).await?;
-            #[cfg(unix)]
-            {
-                tokio::fs::symlink(&link_target, &dst_path).await?;
-            }
-        }
+    let status = Command::new("ditto")
+        .arg(src)
+        .arg(dst)
+        .status()
+        .await?;
+    
+    if !status.success() {
+        anyhow::bail!("ditto failed copying {:?} to {:?}", src, dst);
     }
     
     Ok(())

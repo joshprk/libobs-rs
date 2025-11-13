@@ -49,6 +49,8 @@ fn main() {
             // Set rpath for dylib loading
             println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
             println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/..");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/..");
         }
         
         #[cfg(target_os = "linux")]

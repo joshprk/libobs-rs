@@ -529,8 +529,32 @@ fn clean_up_files(
     }
 
     info!("Cleaning up unnecessary files...");
-    for entry in WalkDir::new(build_out).into_iter().flatten() {
+    let mut walker = WalkDir::new(build_out).into_iter();
+    while let Some(entry) = walker.next() {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        
         let path = entry.path();
+        
+        // Skip Resources and _CodeSignature directories inside .framework bundles (needed for code signing on macOS)
+        #[cfg(target_os = "macos")]
+        {
+            let file_name = path.file_name().and_then(|f| f.to_str());
+            if file_name == Some("Resources") || file_name == Some("_CodeSignature") {
+                if path.ancestors().any(|p| {
+                    p.extension().and_then(|e| e.to_str()) == Some("framework")
+                }) {
+                    // Skip this directory and all its contents
+                    if entry.file_type().is_dir() {
+                        walker.skip_current_dir();
+                    }
+                    continue;
+                }
+            }
+        }
+        
         if to_exclude.iter().any(|e| {
             path.file_name().is_some_and(|x| {
                 let x_l = x.to_string_lossy().to_lowercase();
