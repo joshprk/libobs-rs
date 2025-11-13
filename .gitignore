@@ -9,4 +9,5 @@ win-capture
 *.dmp
 *.mp4
 
-.ideatest-macos-build/
+.idea
+test-macos-build/
