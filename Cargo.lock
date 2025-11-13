@@ -414,8 +414,10 @@ dependencies = [
  "regex",
  "serde_json",
  "sha2",
+ "tar",
  "toml",
  "walkdir",
+ "xz2",
  "zip 6.0.0",
 ]
 

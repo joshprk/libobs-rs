@@ -1,3 +1,4 @@
+use anyhow::bail;
 use git::{fetch_latest_patch_release, fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
 use log::{debug, info, warn};
@@ -14,6 +15,8 @@ use lib_version::get_lib_obs_version;
 
 use download::download_binaries;
 use zip::ZipArchive;
+use tar::Archive;
+use xz2::read::XzDecoder;
 
 pub use metadata::get_meta_info;
 mod download;
@@ -317,6 +320,121 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Extract macOS DMG file
+#[cfg(target_os = "macos")]
+fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    info!("Mounting DMG...");
+    // Mount the DMG
+    let mount_output = Command::new("hdiutil")
+        .args(&["attach", "-nobrowse", "-mountpoint", "/tmp/obs-mount"])
+        .arg(dmg_path)
+        .output()?;
+    
+    if !mount_output.status.success() {
+        bail!("Failed to mount DMG: {}", String::from_utf8_lossy(&mount_output.stderr));
+    }
+    
+    // Copy OBS.app contents
+    let app_path = Path::new("/tmp/obs-mount/OBS.app/Contents");
+    if app_path.exists() {
+        // Copy Frameworks (contains libobs.dylib)
+        let frameworks_path = app_path.join("Frameworks");
+        if frameworks_path.exists() {
+            copy_to_dir(&frameworks_path, output_dir, None)?;
+        }
+        
+        // Copy PlugIns
+        let plugins_path = app_path.join("PlugIns");
+        if plugins_path.exists() {
+            let dest_plugins = output_dir.join("obs-plugins");
+            copy_to_dir(&plugins_path, &dest_plugins, None)?;
+        }
+        
+        // Copy Resources/data
+        let data_path = app_path.join("Resources/data");
+        if data_path.exists() {
+            let dest_data = output_dir.join("data");
+            copy_to_dir(&data_path, &dest_data, None)?;
+        }
+    }
+    
+    // Unmount
+    info!("Unmounting DMG...");
+    let _unmount = Command::new("hdiutil")
+        .args(&["detach", "/tmp/obs-mount"])
+        .output()?;
+    
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn extract_dmg(_dmg_path: &Path, _output_dir: &Path) -> anyhow::Result<()> {
+    bail!("DMG extraction is only supported on macOS");
+}
+
+/// Extract Linux DEB file
+fn extract_deb(deb_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    info!("Extracting DEB package...");
+    
+    // Create temp directory for extraction
+    let temp_dir = output_dir.join("temp_deb");
+    fs::create_dir_all(&temp_dir)?;
+    
+    // Extract data.tar.xz from the deb
+    let extract_output = Command::new("ar")
+        .args(&["x", deb_path.to_str().unwrap(), "data.tar.xz"])
+        .current_dir(&temp_dir)
+        .output()?;
+    
+    if !extract_output.status.success() {
+        // Try data.tar.gz as fallback
+        let extract_output = Command::new("ar")
+            .args(&["x", deb_path.to_str().unwrap(), "data.tar.gz"])
+            .current_dir(&temp_dir)
+            .output()?;
+        
+        if !extract_output.status.success() {
+            fs::remove_dir_all(&temp_dir)?;
+            bail!("Failed to extract DEB: {}", String::from_utf8_lossy(&extract_output.stderr));
+        }
+    }
+    
+    // Extract the data archive
+    let data_archive = if temp_dir.join("data.tar.xz").exists() {
+        temp_dir.join("data.tar.xz")
+    } else {
+        temp_dir.join("data.tar.gz")
+    };
+    
+    if data_archive.exists() {
+        let file = File::open(&data_archive)?;
+        let decoder = XzDecoder::new(file);
+        let mut archive = Archive::new(decoder);
+        archive.unpack(&temp_dir)?;
+        
+        // Copy from usr/lib and usr/share
+        let usr_lib = temp_dir.join("usr/lib");
+        if usr_lib.exists() {
+            copy_to_dir(&usr_lib, output_dir, None)?;
+        }
+        
+        let usr_share = temp_dir.join("usr/share/obs");
+        if usr_share.exists() {
+            let dest_data = output_dir.join("data");
+            copy_to_dir(&usr_share, &dest_data, None)?;
+        }
+    }
+    
+    // Clean up temp directory
+    fs::remove_dir_all(&temp_dir)?;
+    
+    Ok(())
+}
+
 fn build_obs(
     release: ReleaseInfo,
     build_out: &Path,
@@ -332,14 +450,39 @@ fn build_obs(
         download_binaries(build_out, &release)?
     };
 
-    let obs_archive = File::open(&obs_path)?;
-    let mut archive = ZipArchive::new(&obs_archive)?;
-
     info!("Extracting OBS Studio binaries...");
-    archive.extract(build_out)?;
-    let bin_path = build_out.join("bin").join("64bit");
-    copy_to_dir(&bin_path, build_out, None)?;
-    fs::remove_dir_all(build_out.join("bin"))?;
+    
+    // Extract based on file extension
+    if obs_path.extension().and_then(|s| s.to_str()) == Some("zip") {
+        // Windows: ZIP extraction
+        let obs_archive = File::open(&obs_path)?;
+        let mut archive = ZipArchive::new(&obs_archive)?;
+        archive.extract(build_out)?;
+        
+        // Windows structure: /bin/64bit/obs.dll
+        let bin_path = build_out.join("bin").join("64bit");
+        copy_to_dir(&bin_path, build_out, None)?;
+        fs::remove_dir_all(build_out.join("bin"))?;
+    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("dmg") {
+        // macOS: DMG extraction
+        extract_dmg(&obs_path, build_out)?;
+    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("deb") {
+        // Linux: DEB extraction
+        extract_deb(&obs_path, build_out)?;
+    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("xz") {
+        // tar.xz extraction (fallback)
+        let obs_archive = File::open(&obs_path)?;
+        let decompressor = XzDecoder::new(obs_archive);
+        let mut archive = Archive::new(decompressor);
+        archive.unpack(build_out)?;
+        
+        let lib_path = build_out.join("lib");
+        if lib_path.exists() {
+            copy_to_dir(&lib_path, build_out, None)?;
+        }
+    } else {
+        bail!("Unsupported archive format: {:?}", obs_path.extension());
+    }
 
     clean_up_files(build_out, remove_pdbs, include_browser)?;
 
