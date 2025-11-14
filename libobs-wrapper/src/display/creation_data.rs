@@ -3,6 +3,9 @@ use num_traits::ToPrimitive;
 
 use super::{GsColorFormat, GsZstencilFormat};
 
+#[cfg(target_family = "windows")]
+use crate::unsafe_send::Sendable;
+
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
