@@ -9,19 +9,18 @@ fn main() {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
+    // Check target OS (not host) for cross-compilation support
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+
     // For development, you can set LIBOBS_PATH to point to your custom libobs
     if let Ok(path) = std::env::var("LIBOBS_PATH") {
         println!("cargo:rustc-link-search=native={}", path);
         
-        #[cfg(target_os = "macos")]
-        {
+        if target_os == "macos" {
             // Try framework first, fall back to dylib
             println!("cargo:rustc-link-search=framework={}", path);
             println!("cargo:rustc-link-lib=framework=libobs");
-        }
-        
-        #[cfg(not(target_os = "macos"))]
-        {
+        } else {
             println!("cargo:rustc-link-lib=dylib=obs");
         }
     } else {
@@ -29,8 +28,7 @@ fn main() {
         let manifest_dir = env!("CARGO_MANIFEST_DIR");
         println!("cargo:rustc-link-search=native={}", manifest_dir);
         
-        #[cfg(target_os = "macos")]
-        {
+        if target_os == "macos" {
             // macOS: Link to libobs.framework
             println!("cargo:rustc-link-search=framework={}", manifest_dir);
             println!("cargo:rustc-link-lib=framework=libobs");
@@ -51,25 +49,13 @@ fn main() {
             println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
             println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/..");
             println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/..");
-        }
-        
-        #[cfg(target_os = "linux")]
-        {
+        } else if target_os == "linux" {
             // Linux: Link to libobs.so
             println!("cargo:rustc-link-lib=dylib=obs");
-        }
-        
-        #[cfg(target_os = "windows")]
-        {
+        } else if target_os == "windows" {
             // Windows: Link to obs.dll
             println!("cargo:rustc-link-lib=dylib=obs");
         }
-    }
-
-    // macOS: Copy helper binaries to examples directory for ffmpeg_muxer
-    #[cfg(target_os = "macos")]
-    {
-        copy_helper_binaries_macos();
     }
 
     // Only generate bindings if explicitly requested via feature flag
@@ -77,31 +63,6 @@ fn main() {
     bindings::generate_bindings();
 }
 
-#[cfg(target_os = "macos")]
-fn copy_helper_binaries_macos() {
-    use std::path::PathBuf;
-    use std::fs;
-    
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
-    
-    // Source: target/{profile}/obs-ffmpeg-mux
-    // Dest: target/{profile}/examples/obs-ffmpeg-mux
-    let target_dir = PathBuf::from(manifest_dir).join("..").join("target").join(&profile);
-    let helper_src = target_dir.join("obs-ffmpeg-mux");
-    let examples_dir = target_dir.join("examples");
-    let helper_dest = examples_dir.join("obs-ffmpeg-mux");
-    
-    if helper_src.exists() {
-        // Create examples directory if it doesn't exist
-        let _ = fs::create_dir_all(&examples_dir);
-        
-        // Copy helper binary
-        if fs::copy(&helper_src, &helper_dest).is_ok() {
-            println!("cargo:warning=Copied obs-ffmpeg-mux to examples directory");
-        }
-    }
-}
 
 #[cfg(feature = "generate_bindings")]
 mod bindings {
