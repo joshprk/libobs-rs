@@ -31,6 +31,9 @@
 #[cfg(target_family = "windows")]
 pub mod windows;
 
+#[cfg(target_os = "macos")]
+pub mod macos;
+
 pub mod encoders;
 mod macro_helper;
 pub mod output;

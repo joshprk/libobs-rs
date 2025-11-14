@@ -1,6 +1,6 @@
 // List all available OBS input sources
-use std::ffi::CStr;
-use std::ptr;
+use std::ffi::{CStr, CString};
+use std::{env::current_exe, ptr};
 
 fn main() {
     unsafe {
@@ -15,14 +15,50 @@ fn main() {
         audio_info.speakers = libobs::speaker_layout_SPEAKERS_STEREO;
         libobs::obs_reset_audio(&audio_info);
         
-        // Add module paths (relative to examples directory, go up one level)
+        // Get absolute paths
+        let curr_exe = current_exe().unwrap();
+        let curr_exe = curr_exe.parent().unwrap();
+        
+        // Try the .plugin bundle pattern
+        let plugin_bin = curr_exe.join("../obs-plugins/%module%.plugin/Contents/MacOS");
+        let plugin_data = curr_exe.join("../data/obs-plugins/%module%/");
+        
+        let plugin_bin_str = CString::new(plugin_bin.to_str().unwrap()).unwrap();
+        let plugin_data_str = CString::new(plugin_data.to_str().unwrap()).unwrap();
+        
+        println!("Plugin bin path (with %%module%% pattern): {}", plugin_bin.display());
+        println!("Plugin data path: {}", plugin_data.display());
+        
+        // Add module paths with .plugin bundle pattern
         libobs::obs_add_module_path(
-            "../obs-plugins/\0".as_ptr() as *const i8,
-            "../data/obs-plugins/%module%/\0".as_ptr() as *const i8,
+            plugin_bin_str.as_ptr(),
+            plugin_data_str.as_ptr(),
         );
         
+        // Also add the root directory for .so files
+        let plugin_root = curr_exe.join("../obs-plugins/");
+        let plugin_root_str = CString::new(plugin_root.to_str().unwrap()).unwrap();
+        let data_root_str = CString::new(curr_exe.join("../data/obs-plugins/%module%/").to_str().unwrap()).unwrap();
+        libobs::obs_add_module_path(
+            plugin_root_str.as_ptr(),
+            data_root_str.as_ptr(),
+        );
+        
+        // First, find modules to see what OBS is discovering
+        println!("\n=== Module Discovery ===");
+        extern "C" fn module_callback(_param: *mut std::ffi::c_void, info: *const libobs::obs_module_info2) {
+            unsafe {
+                if !info.is_null() {
+                    let bin_path = CStr::from_ptr((*info).bin_path).to_str().unwrap_or("<invalid>");
+                    let name = CStr::from_ptr((*info).name).to_str().unwrap_or("<invalid>");
+                    println!("  Found: {} at {}", name, bin_path);
+                }
+            }
+        }
+        libobs::obs_find_modules2(Some(module_callback), ptr::null_mut());
+        
         // Load modules
-        println!("Loading modules...");
+        println!("\nLoading modules...");
         libobs::obs_load_all_modules();
         libobs::obs_post_load_modules();
         

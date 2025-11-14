@@ -77,10 +77,10 @@ fn main() {
 
         println!("Adding module path");
         
-        // macOS uses .plugin bundles directly, Windows uses 64bit subdirectory
+        // macOS uses .plugin bundles with %module% pattern, Windows uses 64bit subdirectory
         // Note: Examples run from target/debug/examples/, so go up one directory
         #[cfg(target_os = "macos")]
-        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/").to_str().unwrap()).unwrap();
+        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/%module%.plugin/Contents/MacOS").to_str().unwrap()).unwrap();
         
         #[cfg(not(target_os = "macos"))]
         let module_bin_path = CString::new(curr_exe.join("../obs-plugins/64bit/").to_str().unwrap()).unwrap();
