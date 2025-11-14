@@ -1,3 +1,8 @@
+// Platform-specific default repos
+#[cfg(target_os = "macos")]
+pub const GITHUB_REPO: &str = "obsproject/obs-studio";
+
+#[cfg(not(target_os = "macos"))]
 pub const GITHUB_REPO: &str = "sshcrack/libobs-builds";
 
 #[derive(Debug, Clone)]

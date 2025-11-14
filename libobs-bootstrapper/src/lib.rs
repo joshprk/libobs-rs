@@ -76,12 +76,21 @@ pub const UPDATER_SCRIPT: &str = include_str!("./updater.ps1");
 
 fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
     let executable = env::current_exe()?;
-    let obs_dll = executable
+    let parent = executable
         .parent()
-        .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?
-        .join("obs.dll");
-
-    Ok(obs_dll)
+        .ok_or_else(|| anyhow::anyhow!("Failed to get parent directory"))?;
+    
+    #[cfg(target_os = "macos")]
+    {
+        // macOS: Check for libobs.framework
+        Ok(parent.join("libobs.framework/Versions/A/libobs"))
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    {
+        // Windows/Linux: Check for obs.dll/obs.so
+        Ok(parent.join("obs.dll"))
+    }
 }
 
 pub(crate) fn bootstrap(

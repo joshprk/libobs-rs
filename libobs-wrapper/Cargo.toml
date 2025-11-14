@@ -6,6 +6,7 @@ repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs_wrapper/"
 readme = "README.md"
 authors = ["sshcrack"]
+build = "build.rs"
 categories = [
     "multimedia::video",
     "multimedia::audio",
@@ -49,6 +50,9 @@ windows = { version = "0.62.0", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_Security"
 ] }
+
+[dev-dependencies]
+libobs-sources = { path = "../libobs-sources" }
 
 [features]
 default = ["color-logger", "dialog_crash_handler", "enable_runtime"]

@@ -4,6 +4,7 @@
 //! This source captures the entire screen or a specific display.
 
 use libobs_source_macro::obs_object_impl;
+use libobs_wrapper::data::ObsObjectBuilder;
 use libobs_wrapper::sources::ObsSourceRef;
 
 use crate::macro_helper::define_object_manager;
@@ -30,5 +31,15 @@ define_object_manager!(
 #[obs_object_impl]
 impl ScreenCaptureSource {
     // Helper methods can be added here
+}
+
+impl libobs_wrapper::sources::ObsSourceBuilder for ScreenCaptureSourceBuilder {
+    fn add_to_scene(self, scene: &mut libobs_wrapper::scenes::ObsSceneRef) -> Result<libobs_wrapper::sources::ObsSourceRef, libobs_wrapper::utils::ObsError>
+    where
+        Self: Sized,
+    {
+        let source = self.build()?;
+        scene.add_source(source)
+    }
 }
 

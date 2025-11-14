@@ -36,7 +36,15 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
             release.tag_name.replace("obs-build-", "")
         };
         
-        let version = Version::parse(&tag).context("Parsing version")?;
+        // Remove leading 'v' if present for version parsing
+        let tag_for_parse = tag.trim_start_matches('v');
+        let version = match Version::parse(tag_for_parse) {
+            Ok(v) => v,
+            Err(_) => {
+                log::debug!("Skipping release with unparseable version: {}", tag);
+                continue;
+            }
+        };
 
         // The minor and major version must be the same, patches shouldn't have braking changes
         if version.major == LIBOBS_API_MAJOR_VER as u64
