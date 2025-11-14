@@ -336,6 +336,10 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
                 info!("Created symlink: {} -> {}", so_path.display(), module);
             }
         }
+        
+        // Fix helper binaries (obs-ffmpeg-mux, etc.) to find dylibs
+        info!("Fixing helper binary rpaths...");
+        fix_helper_binaries_macos(&target_out_dir)?;
     }
 
     info!("Done!");
@@ -351,7 +355,7 @@ fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
     info!("Mounting DMG...");
     // Mount the DMG
     let mount_output = Command::new("hdiutil")
-        .args(&["attach", "-nobrowse", "-mountpoint", "/tmp/obs-mount"])
+        .args(["attach", "-nobrowse", "-mountpoint", "/tmp/obs-mount"])
         .arg(dmg_path)
         .output()?;
     
@@ -362,6 +366,31 @@ fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
     // Copy OBS.app contents
     let app_path = Path::new("/tmp/obs-mount/OBS.app/Contents");
     if app_path.exists() {
+        // Copy MacOS directory (contains obs-ffmpeg-mux and other helpers)
+        let macos_path = app_path.join("MacOS");
+        if macos_path.exists() {
+            info!("Copying helper binaries...");
+            for entry in fs::read_dir(&macos_path)? {
+                let entry = entry?;
+                let path = entry.path();
+                let file_name = entry.file_name();
+                
+                // Skip the main OBS binary, only copy helpers
+                if file_name != "OBS" {
+                    let dest = output_dir.join(&file_name);
+                    #[cfg(target_os = "macos")]
+                    {
+                        use std::process::Command;
+                        Command::new("ditto").arg(&path).arg(&dest).status()?;
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        fs::copy(&path, &dest)?;
+                    }
+                }
+            }
+        }
+        
         // Copy Frameworks (contains libobs.dylib)
         let frameworks_path = app_path.join("Frameworks");
         if frameworks_path.exists() {
@@ -450,7 +479,7 @@ fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
     // Unmount
     info!("Unmounting DMG...");
     let _unmount = Command::new("hdiutil")
-        .args(&["detach", "/tmp/obs-mount"])
+        .args(["detach", "/tmp/obs-mount"])
         .output()?;
     
     Ok(())
@@ -473,14 +502,14 @@ fn extract_deb(deb_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
     
     // Extract data.tar.xz from the deb
     let extract_output = Command::new("ar")
-        .args(&["x", deb_path.to_str().unwrap(), "data.tar.xz"])
+        .args(["x", deb_path.to_str().unwrap(), "data.tar.xz"])
         .current_dir(&temp_dir)
         .output()?;
     
     if !extract_output.status.success() {
         // Try data.tar.gz as fallback
         let extract_output = Command::new("ar")
-            .args(&["x", deb_path.to_str().unwrap(), "data.tar.gz"])
+            .args(["x", deb_path.to_str().unwrap(), "data.tar.gz"])
             .current_dir(&temp_dir)
             .output()?;
         
@@ -629,8 +658,8 @@ fn clean_up_files(
         #[cfg(target_os = "macos")]
         {
             let file_name = path.file_name().and_then(|f| f.to_str());
-            if file_name == Some("Resources") || file_name == Some("_CodeSignature") {
-                if path.ancestors().any(|p| {
+            if (file_name == Some("Resources") || file_name == Some("_CodeSignature"))
+                && path.ancestors().any(|p| {
                     p.extension().and_then(|e| e.to_str()) == Some("framework")
                 }) {
                     // Skip this directory and all its contents
@@ -639,7 +668,6 @@ fn clean_up_files(
                     }
                     continue;
                 }
-            }
         }
         
         if to_exclude.iter().any(|e| {
@@ -657,5 +685,61 @@ fn clean_up_files(
         }
     }
 
+    Ok(())
+}
+
+/// Fix helper binaries on macOS to find dylibs properly
+#[cfg(target_os = "macos")]
+fn fix_helper_binaries_macos(output_dir: &Path) -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    // List of known helper binaries
+    let helper_binaries = ["obs-ffmpeg-mux"];
+    
+    for helper_name in &helper_binaries {
+        let helper_path = output_dir.join(helper_name);
+        if !helper_path.exists() {
+            debug!("Helper binary {} not found, skipping", helper_name);
+            continue;
+        }
+        
+        debug!("Fixing rpath for {}", helper_name);
+        
+        // Add rpaths for finding dylibs
+        let rpaths = [
+            "@executable_path",
+            "@executable_path/..",
+            "@loader_path",
+            "@loader_path/..",
+        ];
+        
+        for rpath in &rpaths {
+            let status = Command::new("install_name_tool")
+                .arg("-add_rpath")
+                .arg(rpath)
+                .arg(&helper_path)
+                .status();
+            
+            // Ignore errors (rpath might already exist)
+            if let Ok(s) = status {
+                if !s.success() {
+                    debug!("Note: Could not add rpath {} (may already exist)", rpath);
+                }
+            }
+        }
+        
+        // Re-sign with ad-hoc signature (fixes code signature after modification)
+        let sign_status = Command::new("codesign")
+            .args(["--force", "--sign", "-"])
+            .arg(&helper_path)
+            .status()?;
+        
+        if !sign_status.success() {
+            bail!("Failed to sign helper binary: {}", helper_name);
+        }
+        
+        info!("Fixed and signed: {}", helper_name);
+    }
+    
     Ok(())
 }

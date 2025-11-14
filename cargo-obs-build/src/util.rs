@@ -6,7 +6,7 @@ pub fn copy_to_dir(src: &Path, out: &Path, except_dir: Option<&Path>) -> anyhow:
     // On macOS, use ditto to preserve code signatures and extended attributes
     #[cfg(target_os = "macos")]
     {
-        return copy_to_dir_macos(src, out, except_dir);
+        copy_to_dir_macos(src, out, except_dir)
     }
     
     #[cfg(not(target_os = "macos"))]

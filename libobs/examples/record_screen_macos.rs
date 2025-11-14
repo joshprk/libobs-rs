@@ -32,8 +32,8 @@ fn main() {
         video_info.fps_num = 30;
         video_info.fps_den = 1;
         video_info.graphics_module = "libobs-opengl.so\0".as_ptr() as *const i8;
-        video_info.base_width = 1920;
-        video_info.base_height = 1080;
+        video_info.base_width = 3840;
+        video_info.base_height = 2160;
         video_info.output_width = 1920;
         video_info.output_height = 1080;
         video_info.output_format = libobs::video_format_VIDEO_FORMAT_NV12;
@@ -64,6 +64,8 @@ fn main() {
         let source_name = CString::new("Screen Capture").unwrap();
         let source_id = CString::new("screen_capture").unwrap();
         let settings = libobs::obs_data_create();
+        libobs::obs_data_set_int(settings, "display\0".as_ptr() as *const i8, 0); // Main display
+        libobs::obs_data_set_bool(settings, "show_cursor\0".as_ptr() as *const i8, true);
         
         let capture_source = libobs::obs_source_create(
             source_id.as_ptr(),
@@ -87,13 +89,22 @@ fn main() {
         // Set as video output
         libobs::obs_set_output_source(0, scene_source);
         
-        // Wait a moment for source to start producing frames
-        thread::sleep(Duration::from_millis(500));
+        // Wait for screen capture to initialize (async)
+        println!("Waiting for capture source to initialize...");
+        thread::sleep(Duration::from_millis(1000));
         
         // Check if source is showing
         let width = libobs::obs_source_get_width(capture_source);
         let height = libobs::obs_source_get_height(capture_source);
         println!("Source dimensions: {}x{}", width, height);
+        
+        if width == 0 || height == 0 {
+            println!("✗ Screen capture not initialized - check permissions");
+            libobs::obs_source_release(capture_source);
+            libobs::obs_scene_release(scene);
+            libobs::obs_shutdown();
+            return;
+        }
         
         // Create H.264 encoder
         let encoder_id = CString::new("obs_x264").unwrap();
@@ -151,30 +162,33 @@ fn main() {
         }
         println!("✓ Output created: {}", desktop_path);
         
-        // Connect encoder to output
+        // Create audio encoder (required for ffmpeg_muxer)
+        let audio_encoder_id = CString::new("ffmpeg_aac").unwrap();
+        let audio_encoder_name = CString::new("aac_encoder").unwrap();
+        let audio_encoder = libobs::obs_audio_encoder_create(
+            audio_encoder_id.as_ptr(),
+            audio_encoder_name.as_ptr(),
+            ptr::null_mut(),
+            0,
+            ptr::null_mut(),
+        );
+        libobs::obs_encoder_set_audio(audio_encoder, libobs::obs_get_audio());
+        println!("✓ AAC audio encoder created");
+        
+        // Connect encoders to output
         libobs::obs_encoder_set_video(encoder, libobs::obs_get_video());
         libobs::obs_output_set_video_encoder(output, encoder);
-        
-        // Check if encoder is ready
-        println!("Encoder active: {}", libobs::obs_encoder_active(encoder));
+        libobs::obs_output_set_audio_encoder(output, audio_encoder, 0);
         
         // Start recording
         println!("\n🔴 Starting recording...");
-        let start_result = libobs::obs_output_start(output);
-        println!("Start result: {}", start_result);
-        
-        if !start_result {
+        if !libobs::obs_output_start(output) {
             println!("✗ Failed to start output");
             let error = libobs::obs_output_get_last_error(output);
             if !error.is_null() {
                 let error_str = CStr::from_ptr(error).to_str().unwrap_or("<invalid>");
                 println!("  Error: {}", error_str);
             }
-            
-            // Check output flags
-            let flags = libobs::obs_output_get_flags(output);
-            println!("  Output flags: {}", flags);
-            println!("  Can begin data capture: {}", libobs::obs_output_can_begin_data_capture(output, 0));
         } else {
             println!("✓ Recording started!");
             println!("  Recording for 5 seconds...");
@@ -199,6 +213,7 @@ fn main() {
         // Cleanup
         libobs::obs_output_release(output);
         libobs::obs_encoder_release(encoder);
+        libobs::obs_encoder_release(audio_encoder);
         libobs::obs_source_release(capture_source);
         libobs::obs_source_release(scene_source);
         libobs::obs_scene_release(scene);

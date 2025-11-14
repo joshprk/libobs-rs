@@ -123,9 +123,9 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         
         // Mount the DMG
         let mount_output = Command::new("hdiutil")
-            .args(&["attach", "-nobrowse", "-mountpoint"])
+            .args(["attach", "-nobrowse", "-mountpoint"])
             .arg(&mount_point)
-            .arg(&dmg_path)
+            .arg(dmg_path)
             .output()
             .await?;
         
@@ -140,14 +140,14 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         // Copy OBS.app contents
         let app_path = mount_point.join("OBS.app/Contents");
         if !app_path.exists() {
-            let _ = Command::new("hdiutil").args(&["detach"]).arg(&mount_point).output().await;
+            let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
             yield Err(anyhow::anyhow!("OBS.app not found in DMG"));
             return;
         }
         
         // Create output directory
         if let Err(e) = tokio::fs::create_dir_all(&output_dir).await {
-            let _ = Command::new("hdiutil").args(&["detach"]).arg(&mount_point).output().await;
+            let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
             yield Err(e.into());
             return;
         }
@@ -156,13 +156,12 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         
         // Copy Frameworks (contains libobs.dylib and dependencies)
         let frameworks_path = app_path.join("Frameworks");
-        if frameworks_path.exists() {
-            if let Err(e) = copy_dir_recursive(&frameworks_path, &output_dir).await {
-                let _ = Command::new("hdiutil").args(&["detach"]).arg(&mount_point).output().await;
+        if frameworks_path.exists()
+            && let Err(e) = copy_dir_recursive(&frameworks_path, output_dir).await {
+                let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
                 yield Err(e);
                 return;
             }
-        }
         
         yield Ok((0.7, "Copying PlugIns...".to_string()));
         
@@ -171,7 +170,7 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         if plugins_path.exists() {
             let dest_plugins = output_dir.join("obs-plugins");
             if let Err(e) = copy_dir_recursive(&plugins_path, &dest_plugins).await {
-                let _ = Command::new("hdiutil").args(&["detach"]).arg(&mount_point).output().await;
+                let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
                 yield Err(e);
                 return;
             }
@@ -184,7 +183,7 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         if data_path.exists() {
             let dest_data = output_dir.join("data");
             if let Err(e) = copy_dir_recursive(&data_path, &dest_data).await {
-                let _ = Command::new("hdiutil").args(&["detach"]).arg(&mount_point).output().await;
+                let _ = Command::new("hdiutil").args(["detach"]).arg(&mount_point).output().await;
                 yield Err(e);
                 return;
             }
@@ -194,7 +193,7 @@ async fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<Extra
         
         // Unmount
         let unmount_output = Command::new("hdiutil")
-            .args(&["detach"])
+            .args(["detach"])
             .arg(&mount_point)
             .output()
             .await?;
