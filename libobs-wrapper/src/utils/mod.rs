@@ -46,7 +46,7 @@ impl ObsModules {
                 "obs-websocket",
                 "frontend-tools",
                 "decklink-output-ui",
-                "decklink-captions"
+                "decklink-captions",
             ];
             for plugin in disabled_plugins {
                 let c_str = CString::new(plugin).unwrap();
