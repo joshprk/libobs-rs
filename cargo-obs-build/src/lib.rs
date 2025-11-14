@@ -168,6 +168,10 @@ pub fn install() -> anyhow::Result<()> {
 /// - Locking to prevent concurrent builds
 /// - Copying binaries to the target directory
 pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
+    if cfg!(target_os="linux"){
+        return Err(anyhow::anyhow!("You must build OBS Studio from source on Linux and install it. Instructions: https://github.com/obsproject/obs-studio/wiki/Build-Instructions-For-Linux"))
+    }
+
     let ObsBuildConfig {
         mut cache_dir,
         repo_id,
