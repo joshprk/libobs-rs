@@ -78,13 +78,14 @@ fn main() {
         println!("Adding module path");
         
         // macOS uses .plugin bundles directly, Windows uses 64bit subdirectory
+        // Note: Examples run from target/debug/examples/, so go up one directory
         #[cfg(target_os = "macos")]
-        let module_bin_path = CString::new(curr_exe.join("./obs-plugins/").to_str().unwrap()).unwrap();
+        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/").to_str().unwrap()).unwrap();
         
         #[cfg(not(target_os = "macos"))]
-        let module_bin_path = CString::new(curr_exe.join("./obs-plugins/64bit/").to_str().unwrap()).unwrap();
+        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/64bit/").to_str().unwrap()).unwrap();
         
-        let module_path = curr_exe.join("./data/obs-plugins/%module%/");
+        let module_path = curr_exe.join("../data/obs-plugins/%module%/");
         let module_data_path = module_path.to_str().unwrap();
         let module_data_path = CString::new(module_data_path).unwrap();
         println!(
@@ -99,7 +100,7 @@ fn main() {
         libobs::obs_add_module_path(module_bin_path.as_ptr(), module_data_path.as_ptr());
 
         println!("Module paths added successfully");
-        let data_path = curr_exe.join("./data/libobs/");
+        let data_path = curr_exe.join("../data/libobs/");
         let data_path = data_path.to_str().unwrap();
 
         println!("Adding data path {}", data_path);

@@ -342,21 +342,85 @@ fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
         // Copy Frameworks (contains libobs.dylib)
         let frameworks_path = app_path.join("Frameworks");
         if frameworks_path.exists() {
+            info!("Copying Frameworks...");
             copy_to_dir(&frameworks_path, output_dir, None)?;
+            
+            // Extract libobs framework Resources (effect files)
+            let libobs_resources = frameworks_path.join("libobs.framework/Versions/A/Resources");
+            if libobs_resources.exists() {
+                info!("Extracting libobs data...");
+                let dest_libobs_data = output_dir.join("data/libobs");
+                copy_to_dir(&libobs_resources, &dest_libobs_data, None)?;
+            }
         }
         
         // Copy PlugIns
         let plugins_path = app_path.join("PlugIns");
         if plugins_path.exists() {
+            info!("Copying PlugIns...");
             let dest_plugins = output_dir.join("obs-plugins");
             copy_to_dir(&plugins_path, &dest_plugins, None)?;
+            
+            // Extract plugin data from .plugin bundles
+            info!("Extracting plugin data...");
+            let dest_plugin_data = output_dir.join("data/obs-plugins");
+            fs::create_dir_all(&dest_plugin_data)?;
+            
+            for entry in fs::read_dir(&plugins_path)? {
+                let entry = entry?;
+                let path = entry.path();
+                let file_name = entry.file_name();
+                
+                if file_name.to_string_lossy().ends_with(".plugin") {
+                    // Plugin bundle - extract its Resources
+                    let plugin_resources = path.join("Contents/Resources");
+                    if plugin_resources.exists() {
+                        // Get plugin name without .plugin extension
+                        let plugin_name = file_name.to_string_lossy().replace(".plugin", "");
+                        let dest = dest_plugin_data.join(&plugin_name);
+                        copy_to_dir(&plugin_resources, &dest, None)?;
+                    }
+                }
+            }
         }
         
-        // Copy Resources/data
-        let data_path = app_path.join("Resources/data");
-        if data_path.exists() {
+        // Copy Resources directory contents (contains locale, themes, images, etc.)
+        let resources_path = app_path.join("Resources");
+        if resources_path.exists() {
+            info!("Copying Resources...");
             let dest_data = output_dir.join("data");
-            copy_to_dir(&data_path, &dest_data, None)?;
+            fs::create_dir_all(&dest_data)?;
+            
+            // Copy directories (locale, themes, images, license)
+            for entry in fs::read_dir(&resources_path)? {
+                let entry = entry?;
+                let path = entry.path();
+                let file_name = entry.file_name();
+                
+                // Skip .plugin bundles in Resources (they're virtualcam plugins)
+                if file_name.to_string_lossy().ends_with(".plugin") {
+                    continue;
+                }
+                
+                if path.is_dir() {
+                    let dest = dest_data.join(&file_name);
+                    copy_to_dir(&path, &dest, None)?;
+                } else {
+                    // Copy individual files like locale.ini, qt.conf, etc.
+                    let dest = dest_data.join(&file_name);
+                    #[cfg(target_os = "macos")]
+                    {
+                        use std::process::Command;
+                        Command::new("ditto").arg(&path).arg(&dest).status()?;
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        fs::copy(&path, &dest)?;
+                    }
+                }
+            }
+        } else {
+            warn!("Resources directory not found at {:?}", resources_path);
         }
     }
     

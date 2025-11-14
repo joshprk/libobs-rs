@@ -15,10 +15,10 @@ fn main() {
         audio_info.speakers = libobs::speaker_layout_SPEAKERS_STEREO;
         libobs::obs_reset_audio(&audio_info);
         
-        // Add module paths
+        // Add module paths (relative to examples directory, go up one level)
         libobs::obs_add_module_path(
-            "./obs-plugins/\0".as_ptr() as *const i8,
-            "./data/obs-plugins/%module%/\0".as_ptr() as *const i8,
+            "../obs-plugins/\0".as_ptr() as *const i8,
+            "../data/obs-plugins/%module%/\0".as_ptr() as *const i8,
         );
         
         // Load modules
