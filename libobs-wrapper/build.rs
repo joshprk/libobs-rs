@@ -15,17 +15,16 @@ fn main() {
 #[cfg(target_os = "macos")]
 fn copy_helper_binaries_macos() {
     use std::fs;
-    use std::path::PathBuf;
+    use std::path::Path;
 
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let target_dir = Path::new(&out_dir)
+        .ancestors()
+        .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
+        .expect("Could not find target directory");
 
     // Source: target/{profile}/obs-ffmpeg-mux
     // Dest: target/{profile}/examples/obs-ffmpeg-mux
-    let target_dir = PathBuf::from(manifest_dir)
-        .join("..")
-        .join("target")
-        .join(&profile);
     let helper_src = target_dir.join("obs-ffmpeg-mux");
     let examples_dir = target_dir.join("examples");
     let helper_dest = examples_dir.join("obs-ffmpeg-mux");
