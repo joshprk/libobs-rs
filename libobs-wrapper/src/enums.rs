@@ -3,9 +3,9 @@ use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
-pub(crate) type OsEnumType = i32;
+pub(crate) type OsEnumType = u32;
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the video output format used by the
 /// OBS video context. Used in `ObsVideoInfo`.
@@ -38,7 +38,7 @@ pub enum ObsVideoFormat {
     YVYU = libobs::video_format_VIDEO_FORMAT_YVYU,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
@@ -51,7 +51,7 @@ pub enum ObsColorspace {
     CSRGB = libobs::video_colorspace_VIDEO_CS_SRGB,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the minimum and maximum color levels that
 /// an OBS video context is allowed to encode. Used in
@@ -62,7 +62,7 @@ pub enum ObsVideoRange {
     Full = libobs::video_range_type_VIDEO_RANGE_FULL,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes how libobs should reconcile non-matching
 /// base and output resolutions when creating a video
@@ -85,30 +85,30 @@ pub enum ObsGraphicsModule {
     Metal,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Status types returned after attempting to
 /// reset the OBS video context using the
 /// function `obs_reset_video`.
 pub enum ObsResetVideoStatus {
     /// `obs_reset_video` was successful.
-    Success = libobs::OBS_VIDEO_SUCCESS as i32,
+    Success = libobs::OBS_VIDEO_SUCCESS as u32,
     /// The adapter is not supported as it
     /// lacks capabilities.
-    NotSupported = libobs::OBS_VIDEO_NOT_SUPPORTED,
+    NotSupported = libobs::OBS_VIDEO_NOT_SUPPORTED as u32,
     /// A parameter is invalid.
-    InvalidParameter = libobs::OBS_VIDEO_INVALID_PARAM,
+    InvalidParameter = libobs::OBS_VIDEO_INVALID_PARAM as u32,
     /// An output is currently running, preventing
     /// resetting the video context.
-    CurrentlyActive = libobs::OBS_VIDEO_CURRENTLY_ACTIVE,
+    CurrentlyActive = libobs::OBS_VIDEO_CURRENTLY_ACTIVE as u32,
     /// Generic error occured when attempting to
     /// reset the OBS video context.
-    Failure = libobs::OBS_VIDEO_FAIL,
+    Failure = libobs::OBS_VIDEO_FAIL as u32,
 }
 
 /// Audio samples per second options that are
 /// supported by libobs.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsSamplesPerSecond {
     /// 44.1 kHz
@@ -117,7 +117,7 @@ pub enum ObsSamplesPerSecond {
     F48000 = 48000,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsSpeakerLayout {
     S2Point1 = libobs::speaker_layout_SPEAKERS_2POINT1,
@@ -204,14 +204,14 @@ impl TryFrom<i32> for ObsOutputStopSignal {
     }
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsEncoderType {
     Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO,
     Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsLogLevel {
     Error = libobs::LOG_ERROR,
