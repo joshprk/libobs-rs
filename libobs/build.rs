@@ -42,7 +42,7 @@ fn main() {
             }
 
             let version = format!("{}.{}.{}", major, minor, patch);
-            let l = pkg_config::Config::new()
+            pkg_config::Config::new()
                 .atleast_version(&version)
                 .probe("libobs")
                 .unwrap();

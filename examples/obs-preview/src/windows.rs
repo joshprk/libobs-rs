@@ -130,7 +130,7 @@ impl ApplicationHandler for App {
     }
 }
 
-fn main() -> anyhow::Result<()> {
+pub fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let v = ObsVideoInfoBuilder::new()

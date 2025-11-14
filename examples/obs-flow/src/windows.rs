@@ -15,7 +15,7 @@ use libobs_wrapper::{
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo},
 };
 
-fn main() -> anyhow::Result<()> {
+pub fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let startup_info = StartupInfo::new();

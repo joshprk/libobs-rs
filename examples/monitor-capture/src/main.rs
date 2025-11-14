@@ -3,7 +3,7 @@ mod windows;
 
 fn main() {
     #[cfg(windows)]
-    windows::main();
+    windows::main().unwrap();
 
     #[cfg(not(windows))]
     {
