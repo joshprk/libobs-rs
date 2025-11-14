@@ -131,7 +131,9 @@ impl ObsVideoInfoBuilder {
 
         Self {
             adapter: 0,
-            #[cfg(target_family = "unix")]
+            #[cfg(target_os = "macos")]
+            graphics_module: ObsGraphicsModule::Metal,
+            #[cfg(all(target_family = "unix", not(target_os = "macos")))]
             graphics_module: ObsGraphicsModule::OpenGL,
             #[cfg(target_family = "windows")]
             graphics_module: ObsGraphicsModule::DirectX11,
@@ -155,6 +157,7 @@ impl ObsVideoInfoBuilder {
         let graphics_mod_str = match self.graphics_module {
             ObsGraphicsModule::OpenGL => ObsString::new("libobs-opengl"),
             ObsGraphicsModule::DirectX11 => ObsString::new("libobs-d3d11.dll"),
+            ObsGraphicsModule::Metal => ObsString::new("libobs-metal"),
         };
 
         let ovi = obs_video_info {
