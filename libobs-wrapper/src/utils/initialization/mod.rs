@@ -5,7 +5,7 @@ mod windows;
 pub(crate) use windows::*;
 
 #[cfg(not(windows))]
-mod linux;
+mod other;
 
 #[cfg(not(windows))]
-pub(crate) use linux::*;
+pub(crate) use other::*;
