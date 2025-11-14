@@ -24,13 +24,21 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=obs");
         }
     } else {
-        // Add search path to manifest directory (where cargo-obs-build puts libraries)
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        println!("cargo:rustc-link-search=native={}", manifest_dir);
+        // Detect target directory (works in workspaces)
+        let out_dir = std::env::var("OUT_DIR").unwrap();
+        let target_dir = std::path::Path::new(&out_dir)
+            .ancestors()
+            .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
+            .unwrap_or_else(|| {
+                // Fallback: use manifest dir for non-workspace builds
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            });
+        
+        println!("cargo:rustc-link-search=native={}", target_dir.display());
         
         if target_os == "macos" {
             // macOS: Link to libobs.framework
-            println!("cargo:rustc-link-search=framework={}", manifest_dir);
+            println!("cargo:rustc-link-search=framework={}", target_dir.display());
             println!("cargo:rustc-link-lib=framework=libobs");
             
             // Add macOS system frameworks that libobs depends on
