@@ -107,9 +107,22 @@ fn main() {
         // Keep running for a bit to allow capture to initialize
         thread::sleep(Duration::from_secs(2));
         
-        // Cleanup
-        libobs::obs_source_release(source);
+        // Cleanup - proper order to avoid segfaults
+        // 1. Get and release scene source
+        let scene_source = libobs::obs_scene_get_source(scene);
+        libobs::obs_source_release(scene_source);
+        
+        // 2. Release scene (which will release scene items)
         libobs::obs_scene_release(scene);
+        
+        // 3. Release capture source
+        libobs::obs_source_release(source);
+        
+        // 4. Clear output channels
+        libobs::obs_set_output_source(0, ptr::null_mut());
+        libobs::obs_set_output_source(1, ptr::null_mut());
+        
+        // 5. Shutdown OBS
         libobs::obs_shutdown();
         
         println!("\n✓ Example completed successfully!");

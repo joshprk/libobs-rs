@@ -315,6 +315,29 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     );
     copy_to_dir(&build_out, &target_out_dir, None)?;
 
+    // macOS-specific post-processing
+    #[cfg(target_os = "macos")]
+    {
+        info!("Setting up macOS-specific files...");
+        
+        // Create .so symlinks for graphics modules (OBS expects .so extension)
+        let graphics_modules = ["libobs-opengl.dylib", "libobs-metal.dylib"];
+        for module in &graphics_modules {
+            let dylib_path = target_out_dir.join(module);
+            if dylib_path.exists() {
+                let so_path = target_out_dir.join(module.replace(".dylib", ".so"));
+                // Remove existing symlink if present
+                if so_path.exists() {
+                    fs::remove_file(&so_path)?;
+                }
+                // Create symlink
+                #[cfg(unix)]
+                std::os::unix::fs::symlink(module, &so_path)?;
+                info!("Created symlink: {} -> {}", so_path.display(), module);
+            }
+        }
+    }
+
     info!("Done!");
 
     Ok(())
