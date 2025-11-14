@@ -55,7 +55,7 @@ windows = { version = "0.62", features = [
 libobs-sources = { path = "../libobs-sources" }
 
 [features]
-default = ["color-logger", "dialog_crash_handler", "enable_runtime"]
+default = ["color-logger", "enable_runtime"]
 no_blocking_drops = ["tokio/rt"]
 generate_bindings = ["libobs/generate_bindings"]
 color-logger = ["dep:colored"]
