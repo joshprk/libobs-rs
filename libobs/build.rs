@@ -90,10 +90,9 @@ mod bindings {
     }
 
     pub fn generate_bindings() {
-        let builder = bindgen::builder()
-            .header("headers/wrapper.h");
+        let builder = bindgen::builder().header("headers/wrapper.h");
 
-        #[cfg(not(target_os="linux"))]
+        #[cfg(not(target_os = "linux"))]
         let builder = builder
             .clang_arg(format!("-I{}", "headers/obs"))
             .blocklist_file(".*Windows\\.h")
