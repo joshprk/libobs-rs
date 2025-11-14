@@ -86,9 +86,9 @@ fn get_obs_dll_path() -> anyhow::Result<PathBuf> {
         Ok(parent.join("libobs.framework/Versions/A/libobs"))
     }
     
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
     {
-        // Windows/Linux: Check for obs.dll/obs.so
+        // Windows: Check for obs.dll
         Ok(parent.join("obs.dll"))
     }
 }

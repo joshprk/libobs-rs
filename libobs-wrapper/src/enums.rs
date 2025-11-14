@@ -92,7 +92,7 @@ pub enum ObsGraphicsModule {
 /// function `obs_reset_video`.
 pub enum ObsResetVideoStatus {
     /// `obs_reset_video` was successful.
-    Success = libobs::OBS_VIDEO_SUCCESS as u32,
+    Success = libobs::OBS_VIDEO_SUCCESS,
     /// The adapter is not supported as it
     /// lacks capabilities.
     NotSupported = libobs::OBS_VIDEO_NOT_SUPPORTED as u32,

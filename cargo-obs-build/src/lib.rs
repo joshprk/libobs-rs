@@ -25,6 +25,7 @@ mod lib_version;
 mod lock;
 mod metadata;
 mod util;
+mod macos;
 
 /// Check if we're running in a CI environment
 fn is_ci_environment() -> bool {
@@ -339,7 +340,7 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
         
         // Fix helper binaries (obs-ffmpeg-mux, etc.) to find dylibs
         info!("Fixing helper binary rpaths...");
-        fix_helper_binaries_macos(&target_out_dir)?;
+        macos::fix_helper_binaries_macos(&target_out_dir)?;
         
         // Create Frameworks directory for helper binaries
         // obs-ffmpeg-mux runs from examples/ and looks in ../Frameworks/
@@ -369,210 +370,6 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
 
     info!("Done!");
 
-    Ok(())
-}
-
-/// Extract macOS DMG file
-#[cfg(target_os = "macos")]
-fn extract_dmg(dmg_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
-    use std::process::Command;
-    
-    info!("Mounting DMG...");
-    // Mount the DMG
-    let mount_output = Command::new("hdiutil")
-        .args(["attach", "-nobrowse", "-mountpoint", "/tmp/obs-mount"])
-        .arg(dmg_path)
-        .output()?;
-    
-    if !mount_output.status.success() {
-        bail!("Failed to mount DMG: {}", String::from_utf8_lossy(&mount_output.stderr));
-    }
-    
-    // Copy OBS.app contents
-    let app_path = Path::new("/tmp/obs-mount/OBS.app/Contents");
-    if app_path.exists() {
-        // Copy MacOS directory (contains obs-ffmpeg-mux and other helpers)
-        let macos_path = app_path.join("MacOS");
-        if macos_path.exists() {
-            info!("Copying helper binaries...");
-            for entry in fs::read_dir(&macos_path)? {
-                let entry = entry?;
-                let path = entry.path();
-                let file_name = entry.file_name();
-                
-                // Skip the main OBS binary, only copy helpers
-                if file_name != "OBS" {
-                    let dest = output_dir.join(&file_name);
-                    #[cfg(target_os = "macos")]
-                    {
-                        use std::process::Command;
-                        Command::new("ditto").arg(&path).arg(&dest).status()?;
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    {
-                        fs::copy(&path, &dest)?;
-                    }
-                }
-            }
-        }
-        
-        // Copy Frameworks (contains libobs.dylib)
-        let frameworks_path = app_path.join("Frameworks");
-        if frameworks_path.exists() {
-            info!("Copying Frameworks...");
-            copy_to_dir(&frameworks_path, output_dir, None)?;
-            
-            // Extract libobs framework Resources (effect files)
-            let libobs_resources = frameworks_path.join("libobs.framework/Versions/A/Resources");
-            if libobs_resources.exists() {
-                info!("Extracting libobs data...");
-                let dest_libobs_data = output_dir.join("data/libobs");
-                copy_to_dir(&libobs_resources, &dest_libobs_data, None)?;
-            }
-        }
-        
-        // Copy PlugIns
-        let plugins_path = app_path.join("PlugIns");
-        if plugins_path.exists() {
-            info!("Copying PlugIns...");
-            let dest_plugins = output_dir.join("obs-plugins");
-            copy_to_dir(&plugins_path, &dest_plugins, None)?;
-            
-            // Extract plugin data from .plugin bundles
-            info!("Extracting plugin data...");
-            let dest_plugin_data = output_dir.join("data/obs-plugins");
-            fs::create_dir_all(&dest_plugin_data)?;
-            
-            for entry in fs::read_dir(&plugins_path)? {
-                let entry = entry?;
-                let path = entry.path();
-                let file_name = entry.file_name();
-                
-                if file_name.to_string_lossy().ends_with(".plugin") {
-                    // Plugin bundle - extract its Resources
-                    let plugin_resources = path.join("Contents/Resources");
-                    if plugin_resources.exists() {
-                        // Get plugin name without .plugin extension
-                        let plugin_name = file_name.to_string_lossy().replace(".plugin", "");
-                        let dest = dest_plugin_data.join(&plugin_name);
-                        copy_to_dir(&plugin_resources, &dest, None)?;
-                    }
-                }
-            }
-        }
-        
-        // Copy Resources directory contents (contains locale, themes, images, etc.)
-        let resources_path = app_path.join("Resources");
-        if resources_path.exists() {
-            info!("Copying Resources...");
-            let dest_data = output_dir.join("data");
-            fs::create_dir_all(&dest_data)?;
-            
-            // Copy directories (locale, themes, images, license)
-            for entry in fs::read_dir(&resources_path)? {
-                let entry = entry?;
-                let path = entry.path();
-                let file_name = entry.file_name();
-                
-                // Skip .plugin bundles in Resources (they're virtualcam plugins)
-                if file_name.to_string_lossy().ends_with(".plugin") {
-                    continue;
-                }
-                
-                if path.is_dir() {
-                    let dest = dest_data.join(&file_name);
-                    copy_to_dir(&path, &dest, None)?;
-                } else {
-                    // Copy individual files like locale.ini, qt.conf, etc.
-                    let dest = dest_data.join(&file_name);
-                    #[cfg(target_os = "macos")]
-                    {
-                        use std::process::Command;
-                        Command::new("ditto").arg(&path).arg(&dest).status()?;
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    {
-                        fs::copy(&path, &dest)?;
-                    }
-                }
-            }
-        } else {
-            warn!("Resources directory not found at {:?}", resources_path);
-        }
-    }
-    
-    // Unmount
-    info!("Unmounting DMG...");
-    let _unmount = Command::new("hdiutil")
-        .args(["detach", "/tmp/obs-mount"])
-        .output()?;
-    
-    Ok(())
-}
-
-#[cfg(not(target_os = "macos"))]
-fn extract_dmg(_dmg_path: &Path, _output_dir: &Path) -> anyhow::Result<()> {
-    bail!("DMG extraction is only supported on macOS");
-}
-
-/// Extract Linux DEB file
-fn extract_deb(deb_path: &Path, output_dir: &Path) -> anyhow::Result<()> {
-    use std::process::Command;
-    
-    info!("Extracting DEB package...");
-    
-    // Create temp directory for extraction
-    let temp_dir = output_dir.join("temp_deb");
-    fs::create_dir_all(&temp_dir)?;
-    
-    // Extract data.tar.xz from the deb
-    let extract_output = Command::new("ar")
-        .args(["x", deb_path.to_str().unwrap(), "data.tar.xz"])
-        .current_dir(&temp_dir)
-        .output()?;
-    
-    if !extract_output.status.success() {
-        // Try data.tar.gz as fallback
-        let extract_output = Command::new("ar")
-            .args(["x", deb_path.to_str().unwrap(), "data.tar.gz"])
-            .current_dir(&temp_dir)
-            .output()?;
-        
-        if !extract_output.status.success() {
-            fs::remove_dir_all(&temp_dir)?;
-            bail!("Failed to extract DEB: {}", String::from_utf8_lossy(&extract_output.stderr));
-        }
-    }
-    
-    // Extract the data archive
-    let data_archive = if temp_dir.join("data.tar.xz").exists() {
-        temp_dir.join("data.tar.xz")
-    } else {
-        temp_dir.join("data.tar.gz")
-    };
-    
-    if data_archive.exists() {
-        let file = File::open(&data_archive)?;
-        let decoder = XzDecoder::new(file);
-        let mut archive = Archive::new(decoder);
-        archive.unpack(&temp_dir)?;
-        
-        // Copy from usr/lib and usr/share
-        let usr_lib = temp_dir.join("usr/lib");
-        if usr_lib.exists() {
-            copy_to_dir(&usr_lib, output_dir, None)?;
-        }
-        
-        let usr_share = temp_dir.join("usr/share/obs");
-        if usr_share.exists() {
-            let dest_data = output_dir.join("data");
-            copy_to_dir(&usr_share, &dest_data, None)?;
-        }
-    }
-    
-    // Clean up temp directory
-    fs::remove_dir_all(&temp_dir)?;
-    
     Ok(())
 }
 
@@ -606,10 +403,11 @@ fn build_obs(
         fs::remove_dir_all(build_out.join("bin"))?;
     } else if obs_path.extension().and_then(|s| s.to_str()) == Some("dmg") {
         // macOS: DMG extraction
-        extract_dmg(&obs_path, build_out)?;
-    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("deb") {
-        // Linux: DEB extraction
-        extract_deb(&obs_path, build_out)?;
+        #[cfg(target_os = "macos")]
+        macos::extract_dmg(&obs_path, build_out)?;
+        
+        #[cfg(not(target_os = "macos"))]
+        bail!("DMG extraction is only supported on macOS");
     } else if obs_path.extension().and_then(|s| s.to_str()) == Some("xz") {
         // tar.xz extraction (fallback)
         let obs_archive = File::open(&obs_path)?;
@@ -713,58 +511,3 @@ fn clean_up_files(
     Ok(())
 }
 
-/// Fix helper binaries on macOS to find dylibs properly
-#[cfg(target_os = "macos")]
-fn fix_helper_binaries_macos(output_dir: &Path) -> anyhow::Result<()> {
-    use std::process::Command;
-    
-    // List of known helper binaries
-    let helper_binaries = ["obs-ffmpeg-mux"];
-    
-    for helper_name in &helper_binaries {
-        let helper_path = output_dir.join(helper_name);
-        if !helper_path.exists() {
-            debug!("Helper binary {} not found, skipping", helper_name);
-            continue;
-        }
-        
-        debug!("Fixing rpath for {}", helper_name);
-        
-        // Add rpaths for finding dylibs
-        let rpaths = [
-            "@executable_path",
-            "@executable_path/..",
-            "@loader_path",
-            "@loader_path/..",
-        ];
-        
-        for rpath in &rpaths {
-            let status = Command::new("install_name_tool")
-                .arg("-add_rpath")
-                .arg(rpath)
-                .arg(&helper_path)
-                .status();
-            
-            // Ignore errors (rpath might already exist)
-            if let Ok(s) = status {
-                if !s.success() {
-                    debug!("Note: Could not add rpath {} (may already exist)", rpath);
-                }
-            }
-        }
-        
-        // Re-sign with ad-hoc signature (fixes code signature after modification)
-        let sign_status = Command::new("codesign")
-            .args(["--force", "--sign", "-"])
-            .arg(&helper_path)
-            .status()?;
-        
-        if !sign_status.success() {
-            bail!("Failed to sign helper binary: {}", helper_name);
-        }
-        
-        info!("Fixed and signed: {}", helper_name);
-    }
-    
-    Ok(())
-}

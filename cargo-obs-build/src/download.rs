@@ -46,8 +46,8 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
     } else if cfg!(target_os = "windows") {
         ("windows", ".zip", "obs-prebuilt-windows.zip", architecture)
     } else {
-        // Linux - .deb files
-        ("ubuntu", ".deb", "obs-prebuilt-linux.deb", "x86_64")
+        // Linux not supported - require manual obs-studio installation
+        bail!("Linux OBS download not supported - install obs-studio manually");
     };
     
     let to_download = &info.assets.iter().find(|e| {

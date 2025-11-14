@@ -19,11 +19,8 @@ mod bindings {
     #[cfg(all(not(feature = "generate_bindings"), target_family = "windows"))]
     include!("bindings_win.rs");
 
-    #[cfg(all(not(feature = "generate_bindings"), target_os = "linux"))]
+    #[cfg(all(not(feature = "generate_bindings"), any(target_os = "linux", target_os = "macos")))]
     include!("bindings_linux.rs");
-
-    #[cfg(all(not(feature = "generate_bindings"), target_os = "macos"))]
-    include!("bindings_linux.rs");  // Use Linux bindings for macOS (both Unix-like)
 }
 
 pub use bindings::*;
