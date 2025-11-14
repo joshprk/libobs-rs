@@ -21,26 +21,26 @@ edition = "2021"
 workspace = true
 
 [dependencies]
-anyhow = "1.0.97"
+anyhow = "1"
 libobs = { workspace = true, features = [] }
-display-info = "0.5.4"
-num-derive = "0.4.2"
-num-traits = "0.2.19"
-lazy_static = "1.5.0"
-log = "0.4.27"
-vsprintf = "2.0.0"
-chrono = "0.4.40"
-getters0 = "0.1.1"
-colored = { version = "3.0.0", optional = true }
-oneshot = { version = "0.1.11", default-features = false, features = ["std"] }
-arboard = { version = "3.4.1", optional = true }
-dialog = { version = "0.3.0", optional = true }
-paste = "1.0.15"
-duplicate = "2.0.0"
-tokio = { version = "1.48.0", default-features = false, features = ["sync"] }
+display-info = "0.5"
+num-derive = "0.4"
+num-traits = "0.2"
+lazy_static = "1"
+log = "0.4"
+vsprintf = "2"
+chrono = "0.4"
+getters0 = "0.1"
+colored = { version = "3", optional = true }
+oneshot = { version = "0.1", default-features = false, features = ["std"] }
+arboard = { version = "3", optional = true }
+dialog = { version = "0.3", optional = true }
+paste = "1"
+duplicate = "2"
+tokio = { version = "1", default-features = false, features = ["sync"] }
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.62.0", features = [
+windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
     "Win32_Graphics_Gdi",

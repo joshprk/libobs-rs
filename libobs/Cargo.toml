@@ -18,17 +18,17 @@ edition = "2021"
 build = "build.rs"
 
 [target.'cfg(target_family = "windows")'.build-dependencies]
-bindgen = { version = "0.72.1", optional = true }
+bindgen = { version = "0.72", optional = true }
 
 [target.'cfg(not(target_family = "windows"))'.build-dependencies]
-bindgen = "0.72.1"
+bindgen = "0.72"
 
 [features]
 default = []
 generate_bindings = ["dep:bindgen"]
 
 [dev-dependencies]
-vsprintf = "2.0.0"
+vsprintf = "2"
 
 [lints]
 workspace = true
