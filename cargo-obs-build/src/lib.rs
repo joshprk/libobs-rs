@@ -340,6 +340,31 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
         // Fix helper binaries (obs-ffmpeg-mux, etc.) to find dylibs
         info!("Fixing helper binary rpaths...");
         fix_helper_binaries_macos(&target_out_dir)?;
+        
+        // Create Frameworks directory for helper binaries
+        // obs-ffmpeg-mux runs from examples/ and looks in ../Frameworks/
+        let frameworks_dir = target_out_dir.join("Frameworks");
+        fs::create_dir_all(&frameworks_dir)?;
+        
+        info!("Creating Frameworks symlinks...");
+        for entry in fs::read_dir(&target_out_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == "dylib" || ext == "framework" {
+                    let name = path.file_name().unwrap();
+                    let link_path = frameworks_dir.join(name);
+                    if link_path.exists() || link_path.symlink_metadata().is_ok() {
+                        fs::remove_file(&link_path).ok();
+                    }
+                    // Relative symlink from Frameworks/ to ../file
+                    let relative = format!("../{}", name.to_string_lossy());
+                    #[cfg(unix)]
+                    std::os::unix::fs::symlink(&relative, &link_path)?;
+                }
+            }
+        }
+        info!("✓ Created Frameworks directory");
     }
 
     info!("Done!");
