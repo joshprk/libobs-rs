@@ -28,7 +28,7 @@ log = "0.4.27"
 
 display-info = "0.5.4"
 libobs-window-helper = { workspace = true, optional = true }
-ffmpeg-sidecar = "2.2.0"
+ffmpeg-sidecar = { git = "https://github.com/djmango/ffmpeg-sidecar", branch = "master" }
 
 [features]
 default = ["window-list", "enable_runtime"]
