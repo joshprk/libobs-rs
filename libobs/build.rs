@@ -25,20 +25,14 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=obs");
         }
     } else {
-        // Detect target directory (works in workspaces)
-        let out_dir = std::env::var("OUT_DIR").unwrap();
-        let target_dir = std::path::Path::new(&out_dir)
-            .ancestors()
-            .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
-            .expect("Could not find target directory");
-        
-        // Add search path to target directory (where cargo-obs-build puts libraries)
-        println!("cargo:rustc-link-search=native={}", target_dir.display());
+        // Add search path to manifest directory (where cargo-obs-build puts libraries)
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        println!("cargo:rustc-link-search=native={}", manifest_dir);
         
         #[cfg(target_os = "macos")]
         {
             // macOS: Link to libobs.framework
-            println!("cargo:rustc-link-search=framework={}", target_dir.display());
+            println!("cargo:rustc-link-search=framework={}", manifest_dir);
             println!("cargo:rustc-link-lib=framework=libobs");
             
             // Add macOS system frameworks that libobs depends on
@@ -85,17 +79,15 @@ fn main() {
 
 #[cfg(target_os = "macos")]
 fn copy_helper_binaries_macos() {
-    use std::path::Path;
+    use std::path::PathBuf;
     use std::fs;
     
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let target_dir = Path::new(&out_dir)
-        .ancestors()
-        .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
-        .expect("Could not find target directory");
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let profile = std::env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
     
     // Source: target/{profile}/obs-ffmpeg-mux
     // Dest: target/{profile}/examples/obs-ffmpeg-mux
+    let target_dir = PathBuf::from(manifest_dir).join("..").join("target").join(&profile);
     let helper_src = target_dir.join("obs-ffmpeg-mux");
     let examples_dir = target_dir.join("examples");
     let helper_dest = examples_dir.join("obs-ffmpeg-mux");

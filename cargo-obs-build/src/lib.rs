@@ -336,6 +336,10 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
                 info!("Created symlink: {} -> {}", so_path.display(), module);
             }
         }
+        
+        // Fix helper binaries (obs-ffmpeg-mux, etc.) to find dylibs
+        info!("Fixing helper binary rpaths...");
+        fix_helper_binaries_macos(&target_out_dir)?;
     }
 
     info!("Done!");
@@ -684,3 +688,58 @@ fn clean_up_files(
     Ok(())
 }
 
+/// Fix helper binaries on macOS to find dylibs properly
+#[cfg(target_os = "macos")]
+fn fix_helper_binaries_macos(output_dir: &Path) -> anyhow::Result<()> {
+    use std::process::Command;
+    
+    // List of known helper binaries
+    let helper_binaries = ["obs-ffmpeg-mux"];
+    
+    for helper_name in &helper_binaries {
+        let helper_path = output_dir.join(helper_name);
+        if !helper_path.exists() {
+            debug!("Helper binary {} not found, skipping", helper_name);
+            continue;
+        }
+        
+        debug!("Fixing rpath for {}", helper_name);
+        
+        // Add rpaths for finding dylibs
+        let rpaths = [
+            "@executable_path",
+            "@executable_path/..",
+            "@loader_path",
+            "@loader_path/..",
+        ];
+        
+        for rpath in &rpaths {
+            let status = Command::new("install_name_tool")
+                .arg("-add_rpath")
+                .arg(rpath)
+                .arg(&helper_path)
+                .status();
+            
+            // Ignore errors (rpath might already exist)
+            if let Ok(s) = status {
+                if !s.success() {
+                    debug!("Note: Could not add rpath {} (may already exist)", rpath);
+                }
+            }
+        }
+        
+        // Re-sign with ad-hoc signature (fixes code signature after modification)
+        let sign_status = Command::new("codesign")
+            .args(["--force", "--sign", "-"])
+            .arg(&helper_path)
+            .status()?;
+        
+        if !sign_status.success() {
+            bail!("Failed to sign helper binary: {}", helper_name);
+        }
+        
+        info!("Fixed and signed: {}", helper_name);
+    }
+    
+    Ok(())
+}
