@@ -66,11 +66,7 @@ jobs:
           # Configure build with CMAKE_INSTALL_PREFIX=/usr
           cmake --preset ubuntu \
             -DCMAKE_INSTALL_PREFIX=/usr \
-            -DENABLE_BROWSER=OFF \
-            -DENABLE_RELOCATABLE=OFF \
-            -DENABLE_AJA=OFF \
-            -DENABLE_NATIVE_NVENC=OFF
-            -DOBS_COMPILE_DEPRECATION_AS_WARNING=ON
+            -DENABLE_BROWSER=OFF
 
           # Build OBS Studio
           cmake --build build_ubuntu --parallel $(nproc)
