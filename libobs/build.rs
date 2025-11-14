@@ -16,14 +16,37 @@ fn main() {
     } else {
         // On Linux, try to link against system libobs
         // On Windows, look for obs.dll in the manifest directory
-        //#[cfg(target_family = "windows")]
+        #[cfg(target_family = "windows")]
         {
             println!(
                 "cargo:rustc-link-search=native={}",
                 env!("CARGO_MANIFEST_DIR")
             );
+            println!("cargo:rustc-link-lib=dylib=obs");
         }
-        println!("cargo:rustc-link-lib=dylib=obs");
+
+        #[cfg(target_os = "linux")]
+        {
+            let header = include_str!("./headers/obs/obs-config.h");
+            let mut major = "";
+            let mut minor = "";
+            let mut patch = "";
+            for line in header.lines() {
+                if line.starts_with("#define LIBOBS_API_MAJOR_VER") {
+                    major = line.split_whitespace().last().unwrap();
+                } else if line.starts_with("#define LIBOBS_API_MINOR_VER") {
+                    minor = line.split_whitespace().last().unwrap();
+                } else if line.starts_with("#define LIBOBS_API_PATCH_VER") {
+                    patch = line.split_whitespace().last().unwrap();
+                }
+            }
+
+            let version = format!("{}.{}.{}", major, minor, patch);
+            pkg_config::Config::new()
+                .atleast_version(&version)
+                .probe("libobs")
+                .unwrap();
+        }
     }
 
     #[cfg(any(feature = "generate_bindings", not(target_family = "windows")))]
@@ -67,16 +90,20 @@ mod bindings {
     }
 
     pub fn generate_bindings() {
-        let bindings = bindgen::builder()
-            .header("headers/wrapper.h")
+        let builder = bindgen::builder()
+            .header("headers/wrapper.h");
+
+        #[cfg(not(target_os="linux"))]
+        let builder = builder
             .clang_arg(format!("-I{}", "headers/obs"))
-            .blocklist_function("_bindgen_ty_2")
-            .parse_callbacks(Box::new(get_ignored_macros()))
-            .blocklist_function("_+.*")
             .blocklist_file(".*Windows\\.h")
             .blocklist_file(".*wchar\\.h")
             .blocklist_function("bwstrdup_n")
-            .blocklist_function("bwstrdup")
+            .blocklist_function("bwstrdup");
+        let bindings = builder
+            .blocklist_function("_bindgen_ty_2")
+            .parse_callbacks(Box::new(get_ignored_macros()))
+            .blocklist_function("_+.*")
             .derive_copy(true)
             .derive_debug(true)
             .derive_default(false)

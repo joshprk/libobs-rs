@@ -13,14 +13,11 @@
 
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod bindings {
-    #[cfg(feature = "generate_bindings")]
+    #[cfg(any(feature = "generate_bindings", target_family="unix"))]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
     #[cfg(all(not(feature = "generate_bindings"), target_family = "windows"))]
     include!("bindings_win.rs");
-
-    #[cfg(all(not(feature = "generate_bindings"), target_os = "linux"))]
-    include!("bindings_linux.rs");
 }
 
 pub use bindings::*;
