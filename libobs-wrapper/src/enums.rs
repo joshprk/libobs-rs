@@ -3,13 +3,9 @@ use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
-#[cfg(target_os = "windows")]
 pub(crate) type OsEnumType = i32;
-#[cfg(not(target_os = "windows"))]
-pub(crate) type OsEnumType = u32;
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the video output format used by the
 /// OBS video context. Used in `ObsVideoInfo`.
@@ -42,8 +38,7 @@ pub enum ObsVideoFormat {
     YVYU = libobs::video_format_VIDEO_FORMAT_YVYU,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
@@ -56,8 +51,7 @@ pub enum ObsColorspace {
     CSRGB = libobs::video_colorspace_VIDEO_CS_SRGB,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the minimum and maximum color levels that
 /// an OBS video context is allowed to encode. Used in
@@ -68,8 +62,7 @@ pub enum ObsVideoRange {
     Full = libobs::video_range_type_VIDEO_RANGE_FULL,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes how libobs should reconcile non-matching
 /// base and output resolutions when creating a video
@@ -89,6 +82,7 @@ pub enum ObsScaleType {
 pub enum ObsGraphicsModule {
     OpenGL,
     DirectX11,
+    Metal,
 }
 
 #[repr(i32)]
@@ -114,8 +108,7 @@ pub enum ObsResetVideoStatus {
 
 /// Audio samples per second options that are
 /// supported by libobs.
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsSamplesPerSecond {
     /// 44.1 kHz
@@ -124,8 +117,7 @@ pub enum ObsSamplesPerSecond {
     F48000 = 48000,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsSpeakerLayout {
     S2Point1 = libobs::speaker_layout_SPEAKERS_2POINT1,
@@ -212,16 +204,14 @@ impl TryFrom<i32> for ObsOutputStopSignal {
     }
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsEncoderType {
     Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO,
     Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(i32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsLogLevel {
     Error = libobs::LOG_ERROR,
