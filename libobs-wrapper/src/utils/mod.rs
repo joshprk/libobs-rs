@@ -11,7 +11,7 @@ mod obs_string_tests;
 #[cfg(test)]
 mod path_tests;
 
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 pub use error::*;
 pub use info::*;
@@ -41,6 +41,17 @@ impl ObsModules {
                 paths.plugin_bin_path().as_ptr().0,
                 paths.plugin_data_path().as_ptr().0,
             );
+
+            let disabled_plugins = vec![
+                "obs-websocket",
+                "frontend-tools",
+                "decklink-output-ui",
+                "decklink-captions"
+            ];
+            for plugin in disabled_plugins {
+                let c_str = CString::new(plugin).unwrap();
+                libobs::obs_add_disabled_module(c_str.as_ptr());
+            }
         }
 
         Self {
