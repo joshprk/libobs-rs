@@ -6,7 +6,7 @@ use super::{GsColorFormat, GsZstencilFormat};
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
     #[cfg(target_family = "windows")]
-    pub(super) window_handle: Sendable<windows::Win32::Foundation::HWND>,
+    pub(super) window_handle: crate::unsafe_send::Sendable<windows::Win32::Foundation::HWND>,
     pub(super) create_child: bool,
     pub(super) x: i32,
     pub(super) y: i32,
