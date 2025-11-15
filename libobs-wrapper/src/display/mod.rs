@@ -58,6 +58,27 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     libobs::gs_viewport_push();
     libobs::gs_projection_push();
 
+    // Determine if we're dealing with HDR content
+    let is_hdr = ovi.colorspace == libobs::video_colorspace_VIDEO_CS_2100_PQ
+        || ovi.colorspace == libobs::video_colorspace_VIDEO_CS_2100_HLG;
+
+    if is_hdr {
+        // For HDR content, we need to ensure proper color space handling
+        // Set the render target with HDR color space
+        let current_target = libobs::gs_get_render_target();
+        let current_zstencil = libobs::gs_get_zstencil_target();
+        
+        // Determine the appropriate color space for HDR
+        let hdr_color_space = if ovi.colorspace == libobs::video_colorspace_VIDEO_CS_2100_PQ {
+            libobs::gs_color_space_GS_CS_709_EXTENDED // Extended color space for PQ
+        } else {
+            libobs::gs_color_space_GS_CS_SRGB_16F // 16-bit float sRGB for HLG
+        };
+        
+        // Set render target with proper HDR color space
+        libobs::gs_set_render_target_with_color_space(current_target, current_zstencil, hdr_color_space);
+    }
+
     libobs::gs_ortho(
         0.0f32,
         ovi.base_width as f32,
