@@ -3,6 +3,8 @@
 ![Docs](https://img.shields.io/github/actions/workflow/status/joshprk/libobs-rs/build-docs.yml?branch=main&label=docs&style=flat)
 ![Coverage](https://img.shields.io/badge/coverage-55%25-orange?style=flat)
 
+> ![NOTE] 
+> Need help? [Join our discord server!](https://discord.gg/rsTffTMPMF)
 
 
 
