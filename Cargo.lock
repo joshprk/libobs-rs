@@ -1776,6 +1776,7 @@ name = "libobs"
 version = "3.0.1+32.0.2"
 dependencies = [
  "bindgen",
+ "pkg-config",
  "vsprintf",
 ]
 

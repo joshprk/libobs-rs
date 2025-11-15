@@ -44,9 +44,9 @@ lazy_static! {
     };
 }
 
-pub(crate) unsafe extern "C" fn main_crash_handler(
-    format: *const i8,
-    args: *mut i8,
+pub(crate) unsafe extern "C" fn main_crash_handler<V>(
+    format: *const std::os::raw::c_char,
+    args: *mut V,
     _params: *mut c_void,
 ) {
     let res = vsprintf::vsprintf(format, args);
