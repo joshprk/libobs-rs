@@ -8,7 +8,7 @@ use libobs_sources::windows::{
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
 use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
-use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
+use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait, MiscDisplayTrait};
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
@@ -21,6 +21,8 @@ use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
+
+use crate::hdr_config::HdrConfig;
 
 struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
@@ -54,9 +56,18 @@ impl ApplicationHandler for App {
         let w = self.window.clone();
         let d_rw = self.display.clone();
         let ctx = self.context.clone();
-        let data = ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height);
+        
+        // Configure display for HDR support
+        let hdr_config = HdrConfig::default();
+        let base_data = ObsDisplayCreationData::new(hwnd.0.get(), 0, 0, width, height);
+        let data = hdr_config.configure_display_data(base_data);
 
         let display = ctx.write().unwrap().display(data).unwrap();
+        
+        // Update color space for HDR content
+        if let Err(e) = display.update_color_space() {
+            println!("Warning: Failed to update display color space: {:?}", e);
+        }
 
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);
@@ -136,13 +147,17 @@ impl ApplicationHandler for App {
 pub fn main() -> anyhow::Result<()> {
     env_logger::init();
 
+    // Initialize HDR configuration - set enable_hdr to false if you don't need HDR support
+    let hdr_config = HdrConfig::default();
+
     //TODO This scales the output to 1920x1080, the captured window may be at a different aspect ratio
-    let v = ObsVideoInfoBuilder::new()
+    let video_builder = ObsVideoInfoBuilder::new()
         .base_width(1920)
         .base_height(1080)
         .output_width(1920)
-        .output_height(1080)
-        .build();
+        .output_height(1080);
+    
+    let v = hdr_config.configure_video_info(video_builder).build();
     let info = StartupInfo::new().set_video_info(v);
 
     let mut context = ObsContext::new(info)?;
