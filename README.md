@@ -66,3 +66,10 @@ Below is an example that will record video-only footage of an exclusive fullscre
 
 Examples are located in the [examples](./examples) directory.
 Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).
+
+## Disclaimer
+
+This project is **not affiliated with**, **endorsed by**, or **associated with** the OBS Project or OBS Studio.  
+**OBS** and **OBS Studio** are trademarks of their respective owners.  
+The developers of this project are independent and **not part of the OBS Studio team** in any capacity.
+
