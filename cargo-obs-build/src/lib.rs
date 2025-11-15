@@ -1,3 +1,4 @@
+use anyhow::bail;
 use git::{fetch_latest_patch_release, fetch_release, ReleaseInfo};
 use lock::{acquire_lock, wait_for_lock};
 use log::{debug, info, warn};
@@ -14,6 +15,8 @@ use lib_version::get_lib_obs_version;
 
 use download::download_binaries;
 use zip::ZipArchive;
+use tar::Archive;
+use xz2::read::XzDecoder;
 
 pub use metadata::get_meta_info;
 mod download;
@@ -22,6 +25,7 @@ mod lib_version;
 mod lock;
 mod metadata;
 mod util;
+mod macos;
 
 /// Check if we're running in a CI environment
 fn is_ci_environment() -> bool {
@@ -312,6 +316,58 @@ pub fn build_obs_binaries(config: ObsBuildConfig) -> anyhow::Result<()> {
     );
     copy_to_dir(&build_out, &target_out_dir, None)?;
 
+    // macOS-specific post-processing
+    #[cfg(target_os = "macos")]
+    {
+        info!("Setting up macOS-specific files...");
+        
+        // Create .so symlinks for graphics modules (OBS expects .so extension)
+        let graphics_modules = ["libobs-opengl.dylib", "libobs-metal.dylib"];
+        for module in &graphics_modules {
+            let dylib_path = target_out_dir.join(module);
+            if dylib_path.exists() {
+                let so_path = target_out_dir.join(module.replace(".dylib", ".so"));
+                // Remove existing symlink if present
+                if so_path.exists() {
+                    fs::remove_file(&so_path)?;
+                }
+                // Create symlink
+                #[cfg(unix)]
+                std::os::unix::fs::symlink(module, &so_path)?;
+                info!("Created symlink: {} -> {}", so_path.display(), module);
+            }
+        }
+        
+        // Fix helper binaries (obs-ffmpeg-mux, etc.) to find dylibs
+        info!("Fixing helper binary rpaths...");
+        macos::fix_helper_binaries_macos(&target_out_dir)?;
+        
+        // Create Frameworks directory for helper binaries
+        // obs-ffmpeg-mux runs from examples/ and looks in ../Frameworks/
+        let frameworks_dir = target_out_dir.join("Frameworks");
+        fs::create_dir_all(&frameworks_dir)?;
+        
+        info!("Creating Frameworks symlinks...");
+        for entry in fs::read_dir(&target_out_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if let Some(ext) = path.extension() {
+                if ext == "dylib" || ext == "framework" {
+                    let name = path.file_name().unwrap();
+                    let link_path = frameworks_dir.join(name);
+                    if link_path.exists() || link_path.symlink_metadata().is_ok() {
+                        fs::remove_file(&link_path).ok();
+                    }
+                    // Relative symlink from Frameworks/ to ../file
+                    let relative = format!("../{}", name.to_string_lossy());
+                    #[cfg(unix)]
+                    std::os::unix::fs::symlink(&relative, &link_path)?;
+                }
+            }
+        }
+        info!("✓ Created Frameworks directory");
+    }
+
     info!("Done!");
 
     Ok(())
@@ -332,14 +388,40 @@ fn build_obs(
         download_binaries(build_out, &release)?
     };
 
-    let obs_archive = File::open(&obs_path)?;
-    let mut archive = ZipArchive::new(&obs_archive)?;
-
     info!("Extracting OBS Studio binaries...");
-    archive.extract(build_out)?;
-    let bin_path = build_out.join("bin").join("64bit");
-    copy_to_dir(&bin_path, build_out, None)?;
-    fs::remove_dir_all(build_out.join("bin"))?;
+    
+    // Extract based on file extension
+    if obs_path.extension().and_then(|s| s.to_str()) == Some("zip") {
+        // Windows: ZIP extraction
+        let obs_archive = File::open(&obs_path)?;
+        let mut archive = ZipArchive::new(&obs_archive)?;
+        archive.extract(build_out)?;
+        
+        // Windows structure: /bin/64bit/obs.dll
+        let bin_path = build_out.join("bin").join("64bit");
+        copy_to_dir(&bin_path, build_out, None)?;
+        fs::remove_dir_all(build_out.join("bin"))?;
+    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("dmg") {
+        // macOS: DMG extraction
+        #[cfg(target_os = "macos")]
+        macos::extract_dmg(&obs_path, build_out)?;
+        
+        #[cfg(not(target_os = "macos"))]
+        bail!("DMG extraction is only supported on macOS");
+    } else if obs_path.extension().and_then(|s| s.to_str()) == Some("xz") {
+        // tar.xz extraction (fallback)
+        let obs_archive = File::open(&obs_path)?;
+        let decompressor = XzDecoder::new(obs_archive);
+        let mut archive = Archive::new(decompressor);
+        archive.unpack(build_out)?;
+        
+        let lib_path = build_out.join("lib");
+        if lib_path.exists() {
+            copy_to_dir(&lib_path, build_out, None)?;
+        }
+    } else {
+        bail!("Unsupported archive format: {:?}", obs_path.extension());
+    }
 
     clean_up_files(build_out, remove_pdbs, include_browser)?;
 
@@ -386,8 +468,31 @@ fn clean_up_files(
     }
 
     info!("Cleaning up unnecessary files...");
-    for entry in WalkDir::new(build_out).into_iter().flatten() {
+    let mut walker = WalkDir::new(build_out).into_iter();
+    while let Some(entry) = walker.next() {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        
         let path = entry.path();
+        
+        // Skip Resources and _CodeSignature directories inside .framework bundles (needed for code signing on macOS)
+        #[cfg(target_os = "macos")]
+        {
+            let file_name = path.file_name().and_then(|f| f.to_str());
+            if (file_name == Some("Resources") || file_name == Some("_CodeSignature"))
+                && path.ancestors().any(|p| {
+                    p.extension().and_then(|e| e.to_str()) == Some("framework")
+                }) {
+                    // Skip this directory and all its contents
+                    if entry.file_type().is_dir() {
+                        walker.skip_current_dir();
+                    }
+                    continue;
+                }
+        }
+        
         if to_exclude.iter().any(|e| {
             path.file_name().is_some_and(|x| {
                 let x_l = x.to_string_lossy().to_lowercase();
@@ -405,3 +510,4 @@ fn clean_up_files(
 
     Ok(())
 }
+

@@ -115,10 +115,23 @@ pub struct StartupPathsBuilder {
 
 impl StartupPathsBuilder {
     fn new() -> Self {
+        // macOS uses .plugin bundles with dylibs in Contents/MacOS
+        #[cfg(target_os = "macos")]
+        let (plugin_bin_path, plugin_data_path) = (
+            ObsPath::from_relative("obs-plugins/%module%.plugin/Contents/MacOS"),
+            ObsPath::from_relative("data/obs-plugins/%module%"),
+        );
+        
+        #[cfg(not(target_os = "macos"))]
+        let (plugin_bin_path, plugin_data_path) = (
+            ObsPath::from_relative("obs-plugins/64bit"),
+            ObsPath::from_relative("data/obs-plugins/%module%"),
+        );
+        
         Self {
             libobs_data_path: ObsPath::from_relative("data/libobs"),
-            plugin_bin_path: ObsPath::from_relative("obs-plugins/64bit"),
-            plugin_data_path: ObsPath::from_relative("data/obs-plugins/%module%"),
+            plugin_bin_path,
+            plugin_data_path,
         }
     }
 

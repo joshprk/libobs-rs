@@ -29,8 +29,22 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
 
     let mut possible_versions = vec![];
     for release in releases {
-        let tag = release.tag_name.replace("obs-build-", "");
-        let version = Version::parse(&tag).context("Parsing version")?;
+        // For macOS, use official OBS releases (tag without "obs-build-" prefix)
+        let tag = if cfg!(target_os = "macos") {
+            release.tag_name.clone()
+        } else {
+            release.tag_name.replace("obs-build-", "")
+        };
+        
+        // Remove leading 'v' if present for version parsing
+        let tag_for_parse = tag.trim_start_matches('v');
+        let version = match Version::parse(tag_for_parse) {
+            Ok(v) => v,
+            Err(_) => {
+                log::debug!("Skipping release with unparseable version: {}", tag);
+                continue;
+            }
+        };
 
         // The minor and major version must be the same, patches shouldn't have braking changes
         if version.major == LIBOBS_API_MAJOR_VER as u64
@@ -48,21 +62,36 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
             *LIBRARY_OBS_VERSION
         ))?;
 
+    // Platform-specific asset selection
+    let (asset_extension, file_extension) = if cfg!(target_os = "macos") {
+        let arch = if cfg!(target_arch = "aarch64") { "Apple" } else { "Intel" };
+        (format!("macOS-{}.dmg", arch), "dmg")
+    } else {
+        (".7z".to_string(), "7z")
+    };
+
     let archive_url = latest_version
         .assets
         .iter()
-        .find(|a| a.name.ends_with(".7z"))
-        .context("Finding 7z asset")?
+        .find(|a| a.name.contains(&asset_extension) && !a.name.contains("dSYM"))
+        .context(format!("Finding {} asset with pattern: {}", file_extension, asset_extension))?
         .browser_download_url
         .clone();
 
-    let hash_url = latest_version
-        .assets
-        .iter()
-        .find(|a| a.name.ends_with(".sha256"))
-        .context("Finding sha256 asset")?
-        .browser_download_url
-        .clone();
+    // Hash verification is optional for macOS (DMG has built-in verification)
+    let hash_url = if cfg!(target_os = "macos") {
+        None
+    } else {
+        Some(
+            latest_version
+                .assets
+                .iter()
+                .find(|a| a.name.ends_with(".sha256"))
+                .context("Finding sha256 asset")?
+                .browser_download_url
+                .clone(),
+        )
+    };
 
     let res = client.get(archive_url).send().await?;
     let length = res.content_length().unwrap_or(0);
@@ -71,7 +100,7 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
 
     let path = PathBuf::new()
         .join(temp_dir())
-        .join(format!("{}.7z", Uuid::new_v4()));
+        .join(format!("{}.{}", Uuid::new_v4(), file_extension));
     let mut tmp_file = File::create_new(&path)
         .await
         .context("Creating temporary file")?;
@@ -99,36 +128,42 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
             yield DownloadStatus::Progress(curr_len as  f32 / length as f32, "Downloading OBS".to_string());
         }
 
-        // Getting remote hash
-        let remote_hash = client.get(hash_url).send().await.context("Fetching hash");
-        if let Err(e) = remote_hash {
-            yield DownloadStatus::Error(e);
-            return;
+        // Hash verification (only for non-macOS platforms)
+        if let Some(hash_url) = hash_url {
+            // Getting remote hash
+            let remote_hash = client.get(hash_url).send().await.context("Fetching hash");
+            if let Err(e) = remote_hash {
+                yield DownloadStatus::Error(e);
+                return;
+            }
+
+            let remote_hash = remote_hash.unwrap().text().await.context("Reading hash");
+            if let Err(e) = remote_hash {
+                yield DownloadStatus::Error(e);
+                return;
+            }
+
+            let remote_hash = remote_hash.unwrap();
+            let remote_hash = hex::decode(remote_hash.trim()).context("Decoding hash");
+            if let Err(e) = remote_hash {
+                yield DownloadStatus::Error(e);
+                return;
+            }
+
+            let remote_hash = remote_hash.unwrap();
+
+            // Calculating local hash
+            let local_hash = hasher.finalize();
+            if local_hash.to_vec() != remote_hash {
+                yield DownloadStatus::Error(anyhow::anyhow!("Hash mismatch"));
+                return;
+            }
+
+            log::info!("Hashes match");
+        } else {
+            log::info!("Skipping hash verification for macOS DMG (has built-in verification)");
         }
 
-        let remote_hash = remote_hash.unwrap().text().await.context("Reading hash");
-        if let Err(e) = remote_hash {
-            yield DownloadStatus::Error(e);
-            return;
-        }
-
-        let remote_hash = remote_hash.unwrap();
-        let remote_hash = hex::decode(remote_hash.trim()).context("Decoding hash");
-        if let Err(e) = remote_hash {
-            yield DownloadStatus::Error(e);
-            return;
-        }
-
-        let remote_hash = remote_hash.unwrap();
-
-        // Calculating local hash
-        let local_hash = hasher.finalize();
-        if local_hash.to_vec() != remote_hash {
-            yield DownloadStatus::Error(anyhow::anyhow!("Hash mismatch"));
-            return;
-        }
-
-        log::info!("Hashes match");
         yield DownloadStatus::Done(path);
     })
 }

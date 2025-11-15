@@ -28,10 +28,11 @@
 //! .unwrap();
 //! `````
 
-#[cfg(not(windows))]
-compiler_error!("libobs-sources can only be used in windows");
-
+#[cfg(target_family = "windows")]
 pub mod windows;
+
+#[cfg(target_os = "macos")]
+pub mod macos;
 
 pub mod encoders;
 mod macro_helper;

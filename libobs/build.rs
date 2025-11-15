@@ -9,19 +9,68 @@ fn main() {
     println!("cargo:rerun-if-changed=Cargo.toml");
     println!("cargo:rerun-if-env-changed=LIBOBS_PATH");
 
-    println!(
-        "cargo:rustc-link-search=native={}",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    println!("cargo:rustc-link-lib=dylib=obs");
+    // Check target OS (not host) for cross-compilation support
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
 
+    // For development, you can set LIBOBS_PATH to point to your custom libobs
     if let Ok(path) = std::env::var("LIBOBS_PATH") {
         println!("cargo:rustc-link-search=native={}", path);
+        
+        if target_os == "macos" {
+            // Try framework first, fall back to dylib
+            println!("cargo:rustc-link-search=framework={}", path);
+            println!("cargo:rustc-link-lib=framework=libobs");
+        } else {
+            println!("cargo:rustc-link-lib=dylib=obs");
+        }
+    } else {
+        // Detect target directory (works in workspaces)
+        let out_dir = std::env::var("OUT_DIR").unwrap();
+        let target_dir = std::path::Path::new(&out_dir)
+            .ancestors()
+            .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
+            .unwrap_or_else(|| {
+                // Fallback: use manifest dir for non-workspace builds
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            });
+        
+        println!("cargo:rustc-link-search=native={}", target_dir.display());
+        
+        if target_os == "macos" {
+            // macOS: Link to libobs.framework
+            println!("cargo:rustc-link-search=framework={}", target_dir.display());
+            println!("cargo:rustc-link-lib=framework=libobs");
+            
+            // Add macOS system frameworks that libobs depends on
+            println!("cargo:rustc-link-lib=framework=CoreFoundation");
+            println!("cargo:rustc-link-lib=framework=CoreVideo");
+            println!("cargo:rustc-link-lib=framework=CoreMedia");
+            println!("cargo:rustc-link-lib=framework=CoreGraphics");
+            println!("cargo:rustc-link-lib=framework=AppKit");
+            println!("cargo:rustc-link-lib=framework=IOKit");
+            println!("cargo:rustc-link-lib=framework=IOSurface");
+            println!("cargo:rustc-link-lib=framework=AudioToolbox");
+            println!("cargo:rustc-link-lib=framework=VideoToolbox");
+            
+            // Set rpath for dylib loading
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/..");
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path/..");
+        } else if target_os == "linux" {
+            // Linux: Link to libobs.so
+            println!("cargo:rustc-link-lib=dylib=obs");
+        } else if target_os == "windows" {
+            // Windows: Link to obs.dll
+            println!("cargo:rustc-link-lib=dylib=obs");
+        }
     }
 
+    // Only generate bindings if explicitly requested via feature flag
     #[cfg(feature = "generate_bindings")]
     bindings::generate_bindings();
 }
+
 
 #[cfg(feature = "generate_bindings")]
 mod bindings {

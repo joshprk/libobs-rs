@@ -1,3 +1,5 @@
+#![cfg(target_family = "windows")]
+
 use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;

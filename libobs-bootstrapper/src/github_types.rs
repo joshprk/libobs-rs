@@ -70,7 +70,7 @@ pub struct Author {
     #[serde(rename = "type")]
     pub type_field: String,
     #[serde(rename = "user_view_type")]
-    pub user_view_type: String,
+    pub user_view_type: Option<String>,
     #[serde(rename = "site_admin")]
     pub site_admin: bool,
 }
@@ -83,7 +83,7 @@ pub struct Asset {
     #[serde(rename = "node_id")]
     pub node_id: String,
     pub name: String,
-    pub label: String,
+    pub label: Option<String>,
     pub uploader: Uploader,
     #[serde(rename = "content_type")]
     pub content_type: String,
@@ -134,7 +134,7 @@ pub struct Uploader {
     #[serde(rename = "type")]
     pub type_field: String,
     #[serde(rename = "user_view_type")]
-    pub user_view_type: String,
+    pub user_view_type: Option<String>,
     #[serde(rename = "site_admin")]
     pub site_admin: bool,
 }

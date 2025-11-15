@@ -15,8 +15,12 @@
 mod bindings {
     #[cfg(feature = "generate_bindings")]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-    #[cfg(not(feature = "generate_bindings"))]
-    include!("bindings.rs");
+
+    #[cfg(all(not(feature = "generate_bindings"), target_family = "windows"))]
+    include!("bindings_win.rs");
+
+    #[cfg(all(not(feature = "generate_bindings"), any(target_os = "linux", target_os = "macos")))]
+    include!("bindings_linux.rs");
 }
 
 pub use bindings::*;

@@ -34,19 +34,40 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
     } else {
         "arm64"
     };
+    
+    // Determine platform-specific search criteria
+    let (platform_name, file_extension, output_filename, arch_name) = if cfg!(target_os = "macos") {
+        let arch = if cfg!(target_arch = "x86_64") {
+            "intel"  // macOS uses "Intel" for x86_64
+        } else {
+            "apple"  // macOS uses "Apple" for arm64 (Apple Silicon)
+        };
+        ("macos", ".dmg", "obs-prebuilt-macos.dmg", arch)
+    } else if cfg!(target_os = "windows") {
+        ("windows", ".zip", "obs-prebuilt-windows.zip", architecture)
+    } else {
+        // Linux not supported - require manual obs-studio installation
+        bail!("Linux OBS download not supported - install obs-studio manually");
+    };
+    
     let to_download = &info.assets.iter().find(|e| {
         let name = e["name"].as_str().unwrap_or("").to_lowercase();
 
-        // OBS-Studio-30.2.1-Windows.zip
+        // Examples:
+        // Windows: OBS-Studio-32.0.2-Windows-x64.zip
+        // macOS: OBS-Studio-32.0.2-macOS-Intel.dmg or OBS-Studio-32.0.2-macOS-Apple.dmg
+        // Linux: OBS-Studio-32.0.2-Ubuntu-24.04-x86_64.deb
         name.contains("obs-studio")
-            && (name.contains("windows") || name.contains("full"))
-            && name.contains(".zip")
+            && (name.contains(platform_name) || (cfg!(target_os = "windows") && name.contains("full")))
+            && name.contains(file_extension)
             && !name.contains("pdb")
-            && name.contains(architecture)
+            && !name.contains("dsym")  // Exclude debug symbols
+            && !name.contains("dbsym")
+            && name.contains(arch_name)
     });
 
     if to_download.is_none() {
-        bail!("No OBS Studio binaries found");
+        bail!("No OBS Studio binaries found for platform: {}", platform_name);
     }
 
     let to_download = to_download.unwrap();
@@ -54,7 +75,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         .as_str()
         .ok_or(anyhow!("No download url found"))?;
 
-    let download_path = build_dir.join("obs-prebuilt-windows.zip");
+    let download_path = build_dir.join(output_filename);
 
     #[cfg(feature = "colored")]
     println!("Downloading OBS from {}", url.green());

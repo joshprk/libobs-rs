@@ -8,6 +8,7 @@ A utility crate for automatically downloading and installing OBS (Open Broadcast
 ## Features
 
 - **Automatic OBS Download**: Downloads appropriate OBS binaries at runtime
+- **Cross-Platform**: Supports Windows (7z), macOS (DMG), and Linux (DEB)
 - **Progress Tracking**: Built-in progress reporting for downloads and extraction
 - **Version Management**: Handles OBS version checking and updates
 - **Custom Status Handlers**: Flexible progress reporting via custom handlers
@@ -99,7 +100,8 @@ impl ObsBootstrapStatusHandler for CustomProgressHandler {
 
 ### Setup Steps
 
-1. You can either: <br>
+1. **Windows only:** Add a placeholder DLL<br>
+   You can either: <br>
    **a) RECOMMENDED** enable the `install_dummy_dll` feature for this crate <br>
    **b)** Add a placeholder `obs.dll` file to your executable directory:
      - Download a dummy DLL from [libobs-builds releases](https://github.com/sshcrack/libobs-builds/releases)
@@ -111,6 +113,14 @@ impl ObsBootstrapStatusHandler for CustomProgressHandler {
 3. If `ObsBootstrapperResult::Restart` is returned:
    - Exit the application
    - The updater will restart your application automatically
+
+### Platform-Specific Notes
+
+- **Windows**: Downloads and extracts 7z archives from custom builds
+- **macOS**: Downloads official OBS DMG files and extracts frameworks, plugins, and data
+  - Automatic code signature handling (DMG files come pre-signed by OBS)
+  - Extracts to executable's directory for development use
+- **Linux**: Downloads and extracts DEB packages
 
 ### Advanced Options
 

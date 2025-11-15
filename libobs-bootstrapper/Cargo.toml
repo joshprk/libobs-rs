@@ -18,22 +18,22 @@ license = "GPL-3.0"
 
 
 [dependencies]
-anyhow = "1.0.100"
-async-stream = "0.3.6"
-futures-core = "0.3.31"
-futures-util = "0.3.31"
-hex = "0.4.3"
-lazy_static = "1.5.0"
-tokio = { version = "1.48.0", features = ["process", "macros"], default-features = false }
+anyhow = "1"
+async-stream = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+hex = "0.4"
+lazy_static = "1.4"
+tokio = { version = "1", features = ["process", "macros"], default-features = false }
 libobs = { workspace = true }
-semver = "1.0.27"
-sevenz-rust = "0.6.1"
-sha2 = "0.10.9"
-uuid = { version = "1.18.1", features = ["v4"] }
-reqwest = { version = "0.12.24", features = ["stream", "json"] }
-serde = { version = "1.0.228", features = ["derive"] }
-libloading = "0.9.0"
-log = "0.4.28"
+semver = "1"
+sevenz-rust = "0.6"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", features = ["stream", "json"] }
+serde = { version = "1", features = ["derive"] }
+libloading = "0.9"
+log = "0.4"
 
 [features]
 default = ["install_dummy_dll"]

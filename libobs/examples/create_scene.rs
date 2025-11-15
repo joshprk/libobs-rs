@@ -22,7 +22,7 @@ fn main() {
         }
         println!("OBS not yet initialized, continuing");
 
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "linux")]
         {
             println!("Setting NIX platform to X11_EGL");
             libobs::obs_set_nix_platform(libobs::obs_nix_platform_type_OBS_NIX_PLATFORM_X11_EGL);
@@ -31,6 +31,13 @@ fn main() {
             println!("X display pointer: {:?}", display);
             libobs::obs_set_nix_platform_display(display);
             println!("NIX platform display set");
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            println!("macOS detected - using native graphics backend");
+            // macOS doesn't need platform setup like Linux does
+            // It uses native Cocoa/Metal/OpenGL backends
         }
 
         #[cfg(target_os = "windows")]
@@ -69,9 +76,16 @@ fn main() {
         let curr_exe = curr_exe.parent().unwrap();
 
         println!("Adding module path");
-        let module_bin_path =
-            CString::new(curr_exe.join("./obs-plugins/64bit/").to_str().unwrap()).unwrap();
-        let module_path = curr_exe.join("./data/obs-plugins/%module%/");
+        
+        // macOS uses .plugin bundles with %module% pattern, Windows uses 64bit subdirectory
+        // Note: Examples run from target/debug/examples/, so go up one directory
+        #[cfg(target_os = "macos")]
+        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/%module%.plugin/Contents/MacOS").to_str().unwrap()).unwrap();
+        
+        #[cfg(not(target_os = "macos"))]
+        let module_bin_path = CString::new(curr_exe.join("../obs-plugins/64bit/").to_str().unwrap()).unwrap();
+        
+        let module_path = curr_exe.join("../data/obs-plugins/%module%/");
         let module_data_path = module_path.to_str().unwrap();
         let module_data_path = CString::new(module_data_path).unwrap();
         println!(
@@ -86,7 +100,7 @@ fn main() {
         libobs::obs_add_module_path(module_bin_path.as_ptr(), module_data_path.as_ptr());
 
         println!("Module paths added successfully");
-        let data_path = curr_exe.join("./data/libobs/");
+        let data_path = curr_exe.join("../data/libobs/");
         let data_path = data_path.to_str().unwrap();
 
         println!("Adding data path {}", data_path);
@@ -174,7 +188,7 @@ fn main() {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "linux")]
 fn x_open_display(display: *mut c_void) -> *mut c_void {
     extern "C" {
         fn XOpenDisplay(display: *mut c_void) -> *mut c_void;

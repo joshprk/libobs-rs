@@ -1,3 +1,6 @@
+.direnv
+.envrc
+
 target
 src/bindings.rs
 obs-build
@@ -5,5 +8,20 @@ rtmp-services
 win-capture
 *.dmp
 *.mp4
+*.flv
+*.mkv
+*.avi
 
 .idea
+test-macos-build/
+
+# OBS binaries (too large for GitHub, should be downloaded via bootstrapper)
+bin/
+obs_new/
+
+# macOS
+.DS_Store
+
+# Recording outputs
+screen_recording.*
+recording.*

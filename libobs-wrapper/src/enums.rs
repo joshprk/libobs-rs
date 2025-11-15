@@ -3,84 +3,85 @@ use std::fmt::Display;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 
-#[cfg(target_os = "windows")]
+#[cfg(target_family = "windows")]
 pub(crate) type OsEnumType = i32;
-#[cfg(not(target_os = "windows"))]
+
+#[cfg(not(target_family = "windows"))]
 pub(crate) type OsEnumType = u32;
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the video output format used by the
 /// OBS video context. Used in `ObsVideoInfo`.
 pub enum ObsVideoFormat {
-    AYUV = libobs::video_format_VIDEO_FORMAT_AYUV,
-    BGR3 = libobs::video_format_VIDEO_FORMAT_BGR3,
-    BGRA = libobs::video_format_VIDEO_FORMAT_BGRA,
-    BGRX = libobs::video_format_VIDEO_FORMAT_BGRX,
-    I010 = libobs::video_format_VIDEO_FORMAT_I010,
-    I210 = libobs::video_format_VIDEO_FORMAT_I210,
-    I40A = libobs::video_format_VIDEO_FORMAT_I40A,
-    I412 = libobs::video_format_VIDEO_FORMAT_I412,
-    I420 = libobs::video_format_VIDEO_FORMAT_I420,
-    I422 = libobs::video_format_VIDEO_FORMAT_I422,
-    I42A = libobs::video_format_VIDEO_FORMAT_I42A,
-    I444 = libobs::video_format_VIDEO_FORMAT_I444,
-    NONE = libobs::video_format_VIDEO_FORMAT_NONE,
-    NV12 = libobs::video_format_VIDEO_FORMAT_NV12,
-    P010 = libobs::video_format_VIDEO_FORMAT_P010,
-    P216 = libobs::video_format_VIDEO_FORMAT_P216,
-    P416 = libobs::video_format_VIDEO_FORMAT_P416,
-    R10L = libobs::video_format_VIDEO_FORMAT_R10L,
-    RGBA = libobs::video_format_VIDEO_FORMAT_RGBA,
-    UYVY = libobs::video_format_VIDEO_FORMAT_UYVY,
-    V210 = libobs::video_format_VIDEO_FORMAT_V210,
-    Y800 = libobs::video_format_VIDEO_FORMAT_Y800,
-    YA2L = libobs::video_format_VIDEO_FORMAT_YA2L,
-    YUVA = libobs::video_format_VIDEO_FORMAT_YUVA,
-    YUY2 = libobs::video_format_VIDEO_FORMAT_YUY2,
-    YVYU = libobs::video_format_VIDEO_FORMAT_YVYU,
+    AYUV = libobs::video_format_VIDEO_FORMAT_AYUV as OsEnumType,
+    BGR3 = libobs::video_format_VIDEO_FORMAT_BGR3 as OsEnumType,
+    BGRA = libobs::video_format_VIDEO_FORMAT_BGRA as OsEnumType,
+    BGRX = libobs::video_format_VIDEO_FORMAT_BGRX as OsEnumType,
+    I010 = libobs::video_format_VIDEO_FORMAT_I010 as OsEnumType,
+    I210 = libobs::video_format_VIDEO_FORMAT_I210 as OsEnumType,
+    I40A = libobs::video_format_VIDEO_FORMAT_I40A as OsEnumType,
+    I412 = libobs::video_format_VIDEO_FORMAT_I412 as OsEnumType,
+    I420 = libobs::video_format_VIDEO_FORMAT_I420 as OsEnumType,
+    I422 = libobs::video_format_VIDEO_FORMAT_I422 as OsEnumType,
+    I42A = libobs::video_format_VIDEO_FORMAT_I42A as OsEnumType,
+    I444 = libobs::video_format_VIDEO_FORMAT_I444 as OsEnumType,
+    NONE = libobs::video_format_VIDEO_FORMAT_NONE as OsEnumType,
+    NV12 = libobs::video_format_VIDEO_FORMAT_NV12 as OsEnumType,
+    P010 = libobs::video_format_VIDEO_FORMAT_P010 as OsEnumType,
+    P216 = libobs::video_format_VIDEO_FORMAT_P216 as OsEnumType,
+    P416 = libobs::video_format_VIDEO_FORMAT_P416 as OsEnumType,
+    R10L = libobs::video_format_VIDEO_FORMAT_R10L as OsEnumType,
+    RGBA = libobs::video_format_VIDEO_FORMAT_RGBA as OsEnumType,
+    UYVY = libobs::video_format_VIDEO_FORMAT_UYVY as OsEnumType,
+    V210 = libobs::video_format_VIDEO_FORMAT_V210 as OsEnumType,
+    Y800 = libobs::video_format_VIDEO_FORMAT_Y800 as OsEnumType,
+    YA2L = libobs::video_format_VIDEO_FORMAT_YA2L as OsEnumType,
+    YUVA = libobs::video_format_VIDEO_FORMAT_YUVA as OsEnumType,
+    YUY2 = libobs::video_format_VIDEO_FORMAT_YUY2 as OsEnumType,
+    YVYU = libobs::video_format_VIDEO_FORMAT_YVYU as OsEnumType,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the colorspace that an OBS video context
 /// uses. Used in `ObsVideoInfo`.
 pub enum ObsColorspace {
-    CS2100HLG = libobs::video_colorspace_VIDEO_CS_2100_HLG,
-    CS2100PQ = libobs::video_colorspace_VIDEO_CS_2100_PQ,
-    CS601 = libobs::video_colorspace_VIDEO_CS_601,
-    CS709 = libobs::video_colorspace_VIDEO_CS_709,
-    Default = libobs::video_colorspace_VIDEO_CS_DEFAULT,
-    CSRGB = libobs::video_colorspace_VIDEO_CS_SRGB,
+    CS2100HLG = libobs::video_colorspace_VIDEO_CS_2100_HLG as OsEnumType,
+    CS2100PQ = libobs::video_colorspace_VIDEO_CS_2100_PQ as OsEnumType,
+    CS601 = libobs::video_colorspace_VIDEO_CS_601 as OsEnumType,
+    CS709 = libobs::video_colorspace_VIDEO_CS_709 as OsEnumType,
+    Default = libobs::video_colorspace_VIDEO_CS_DEFAULT as OsEnumType,
+    CSRGB = libobs::video_colorspace_VIDEO_CS_SRGB as OsEnumType,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes the minimum and maximum color levels that
 /// an OBS video context is allowed to encode. Used in
 /// `ObsVideoInfo.`
 pub enum ObsVideoRange {
-    Default = libobs::video_range_type_VIDEO_RANGE_DEFAULT,
-    Partial = libobs::video_range_type_VIDEO_RANGE_PARTIAL,
-    Full = libobs::video_range_type_VIDEO_RANGE_FULL,
+    Default = libobs::video_range_type_VIDEO_RANGE_DEFAULT as OsEnumType,
+    Partial = libobs::video_range_type_VIDEO_RANGE_PARTIAL as OsEnumType,
+    Full = libobs::video_range_type_VIDEO_RANGE_FULL as OsEnumType,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Describes how libobs should reconcile non-matching
 /// base and output resolutions when creating a video
 /// context.
 pub enum ObsScaleType {
-    Area = libobs::obs_scale_type_OBS_SCALE_AREA,
-    Bicubic = libobs::obs_scale_type_OBS_SCALE_BICUBIC,
-    Bilinear = libobs::obs_scale_type_OBS_SCALE_BILINEAR,
-    Disable = libobs::obs_scale_type_OBS_SCALE_DISABLE,
-    Lanczos = libobs::obs_scale_type_OBS_SCALE_LANCZOS,
-    Point = libobs::obs_scale_type_OBS_SCALE_POINT,
+    Area = libobs::obs_scale_type_OBS_SCALE_AREA as OsEnumType,
+    Bicubic = libobs::obs_scale_type_OBS_SCALE_BICUBIC as OsEnumType,
+    Bilinear = libobs::obs_scale_type_OBS_SCALE_BILINEAR as OsEnumType,
+    Disable = libobs::obs_scale_type_OBS_SCALE_DISABLE as OsEnumType,
+    Lanczos = libobs::obs_scale_type_OBS_SCALE_LANCZOS as OsEnumType,
+    Point = libobs::obs_scale_type_OBS_SCALE_POINT as OsEnumType,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -89,33 +90,33 @@ pub enum ObsScaleType {
 pub enum ObsGraphicsModule {
     OpenGL,
     DirectX11,
+    Metal,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 /// Status types returned after attempting to
 /// reset the OBS video context using the
 /// function `obs_reset_video`.
 pub enum ObsResetVideoStatus {
     /// `obs_reset_video` was successful.
-    Success = libobs::OBS_VIDEO_SUCCESS as i32,
+    Success = libobs::OBS_VIDEO_SUCCESS,
     /// The adapter is not supported as it
     /// lacks capabilities.
-    NotSupported = libobs::OBS_VIDEO_NOT_SUPPORTED,
+    NotSupported = libobs::OBS_VIDEO_NOT_SUPPORTED as u32,
     /// A parameter is invalid.
-    InvalidParameter = libobs::OBS_VIDEO_INVALID_PARAM,
+    InvalidParameter = libobs::OBS_VIDEO_INVALID_PARAM as u32,
     /// An output is currently running, preventing
     /// resetting the video context.
-    CurrentlyActive = libobs::OBS_VIDEO_CURRENTLY_ACTIVE,
+    CurrentlyActive = libobs::OBS_VIDEO_CURRENTLY_ACTIVE as u32,
     /// Generic error occured when attempting to
     /// reset the OBS video context.
-    Failure = libobs::OBS_VIDEO_FAIL,
+    Failure = libobs::OBS_VIDEO_FAIL as u32,
 }
 
 /// Audio samples per second options that are
 /// supported by libobs.
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ObsSamplesPerSecond {
     /// 44.1 kHz
@@ -124,18 +125,18 @@ pub enum ObsSamplesPerSecond {
     F48000 = 48000,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsSpeakerLayout {
-    S2Point1 = libobs::speaker_layout_SPEAKERS_2POINT1,
-    S4Point0 = libobs::speaker_layout_SPEAKERS_4POINT0,
-    S4Point1 = libobs::speaker_layout_SPEAKERS_4POINT1,
-    S5Point1 = libobs::speaker_layout_SPEAKERS_5POINT1,
-    S7Point1 = libobs::speaker_layout_SPEAKERS_7POINT1,
-    Mono = libobs::speaker_layout_SPEAKERS_MONO,
-    Stereo = libobs::speaker_layout_SPEAKERS_STEREO,
-    Unknown = libobs::speaker_layout_SPEAKERS_UNKNOWN,
+    S2Point1 = libobs::speaker_layout_SPEAKERS_2POINT1 as OsEnumType,
+    S4Point0 = libobs::speaker_layout_SPEAKERS_4POINT0 as OsEnumType,
+    S4Point1 = libobs::speaker_layout_SPEAKERS_4POINT1 as OsEnumType,
+    S5Point1 = libobs::speaker_layout_SPEAKERS_5POINT1 as OsEnumType,
+    S7Point1 = libobs::speaker_layout_SPEAKERS_7POINT1 as OsEnumType,
+    Mono = libobs::speaker_layout_SPEAKERS_MONO as OsEnumType,
+    Stereo = libobs::speaker_layout_SPEAKERS_STEREO as OsEnumType,
+    Unknown = libobs::speaker_layout_SPEAKERS_UNKNOWN as OsEnumType,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,22 +213,22 @@ impl TryFrom<i32> for ObsOutputStopSignal {
     }
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsEncoderType {
-    Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO,
-    Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO,
+    Video = libobs::obs_encoder_type_OBS_ENCODER_VIDEO as OsEnumType,
+    Audio = libobs::obs_encoder_type_OBS_ENCODER_AUDIO as OsEnumType,
 }
 
-#[cfg_attr(target_os = "windows", repr(i32))]
-#[cfg_attr(not(target_os = "windows"), repr(u32))]
+#[cfg_attr(target_family = "windows", repr(i32))]
+#[cfg_attr(not(target_family = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
 pub enum ObsLogLevel {
-    Error = libobs::LOG_ERROR,
-    Warning = libobs::LOG_WARNING,
-    Info = libobs::LOG_INFO,
-    Debug = libobs::LOG_DEBUG,
+    Error = libobs::LOG_ERROR as OsEnumType,
+    Warning = libobs::LOG_WARNING as OsEnumType,
+    Info = libobs::LOG_INFO as OsEnumType,
+    Debug = libobs::LOG_DEBUG as OsEnumType,
 }
 
 impl Display for ObsLogLevel {
