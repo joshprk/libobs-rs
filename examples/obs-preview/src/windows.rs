@@ -1,17 +1,23 @@
 use std::pin::Pin;
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
-use libobs_sources::windows::GameCaptureSourceBuilder;
+use libobs_sources::windows::{
+    GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
+};
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
+use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
 use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
+use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
+use libobs_wrapper::utils::traits::ObsUpdatable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
@@ -20,8 +26,8 @@ struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
     display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
     context: Arc<RwLock<ObsContext>>,
-    //monitor_index: Arc<AtomicUsize>,
-    //source_ref: Arc<RwLock<ObsSourceRef>>,
+    monitor_index: Arc<AtomicUsize>,
+    source_ref: Arc<RwLock<ObsSourceRef>>,
 }
 
 impl ApplicationHandler for App {
@@ -101,30 +107,27 @@ impl ApplicationHandler for App {
                     let _ = display.set_size(display_width, display_height);
                 }
             }
-            /*
             WindowEvent::MouseInput { state, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;
                 }
-                               let tmp = self.source_ref.clone();
-                               let monitor_index = self.monitor_index.clone();
+                let tmp = self.source_ref.clone();
+                let monitor_index = self.monitor_index.clone();
 
-                               let mut source = tmp.write().unwrap().clone();
-                               let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
+                let mut source = tmp.write().unwrap().clone();
+                let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
 
-                               let monitor_index = monitor_index
-                                   .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                                   % monitors.len();
-                               let monitor = &monitors[monitor_index];
+                let monitor_index = monitor_index.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+                    % monitors.len();
+                let monitor = &monitors[monitor_index];
 
-                               source
-                                   .create_updater::<MonitorCaptureSourceUpdater>()
-                                   .unwrap()
-                                   .set_monitor(monitor)
-                                   .update()
-                                   .unwrap();
-                            }
-                            */
+                source
+                    .create_updater::<MonitorCaptureSourceUpdater>()
+                    .unwrap()
+                    .set_monitor(monitor)
+                    .update()
+                    .unwrap();
+            }
             _ => (),
         }
     }
@@ -133,9 +136,12 @@ impl ApplicationHandler for App {
 pub fn main() -> anyhow::Result<()> {
     env_logger::init();
 
+    //TODO This scales the output to 1920x1080, the captured window may be at a different aspect ratio
     let v = ObsVideoInfoBuilder::new()
         .base_width(1920)
         .base_height(1080)
+        .output_width(1920)
+        .output_height(1080)
         .build();
     let info = StartupInfo::new().set_video_info(v);
 
@@ -194,30 +200,47 @@ pub fn main() -> anyhow::Result<()> {
     let btd = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
     let btd = btd
         .iter()
-        .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Bloons"))
-        .expect("Could not find Bloons TD 6 window");
+        .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Apex"));
 
-    println!(
-        "Is used by other instance: {}",
-        GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
-    );
-    let source = context
-        .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
-        .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
-        .set_window(btd)
+    let monitor_src = context
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor capture")?
+        .set_monitor(
+            &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
+        )
         .add_to_scene(&mut scene)?;
+    scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
+    scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+
+    let mut _btd_source = None;
+    if let Some(btd) = btd {
+        println!(
+            "Is used by other instance: {}",
+            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
+        );
+        let source = context
+            .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
+            .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
+            .set_window(btd)
+            .add_to_scene(&mut scene)?;
+
+        scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
+        scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+        _btd_source = Some(source);
+    } else {
+        println!("No Apex window found for game capture");
+    }
 
     scene.set_to_channel(0)?;
 
     // Example for signals and events with libobs
-    let tmp = source.clone();
+    let tmp = monitor_src.clone();
     std::thread::spawn(move || {
         let signal_manager = tmp.signal_manager();
         let mut x = signal_manager.on_update().unwrap();
 
         println!("Listening for updates");
         while x.blocking_recv().is_ok() {
-            println!("Game Source has been updated!");
+            println!("Monitor Source has been updated!");
         }
     });
 
@@ -226,8 +249,8 @@ pub fn main() -> anyhow::Result<()> {
         window: Arc::new(RwLock::new(None)),
         display: Arc::new(RwLock::new(None)),
         context: Arc::new(RwLock::new(context)),
-        //monitor_index: Arc::new(AtomicUsize::new(1)),
-        //source_ref: Arc::new(RwLock::new(source)),
+        monitor_index: Arc::new(AtomicUsize::new(1)),
+        source_ref: Arc::new(RwLock::new(monitor_src)),
     };
 
     event_loop.run_app(&mut app).unwrap();
