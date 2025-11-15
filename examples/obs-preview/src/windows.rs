@@ -172,7 +172,7 @@ pub fn main() -> anyhow::Result<()> {
     let mut encoder = encoders
         .into_iter()
         .find(|e| {
-                e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
+            e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
                 || e.get_encoder_id() == &ObsVideoEncoderType::AV1_TEXTURE_AMF
                 || e.get_encoder_id() == &ObsVideoEncoderType::OBS_X264
         })
