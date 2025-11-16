@@ -35,15 +35,21 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         "arm64"
     };
     
-    // Determine platform-specific search criteria
-    let (platform_name, file_extension, output_filename, arch_name) = if cfg!(target_os = "macos") {
-        let arch = if cfg!(target_arch = "x86_64") {
+    // Determine platform-specific search criteria based on TARGET platform
+    // Use environment variables to support cross-compilation
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS")
+        .unwrap_or_else(|_| std::env::consts::OS.to_string());
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH")
+        .unwrap_or_else(|_| std::env::consts::ARCH.to_string());
+    
+    let (platform_name, file_extension, output_filename, arch_name) = if target_os == "macos" {
+        let arch = if target_arch == "x86_64" {
             "intel"  // macOS uses "Intel" for x86_64
         } else {
             "apple"  // macOS uses "Apple" for arm64 (Apple Silicon)
         };
         ("macos", ".dmg", "obs-prebuilt-macos.dmg", arch)
-    } else if cfg!(target_os = "windows") {
+    } else if target_os == "windows" {
         ("windows", ".zip", "obs-prebuilt-windows.zip", architecture)
     } else {
         // Linux not supported - require manual obs-studio installation
@@ -58,7 +64,7 @@ pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result
         // macOS: OBS-Studio-32.0.2-macOS-Intel.dmg or OBS-Studio-32.0.2-macOS-Apple.dmg
         // Linux: OBS-Studio-32.0.2-Ubuntu-24.04-x86_64.deb
         name.contains("obs-studio")
-            && (name.contains(platform_name) || (cfg!(target_os = "windows") && name.contains("full")))
+            && (name.contains(platform_name) || (target_os == "windows" && name.contains("full")))
             && name.contains(file_extension)
             && !name.contains("pdb")
             && !name.contains("dsym")  // Exclude debug symbols

@@ -62,9 +62,14 @@ pub(crate) async fn download_obs(repo: &str) -> anyhow::Result<impl Stream<Item 
             *LIBRARY_OBS_VERSION
         ))?;
 
-    // Platform-specific asset selection
-    let (asset_extension, file_extension) = if cfg!(target_os = "macos") {
-        let arch = if cfg!(target_arch = "aarch64") { "Apple" } else { "Intel" };
+    // Platform-specific asset selection (use target platform for cross-compilation)
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS")
+        .unwrap_or_else(|_| std::env::consts::OS.to_string());
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH")
+        .unwrap_or_else(|_| std::env::consts::ARCH.to_string());
+    
+    let (asset_extension, file_extension) = if target_os == "macos" {
+        let arch = if target_arch == "x86_64" { "Intel" } else { "Apple" };
         (format!("macOS-{}.dmg", arch), "dmg")
     } else {
         (".7z".to_string(), "7z")
