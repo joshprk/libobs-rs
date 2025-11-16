@@ -24,11 +24,24 @@ fn main() {
             println!("cargo:rustc-link-lib=dylib=obs");
         }
     } else {
-        // Detect target directory (works in workspaces)
+        // Detect target directory (works in workspaces and nested crates)
         let out_dir = std::env::var("OUT_DIR").unwrap();
         let target_dir = std::path::Path::new(&out_dir)
             .ancestors()
-            .find(|p| p.ends_with("target/debug") || p.ends_with("target/release"))
+            .find(|p| {
+                p.ends_with("target/debug") || 
+                p.ends_with("target/release") ||
+                p.file_name().and_then(|f| f.to_str()) == Some("debug") ||
+                p.file_name().and_then(|f| f.to_str()) == Some("release")
+            })
+            .and_then(|p| {
+                // Ensure we got the actual target/{profile} directory
+                if p.ends_with("debug") || p.ends_with("release") {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
             .unwrap_or_else(|| {
                 // Fallback: use manifest dir for non-workspace builds
                 std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

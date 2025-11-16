@@ -1,20 +1,19 @@
-[env]
-# OBS library paths - points to cargo-obs-build downloaded binaries by default
-# Override with: export LIBOBS_PATH=/custom/path/to/OBS.app/Contents/Frameworks
-# For system OBS: export LIBOBS_PATH=/Applications/OBS.app/Contents/Frameworks
-LIBOBS_PATH = "bin/OBS.app/Contents/Frameworks"
-DYLD_LIBRARY_PATH = "bin/OBS.app/Contents/Frameworks"
+# macOS configuration for finding libobs.framework and dylibs
+# These rpaths allow binaries to find OBS libraries relative to their location
 
 [target.aarch64-apple-darwin]
 rustflags = [
-  # Use @loader_path for relative rpath to work with both downloaded and system OBS
-  "-C", "link-arg=-Wl,-rpath,@loader_path/../Frameworks",
-  "-C", "link-arg=-Wl,-rpath,bin/OBS.app/Contents/Frameworks"
+  "-C", "link-arg=-Wl,-rpath,@executable_path",
+  "-C", "link-arg=-Wl,-rpath,@loader_path",  
+  "-C", "link-arg=-Wl,-rpath,@executable_path/..",
+  "-C", "link-arg=-Wl,-rpath,@loader_path/..",
 ]
 
 [target.x86_64-apple-darwin]
 rustflags = [
-  # Use @loader_path for relative rpath to work with both downloaded and system OBS
-  "-C", "link-arg=-Wl,-rpath,@loader_path/../Frameworks",
-  "-C", "link-arg=-Wl,-rpath,bin/OBS.app/Contents/Frameworks"
+  "-C", "link-arg=-Wl,-rpath,@executable_path",
+  "-C", "link-arg=-Wl,-rpath,@loader_path",
+  "-C", "link-arg=-Wl,-rpath,@executable_path/..",
+  "-C", "link-arg=-Wl,-rpath,@loader_path/..",
 ]
+

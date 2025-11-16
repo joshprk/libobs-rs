@@ -6,7 +6,6 @@ repository = "https://github.com/joshprk/libobs-rs"
 documentation = "https://joshprk.github.io/libobs-rs/libobs_wrapper/"
 readme = "README.md"
 authors = ["sshcrack"]
-build = "build.rs"
 categories = [
     "multimedia::video",
     "multimedia::audio",

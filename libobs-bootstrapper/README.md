@@ -8,7 +8,7 @@ A utility crate for automatically downloading and installing OBS (Open Broadcast
 ## Features
 
 - **Automatic OBS Download**: Downloads appropriate OBS binaries at runtime
-- **Cross-Platform**: Supports Windows (7z), macOS (DMG), and Linux (DEB)
+- **Cross-Platform**: Supports Windows (7z), macOS (DMG)
 - **Progress Tracking**: Built-in progress reporting for downloads and extraction
 - **Version Management**: Handles OBS version checking and updates
 - **Custom Status Handlers**: Flexible progress reporting via custom handlers
@@ -120,7 +120,6 @@ impl ObsBootstrapStatusHandler for CustomProgressHandler {
 - **macOS**: Downloads official OBS DMG files and extracts frameworks, plugins, and data
   - Automatic code signature handling (DMG files come pre-signed by OBS)
   - Extracts to executable's directory for development use
-- **Linux**: Downloads and extracts DEB packages
 
 ### Advanced Options
 
