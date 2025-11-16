@@ -8,7 +8,7 @@ use libobs_sources::windows::{
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
 use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
-use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
+use libobs_wrapper::display::{MiscDisplayTrait, ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
@@ -106,7 +106,13 @@ impl ApplicationHandler for App {
                 if let Some(display) = self.display.write().unwrap().clone() {
                     let _ = display.set_size(display_width, display_height);
                 }
-            }
+            },
+            WindowEvent::Moved(_) => {
+                if let Some(display) = self.display.write().unwrap().clone() {
+                    let _ = display.update_color_space();
+                }
+            },
+            //TODO If the display settings change, call update_color_space as well
             WindowEvent::MouseInput { state, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;

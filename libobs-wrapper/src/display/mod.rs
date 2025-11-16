@@ -16,6 +16,8 @@ use std::{
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
+use libobs::obs_render_main_texture_src_color_only;
+
 use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
@@ -69,7 +71,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     libobs::gs_set_viewport(0, 0, width as i32, height as i32);
     //draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
-    libobs::obs_render_main_texture();
+    obs_render_main_texture_src_color_only();
 
     libobs::gs_projection_pop();
     libobs::gs_viewport_pop();
@@ -158,6 +160,14 @@ impl ObsDisplayRef {
             libobs::obs_display_add_draw_callback(display_ptr, Some(render_display), instance_ptr);
         })?;
 
+        // Set the display pointer in the window's user data for message handling
+        {
+            let manager = instance.manager.read()
+                .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
+            manager.set_display_userdata(display_ptr.0);
+        }
+
+        instance.update_color_space()?;
         Ok(instance)
     }
 
