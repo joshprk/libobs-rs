@@ -871,8 +871,10 @@ name = "download-at-runtime"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "env_logger",
  "indicatif 0.17.11",
  "libobs-bootstrapper",
+ "libobs-sources",
  "libobs-wrapper",
  "tokio",
 ]
