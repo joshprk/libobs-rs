@@ -47,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
             println!("OBS is already installed and up to date!");
         }
         ObsBootstrapperResult::Restart => {
+            // This only happens on Windows - macOS moves files immediately
             println!("OBS has been updated. Restarting application...");
             ObsBootstrapper::spawn_updater(options).await?;
             std::process::exit(0);
@@ -110,16 +111,19 @@ impl ObsBootstrapStatusHandler for CustomProgressHandler {
 
 2. Call `ObsBootstrapper::bootstrap()` at application startup
 
-3. If `ObsBootstrapperResult::Restart` is returned:
-   - Exit the application
-   - The updater will restart your application automatically
+3. Handle the result based on platform:
+   - **Windows**: If `ObsBootstrapperResult::Restart` is returned, exit the application and the updater will restart it automatically
+   - **macOS**: Bootstrap completes immediately, no restart needed (`ObsBootstrapperResult::None` is returned after successful installation)
 
 ### Platform-Specific Notes
 
 - **Windows**: Downloads and extracts 7z archives from custom builds
+  - Requires application restart to complete installation
+  - An updater script moves files from `obs_new/` to the executable directory after restart
 - **macOS**: Downloads official OBS DMG files and extracts frameworks, plugins, and data
+  - **No restart required** - files are moved immediately after extraction
   - Automatic code signature handling (DMG files come pre-signed by OBS)
-  - Extracts to executable's directory for development use
+  - Dylibs can be replaced while the application is running
 
 ### Advanced Options
 

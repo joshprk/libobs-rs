@@ -46,6 +46,9 @@ pub enum BootstrapStatus {
     /// Therefore, the "updater" is spawned to watch for the application to exit and rename the "obs_new.dll" file to "obs.dll".
     /// The updater will start the application again with the same arguments as the original application.
     RestartRequired,
+    /// Bootstrap completed successfully without requiring a restart.
+    /// This is used on macOS where files can be moved immediately.
+    Done,
 }
 
 /// A struct for bootstrapping OBS Studio.
@@ -167,13 +170,28 @@ pub(crate) fn bootstrap(
             }
         }
 
-        let r = spawn_updater(options).await;
-        if let Err(err) = r {
-            yield BootstrapStatus::Error(err);
-            return;
+        // Platform-specific post-extraction handling
+        #[cfg(target_os = "macos")]
+        {
+            // On macOS, we can move files immediately since dylibs can be replaced while running
+            let r = move_obs_files_macos().await;
+            if let Err(err) = r {
+                yield BootstrapStatus::Error(err);
+                return;
+            }
+            yield BootstrapStatus::Done;
         }
 
-        yield BootstrapStatus::RestartRequired;
+        #[cfg(not(target_os = "macos"))]
+        {
+            // On Windows, we need to spawn an updater and restart
+            let r = spawn_updater(options).await;
+            if let Err(err) = r {
+                yield BootstrapStatus::Error(err);
+                return;
+            }
+            yield BootstrapStatus::RestartRequired;
+        }
     }))
 }
 
@@ -221,6 +239,68 @@ pub(crate) async fn spawn_updater(options: ObsBootstrapperOptions) -> anyhow::Re
     }
 
     command.spawn().context("Spawning updater process")?;
+
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+async fn move_obs_files_macos() -> anyhow::Result<()> {
+    use tokio::fs;
+
+    let exe_path = env::current_exe().context("Failed to get exe path")?;
+    let exe_dir = exe_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get exe directory"))?;
+
+    let obs_new_dir = exe_dir.join("obs_new");
+
+    if !obs_new_dir.exists() {
+        log::warn!("obs_new directory not found at {:?}", obs_new_dir);
+        return Ok(());
+    }
+
+    log::info!("Moving OBS files from {:?} to {:?}", obs_new_dir, exe_dir);
+
+    // Read all entries in obs_new
+    let mut entries = fs::read_dir(&obs_new_dir)
+        .await
+        .context("Failed to read obs_new directory")?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .context("Failed to read directory entry")?
+    {
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        let dest_path = exe_dir.join(&file_name);
+
+        // Remove destination if it exists
+        if dest_path.exists() {
+            if dest_path.is_dir() {
+                fs::remove_dir_all(&dest_path)
+                    .await
+                    .with_context(|| format!("Failed to remove old directory {:?}", dest_path))?;
+            } else {
+                fs::remove_file(&dest_path)
+                    .await
+                    .with_context(|| format!("Failed to remove old file {:?}", dest_path))?;
+            }
+        }
+
+        // Move the file/directory
+        log::debug!("  Moving {:?} to {:?}", file_name, dest_path);
+        fs::rename(&src_path, &dest_path)
+            .await
+            .with_context(|| format!("Failed to move {:?}", file_name))?;
+    }
+
+    // Remove the now-empty obs_new directory
+    fs::remove_dir(&obs_new_dir)
+        .await
+        .context("Failed to remove obs_new directory")?;
+
+    log::info!("✓ OBS files moved successfully");
 
     Ok(())
 }
@@ -373,6 +453,9 @@ impl ObsBootstrapper {
                     }
                     BootstrapStatus::RestartRequired => {
                         return Ok(ObsBootstrapperResult::Restart);
+                    }
+                    BootstrapStatus::Done => {
+                        return Ok(ObsBootstrapperResult::None);
                     }
                 }
             }
