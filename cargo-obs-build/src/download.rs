@@ -29,18 +29,21 @@ use crate::git::ReleaseInfo;
 const DEFAULT_REQ_TIMEOUT: u64 = 60 * 60;
 
 pub fn download_binaries(build_dir: &Path, info: &ReleaseInfo) -> anyhow::Result<PathBuf> {
-    let architecture = if cfg!(target_arch = "x86_64") {
+    // Determine platform-specific search criteria based on TARGET platform
+    // Priority: OBS_BUILD_TARGET > CARGO_CFG_TARGET_OS > host platform
+    let target_os = std::env::var("OBS_BUILD_TARGET_OS")
+        .or_else(|_| std::env::var("CARGO_CFG_TARGET_OS"))
+        .unwrap_or_else(|_| std::env::consts::OS.to_string());
+    let target_arch = std::env::var("OBS_BUILD_TARGET_ARCH")
+        .or_else(|_| std::env::var("CARGO_CFG_TARGET_ARCH"))
+        .unwrap_or_else(|_| std::env::consts::ARCH.to_string());
+    
+    // Map Rust architecture names to OBS naming
+    let architecture = if target_arch == "x86_64" {
         "x64"
     } else {
         "arm64"
     };
-    
-    // Determine platform-specific search criteria based on TARGET platform
-    // Use environment variables to support cross-compilation
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS")
-        .unwrap_or_else(|_| std::env::consts::OS.to_string());
-    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH")
-        .unwrap_or_else(|_| std::env::consts::ARCH.to_string());
     
     let (platform_name, file_extension, output_filename, arch_name) = if target_os == "macos" {
         let arch = if target_arch == "x86_64" {
