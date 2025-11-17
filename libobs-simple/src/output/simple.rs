@@ -1,0 +1,559 @@
+//! Simple output builder for OBS streaming and recording.
+//!
+//! This module provides a simplified interface for configuring OBS outputs
+//! based on the SimpleOutput implementation from OBS Studio.
+//!
+//! # Example
+//!
+//! ```no_run
+//! use libobs_wrapper::context::ObsContext;
+//! use libobs_wrapper::utils::StartupInfo;
+//! use libobs_simple::output::simple::{SimpleOutputBuilder, X264Preset};
+//!
+//! let context = ObsContext::new(StartupInfo::default()).unwrap();
+//! let output = SimpleOutputBuilder::new(context)
+//!     .video_bitrate(6000)
+//!     .audio_bitrate(160)
+//!     .recording_path("./recording.mp4")
+//!     .build()
+//!     .unwrap();
+//! ```
+
+use libobs_wrapper::{
+    context::ObsContext,
+    data::{output::ObsOutputRef, ObsData},
+    encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType},
+    utils::{AudioEncoderInfo, ObsError, OutputInfo, VideoEncoderInfo},
+};
+use std::path::PathBuf;
+
+/// Preset for x264 software encoder
+#[derive(Debug, Clone, Copy)]
+pub enum X264Preset {
+    /// Ultrafast preset - lowest CPU usage, largest file size
+    UltraFast,
+    /// Superfast preset
+    SuperFast,
+    /// Veryfast preset (recommended default)
+    VeryFast,
+    /// Faster preset
+    Faster,
+    /// Fast preset - higher CPU usage, better quality
+    Fast,
+    /// Medium preset
+    Medium,
+    /// Slow preset
+    Slow,
+    /// Slower preset
+    Slower,
+}
+
+impl X264Preset {
+    fn as_str(&self) -> &'static str {
+        match self {
+            X264Preset::UltraFast => "ultrafast",
+            X264Preset::SuperFast => "superfast",
+            X264Preset::VeryFast => "veryfast",
+            X264Preset::Faster => "faster",
+            X264Preset::Fast => "fast",
+            X264Preset::Medium => "medium",
+            X264Preset::Slow => "slow",
+            X264Preset::Slower => "slower",
+        }
+    }
+}
+
+/// Preset for hardware encoders (NVENC, AMD, QSV)
+#[derive(Debug, Clone, Copy)]
+pub enum HardwarePreset {
+    /// Prioritize encoding speed over quality
+    Speed,
+    /// Balance between speed and quality
+    Balanced,
+    /// Prioritize quality over speed
+    Quality,
+}
+
+impl HardwarePreset {
+    fn as_str(&self) -> &'static str {
+        match self {
+            HardwarePreset::Speed => "speed",
+            HardwarePreset::Balanced => "balanced",
+            HardwarePreset::Quality => "quality",
+        }
+    }
+}
+
+/// Video encoder configuration for streaming
+#[derive(Debug, Clone)]
+pub enum StreamingVideoEncoder {
+    /// x264 software encoder
+    X264(X264Preset),
+    /// Hardware encoder (NVENC/AMF/QSV), codec chosen generically at runtime
+    Hardware { codec: HardwareCodec, preset: HardwarePreset },
+    /// Custom encoder by type
+    Custom(ObsVideoEncoderType),
+}
+
+/// Target codec for generic hardware selection
+#[derive(Debug, Clone, Copy)]
+pub enum HardwareCodec {
+    H264,
+    HEVC,
+    AV1,
+}
+
+/// Audio encoder configuration for streaming
+#[derive(Debug, Clone)]
+pub enum StreamingAudioEncoder {
+    /// AAC audio encoder (ffmpeg)
+    AAC,
+    /// Opus audio encoder
+    Opus,
+    /// Custom audio encoder by type
+    Custom(ObsAudioEncoderType),
+}
+
+/// Settings for streaming output
+pub struct StreamingOutputSettings {
+    video_bitrate: u32,
+    audio_bitrate: u32,
+    video_encoder: StreamingVideoEncoder,
+    custom_encoder_settings: Option<String>,
+    audio_encoder: StreamingAudioEncoder,
+}
+
+impl Default for StreamingOutputSettings {
+    fn default() -> Self {
+        StreamingOutputSettings {
+            video_bitrate: 6000,
+            audio_bitrate: 160,
+            video_encoder: StreamingVideoEncoder::X264(X264Preset::VeryFast),
+            audio_encoder: StreamingAudioEncoder::AAC,
+            custom_encoder_settings: None,
+        }
+    }
+}
+
+impl StreamingOutputSettings {
+    /// Creates a new StreamingOutputSettings with the given video bitrate.
+    ///
+    /// # Arguments
+    /// * `video_bitrate` - Video bitrate in Kbps (e.g., 6000 for 6 Mbps)
+    pub fn new(video_bitrate: u32) -> Self {
+        Self {
+            video_bitrate,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the video bitrate in Kbps.
+    pub fn with_video_bitrate(mut self, bitrate: u32) -> Self {
+        self.video_bitrate = bitrate;
+        self
+    }
+
+    /// Sets the audio bitrate in Kbps.
+    pub fn with_audio_bitrate(mut self, bitrate: u32) -> Self {
+        self.audio_bitrate = bitrate;
+        self
+    }
+
+    /// Sets the video encoder to use x264 software encoding.
+    pub fn with_x264_encoder(mut self, preset: X264Preset) -> Self {
+        self.video_encoder = StreamingVideoEncoder::X264(preset);
+        self
+    }
+
+    /// Sets the video encoder to use a generic hardware encoder for the given codec.
+    /// The builder will choose an available backend (NVENC/AMF/QSV) at runtime.
+    pub fn with_hardware_encoder(mut self, codec: HardwareCodec, preset: HardwarePreset) -> Self {
+        self.video_encoder = StreamingVideoEncoder::Hardware { codec, preset };
+        self
+    }
+
+    /// Sets a custom video encoder.
+    pub fn with_custom_video_encoder(mut self, encoder: ObsVideoEncoderType) -> Self {
+        self.video_encoder = StreamingVideoEncoder::Custom(encoder);
+        self
+    }
+
+    /// Sets custom x264 encoder settings.
+    pub fn with_custom_settings<S: Into<String>>(mut self, settings: S) -> Self {
+        self.custom_encoder_settings = Some(settings.into());
+        self
+    }
+}
+
+pub enum RecordingVideoEncoder {
+    /// x264
+    Software,
+    /// x264, lower CPU usage, increases file size
+    SoftwareLowerCPU,
+    HardwareHEVC,
+    HardwareH264,
+}
+
+pub enum RecordingAudioEncoderType {
+    AAC,
+    Opus,
+}
+
+pub struct RecordingAudioEncoder {
+    encoder_type: RecordingAudioEncoderType,
+    /// Set true for enabled audio track
+    tracks: &'static [bool; 6],
+}
+
+impl RecordingAudioEncoder {
+    pub fn new(encoder_type: RecordingAudioEncoderType, tracks: &'static [bool; 6]) -> Self {
+        Self {
+            encoder_type,
+            tracks,
+        }
+    }
+}
+
+pub enum RecordingFormats {
+    /// .flv
+    FlashVideo,
+    /// .mkv
+    MatroskaVideo,
+    /// .mp4
+    Mpeg4,
+    /// .mov
+    QuickTime,
+    /// .mp4
+    HybridMP4,
+    /// .mov
+    HybridMov,
+    /// .mp4
+    FragmentedMP4,
+    /// .mov
+    FragmentedMOV,
+    /// MPEG-TS .ts
+    MpegTs,
+}
+
+pub enum RecordingQuality {
+    /// High Quality, Medium File Size
+    High(RecordingVideoEncoder, RecordingAudioEncoder),
+    /// Indistinguishable Quality, Large File Size
+    Indistinguishable(RecordingVideoEncoder, RecordingAudioEncoder),
+    /// Lossless Quality, **TREMENDOUSLY** Large File Size
+    Lossless(RecordingVideoEncoder, RecordingAudioEncoder),
+
+    SameAsStream,
+}
+
+pub struct RecordingOutputSettings {
+    path: Option<PathBuf>,
+    generate_file_name_without_spaces: bool,
+    /// If None, uses same quality as set for streaming
+    recording_quality: RecordingQuality,
+    recording_format: RecordingFormats,
+    custom_muxer_settings: Option<String>,
+}
+
+impl Default for RecordingOutputSettings {
+    fn default() -> Self {
+        Self {
+            path: None,
+            generate_file_name_without_spaces: false,
+            recording_quality: RecordingQuality::SameAsStream,
+            recording_format: RecordingFormats::HybridMP4,
+            custom_muxer_settings: None,
+        }
+    }
+}
+
+impl RecordingOutputSettings {
+    /// Creates a new RecordingOutputSettings with the specified path.
+    ///
+    /// # Arguments
+    /// * `path` - The path where recordings will be saved
+    pub fn new<P: Into<PathBuf>>(path: P) -> Self {
+        Self {
+            path: Some(path.into()),
+            ..Default::default()
+        }
+    }
+
+    /// Sets the recording path.
+    pub fn with_path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.path = Some(path.into());
+        self
+    }
+
+    /// Sets the recording format.
+    pub fn with_format(mut self, format: RecordingFormats) -> Self {
+        self.recording_format = format;
+        self
+    }
+
+    /// Sets whether to generate file names without spaces.
+    pub fn with_no_spaces(mut self, no_spaces: bool) -> Self {
+        self.generate_file_name_without_spaces = no_spaces;
+        self
+    }
+
+    /// Sets custom muxer settings.
+    pub fn with_custom_muxer_settings<S: Into<String>>(mut self, settings: S) -> Self {
+        self.custom_muxer_settings = Some(settings.into());
+        self
+    }
+
+    /// Sets the recording quality.
+    pub fn with_quality(mut self, quality: RecordingQuality) -> Self {
+        self.recording_quality = quality;
+        self
+    }
+}
+
+pub struct SimpleOutputBuilder {
+    recording: RecordingOutputSettings,
+    streaming: StreamingOutputSettings,
+    context: ObsContext,
+}
+
+pub trait ObsContextSimpleExt {
+    fn simple_output_builder(&self) -> SimpleOutputBuilder;
+}
+
+impl ObsContextSimpleExt for ObsContext {
+    fn simple_output_builder(&self) -> SimpleOutputBuilder {
+        SimpleOutputBuilder::new(self.clone())
+    }
+}
+
+impl SimpleOutputBuilder {
+    /// Creates a new SimpleOutputBuilder with default settings.
+    ///
+    /// # Arguments
+    /// * `context` - The OBS context to use for creating outputs and encoders
+    ///
+    /// # Example
+    /// ```no_run
+    /// use libobs_wrapper::context::ObsContext;
+    /// use libobs_wrapper::utils::StartupInfo;
+    /// use libobs_simple::output::simple::SimpleOutputBuilder;
+    ///
+    /// let context = ObsContext::new(StartupInfo::default()).unwrap();
+    /// let builder = SimpleOutputBuilder::new(context);
+    /// ```
+    pub fn new(context: ObsContext) -> Self {
+        SimpleOutputBuilder {
+            streaming: StreamingOutputSettings::default(),
+            recording: RecordingOutputSettings::default(),
+            context,
+        }
+    }
+
+    /// Sets the streaming output settings.
+    ///
+    /// # Arguments
+    /// * `settings` - The streaming output settings to use
+    pub fn streaming(mut self, settings: StreamingOutputSettings) -> Self {
+        self.streaming = settings;
+        self
+    }
+
+    /// Sets the recording output settings.
+    ///
+    /// # Arguments
+    /// * `settings` - The recording output settings to use
+    pub fn recording(mut self, settings: RecordingOutputSettings) -> Self {
+        self.recording = settings;
+        self
+    }
+
+    /// Sets the video bitrate for streaming in Kbps.
+    ///
+    /// # Arguments
+    /// * `bitrate` - The video bitrate in Kbps (e.g., 6000 for 6 Mbps)
+    pub fn video_bitrate(mut self, bitrate: u32) -> Self {
+        self.streaming.video_bitrate = bitrate;
+        self
+    }
+
+    /// Sets the audio bitrate for streaming in Kbps.
+    ///
+    /// # Arguments
+    /// * `bitrate` - The audio bitrate in Kbps (e.g., 160 for 160 Kbps)
+    pub fn audio_bitrate(mut self, bitrate: u32) -> Self {
+        self.streaming.audio_bitrate = bitrate;
+        self
+    }
+
+    /// Sets the recording path.
+    ///
+    /// # Arguments
+    /// * `path` - The path where recordings should be saved
+    pub fn recording_path<P: Into<PathBuf>>(mut self, path: P) -> Self {
+        self.recording.path = Some(path.into());
+        self
+    }
+
+    /// Builds and returns the configured output.
+    ///
+    /// This creates the output with the configured video and audio encoders.
+    ///
+    /// # Returns
+    /// A Result containing the configured ObsOutputRef or an error
+    ///
+    /// # Errors
+    /// Returns an error if:
+    /// - The output cannot be created
+    /// - The video encoder cannot be created or configured
+    /// - The audio encoder cannot be created or configured
+    pub fn build(mut self) -> Result<ObsOutputRef, ObsError> {
+        // Determine the output type based on recording format
+        let output_id = match self.recording.recording_format {
+            RecordingFormats::HybridMP4 => "mp4_output",
+            RecordingFormats::HybridMov => "mov_output",
+            _ => "ffmpeg_muxer",
+        };
+
+        // Create output settings
+        let mut output_settings = self.context.data()?;
+        
+        if let Some(path) = &self.recording.path {
+            output_settings.set_string("path", path.to_string_lossy().to_string())?;
+        }
+
+        if let Some(ref muxer_settings) = self.recording.custom_muxer_settings {
+            output_settings.set_string("muxer_settings", muxer_settings.as_str())?;
+        }
+
+        // Create the output
+        let output_info = OutputInfo::new(
+            output_id,
+            "simple_file_output",
+            Some(output_settings),
+            None,
+        );
+        let mut output = self.context.output(output_info)?;
+
+        // Create and configure streaming video encoder (with hardware fallback)
+        let video_encoder_type = self.select_video_encoder_type(&self.streaming.video_encoder)?;
+        let mut video_settings = self.context.data()?;
+        
+        // Set video encoder settings based on encoder type
+        self.configure_streaming_video_encoder(&mut video_settings, &self.streaming)?;
+
+        let video_encoder_info = VideoEncoderInfo::new(
+            video_encoder_type,
+            "simple_video_stream",
+            Some(video_settings),
+            None,
+        );
+        output.create_and_set_video_encoder(video_encoder_info)?;
+
+        // Create and configure streaming audio encoder
+        let audio_encoder_type = match &self.streaming.audio_encoder {
+            StreamingAudioEncoder::AAC => ObsAudioEncoderType::FFMPEG_AAC,
+            StreamingAudioEncoder::Opus => ObsAudioEncoderType::FFMPEG_OPUS,
+            StreamingAudioEncoder::Custom(encoder_type) => encoder_type.clone(),
+        };
+
+        let mut audio_settings = self.context.data()?;
+        audio_settings.set_string("rate_control", "CBR")?;
+        audio_settings.set_int("bitrate", self.streaming.audio_bitrate as i64)?;
+
+        let audio_encoder_info = AudioEncoderInfo::new(
+            audio_encoder_type,
+            "simple_aac",
+            Some(audio_settings),
+            None,
+        );
+        output.create_and_set_audio_encoder(audio_encoder_info, 0)?;
+
+        Ok(output)
+    }
+
+    fn select_video_encoder_type(
+        &self,
+        encoder: &StreamingVideoEncoder,
+    ) -> Result<ObsVideoEncoderType, ObsError> {
+        match encoder {
+            StreamingVideoEncoder::X264(_) => Ok(ObsVideoEncoderType::OBS_X264),
+            StreamingVideoEncoder::Custom(t) => Ok(t.clone()),
+            StreamingVideoEncoder::Hardware { codec, .. } => {
+                // Build preferred candidates for the requested codec
+                let candidates = self.hardware_candidates(*codec);
+                // Query available encoders
+                let available = self
+                    .context
+                    .available_video_encoders()?
+                    .into_iter()
+                    .map(|b| b.get_encoder_id().clone())
+                    .collect::<Vec<_>>();
+                // Pick first preferred candidate that is available
+                for cand in candidates {
+                    if available.iter().any(|a| a == &cand) {
+                        return Ok(cand);
+                    }
+                }
+                // Fallback to x264 if no hardware encoder is available
+                Ok(ObsVideoEncoderType::OBS_X264)
+            }
+        }
+    }
+
+    fn hardware_candidates(&self, codec: HardwareCodec) -> Vec<ObsVideoEncoderType> {
+        match codec {
+            HardwareCodec::H264 => vec![
+                ObsVideoEncoderType::OBS_NVENC_H264_TEX,
+                ObsVideoEncoderType::H264_TEXTURE_AMF,
+                ObsVideoEncoderType::OBS_QSV11_V2,
+                // software fallbacks for vendor SDKs
+                ObsVideoEncoderType::OBS_NVENC_H264_SOFT,
+                ObsVideoEncoderType::OBS_QSV11_SOFT_V2,
+            ],
+            HardwareCodec::HEVC => vec![
+                ObsVideoEncoderType::OBS_NVENC_HEVC_TEX,
+                ObsVideoEncoderType::H265_TEXTURE_AMF,
+                ObsVideoEncoderType::OBS_QSV11_HEVC,
+                ObsVideoEncoderType::OBS_NVENC_HEVC_SOFT,
+                ObsVideoEncoderType::OBS_QSV11_HEVC_SOFT,
+            ],
+            HardwareCodec::AV1 => vec![
+                ObsVideoEncoderType::OBS_NVENC_AV1_TEX,
+                ObsVideoEncoderType::AV1_TEXTURE_AMF,
+                ObsVideoEncoderType::OBS_QSV11_AV1,
+                ObsVideoEncoderType::OBS_NVENC_AV1_SOFT,
+                ObsVideoEncoderType::OBS_QSV11_AV1_SOFT,
+            ],
+        }
+    }
+
+    fn get_encoder_preset(&self, encoder: &StreamingVideoEncoder) -> Option<&str> {
+        match encoder {
+            StreamingVideoEncoder::X264(preset) => Some(preset.as_str()),
+            StreamingVideoEncoder::Hardware { preset, .. } => Some(preset.as_str()),
+            StreamingVideoEncoder::Custom(_) => None,
+        }
+    }
+
+    fn configure_streaming_video_encoder(
+        &self,
+        settings: &mut ObsData,
+        streaming_settings: &StreamingOutputSettings,
+    ) -> Result<(), ObsError> {
+        // Set rate control to CBR
+        settings.set_string("rate_control", "CBR")?;
+        settings.set_int("bitrate", streaming_settings.video_bitrate as i64)?;
+
+        // Set preset if available
+        if let Some(preset) = self.get_encoder_preset(&streaming_settings.video_encoder) {
+            settings.set_string("preset", preset)?;
+        }
+
+        // Apply custom encoder settings if provided (mainly for x264)
+        if let Some(ref custom) = streaming_settings.custom_encoder_settings {
+            settings.set_string("x264opts", custom.as_str())?;
+        }
+
+        Ok(())
+    }
+}
