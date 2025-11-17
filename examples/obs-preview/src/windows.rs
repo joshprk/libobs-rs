@@ -214,6 +214,7 @@ pub fn main() -> anyhow::Result<()> {
         .set_monitor(
             &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
         )
+        .set_force_sdr(true)
         .add_to_scene(&mut scene)?;
     scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
     scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
