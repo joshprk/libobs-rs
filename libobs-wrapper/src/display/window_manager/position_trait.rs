@@ -7,7 +7,7 @@ use windows::Win32::{
     },
 };
 
-use crate::utils::ObsError;
+use crate::{display::MiscDisplayTrait, utils::ObsError};
 use crate::{display::ObsDisplayRef, run_with_obs};
 
 pub trait WindowPositionTrait {
@@ -71,6 +71,10 @@ impl WindowPositionTrait for ObsDisplayRef {
                 .map_err(|e| ObsError::DisplayCreationError(format!("{:?}", e)))?;
         }
 
+        // Update color space when window position changes
+        drop(m); // Release the lock before calling run_with_obs
+
+        self.update_color_space()?;
         Ok(())
     }
 
@@ -122,6 +126,8 @@ impl WindowPositionTrait for ObsDisplayRef {
 
         run_with_obs!(self.runtime, (pointer), move || unsafe {
             libobs::obs_display_resize(pointer, width, height);
+            // Update color space when window size changes
+            libobs::obs_display_update_color_space(pointer);
         })
         .map_err(|e| ObsError::InvocationError(format!("{:?}", e)))?;
         Ok(())

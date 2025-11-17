@@ -8,7 +8,9 @@ use libobs_sources::windows::{
 use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
 use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
-use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
+use libobs_wrapper::display::{
+    MiscDisplayTrait, ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait,
+};
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
@@ -107,6 +109,12 @@ impl ApplicationHandler for App {
                     let _ = display.set_size(display_width, display_height);
                 }
             }
+            WindowEvent::Moved(_) => {
+                if let Some(display) = self.display.write().unwrap().clone() {
+                    let _ = display.update_color_space();
+                }
+            }
+            //TODO If the display settings change, call update_color_space as well
             WindowEvent::MouseInput { state, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;
@@ -172,7 +180,7 @@ pub fn main() -> anyhow::Result<()> {
     let mut encoder = encoders
         .into_iter()
         .find(|e| {
-                e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
+            e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
                 || e.get_encoder_id() == &ObsVideoEncoderType::AV1_TEXTURE_AMF
                 || e.get_encoder_id() == &ObsVideoEncoderType::OBS_X264
         })
@@ -199,7 +207,7 @@ pub fn main() -> anyhow::Result<()> {
     let mut scene = context.scene("Main Scene")?;
 
     let btd = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
-    let btd = btd
+    let apex = btd
         .iter()
         .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Apex"));
 
@@ -212,21 +220,21 @@ pub fn main() -> anyhow::Result<()> {
     scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
     scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
 
-    let mut _btd_source = None;
-    if let Some(btd) = btd {
+    let mut _apex_source = None;
+    if let Some(apex) = apex {
         println!(
             "Is used by other instance: {}",
-            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
+            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(apex.pid)?
         );
         let source = context
             .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
             .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
-            .set_window(btd)
+            .set_window(apex)
             .add_to_scene(&mut scene)?;
 
         scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
         scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
-        _btd_source = Some(source);
+        _apex_source = Some(source);
     } else {
         println!("No Apex window found for game capture");
     }
