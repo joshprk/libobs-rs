@@ -11,20 +11,19 @@ use crate::{
     utils::ObsString,
 };
 
-
 #[derive(Clone, Debug)]
 pub struct ObsSdrVideoInfo {
     /// The white level in nits
     pub sdr_white_level: f32,
     /// The nominal peak level in nits
-    pub hdr_nominal_peak_level: f32
+    pub hdr_nominal_peak_level: f32,
 }
 
 impl Default for ObsSdrVideoInfo {
     fn default() -> Self {
         Self {
             sdr_white_level: 300.0,
-            hdr_nominal_peak_level: 1000.0
+            hdr_nominal_peak_level: 1000.0,
         }
     }
 }
@@ -75,7 +74,7 @@ impl ObsVideoInfo {
     pub fn new_with_sdr_info(
         ovi: obs_video_info,
         graphics_module: ObsString,
-        sdr_info: ObsSdrVideoInfo
+        sdr_info: ObsSdrVideoInfo,
     ) -> Self {
         Self {
             ovi: Sendable(Box::pin(ovi)),
@@ -149,7 +148,7 @@ pub struct ObsVideoInfoBuilder {
     colorspace: ObsColorspace,
     range: ObsVideoRange,
     scale_type: ObsScaleType,
-    sdr_info: ObsSdrVideoInfo
+    sdr_info: ObsSdrVideoInfo,
 }
 
 impl ObsVideoInfoBuilder {
@@ -191,7 +190,7 @@ impl ObsVideoInfoBuilder {
             colorspace: ObsColorspace::CS709,
             range: ObsVideoRange::Default,
             scale_type: ObsScaleType::Lanczos,
-            sdr_info: ObsSdrVideoInfo::default()
+            sdr_info: ObsSdrVideoInfo::default(),
         }
     }
 
@@ -222,7 +221,7 @@ impl ObsVideoInfoBuilder {
         ObsVideoInfo {
             ovi: Sendable(Box::pin(ovi)),
             graphics_module: graphics_mod_str,
-            sdr_info: self.sdr_info
+            sdr_info: self.sdr_info,
         }
     }
 

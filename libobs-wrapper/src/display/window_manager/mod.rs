@@ -19,11 +19,11 @@ use windows::{
         UI::WindowsAndMessaging::{
             CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, GetWindowLongPtrW,
             LoadCursorW, PostMessageW, PostQuitMessage, RegisterClassExW,
-            SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW,
-            TranslateMessage, CS_HREDRAW, CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWLP_USERDATA,
-            GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW, LWA_ALPHA, MSG, WM_DISPLAYCHANGE,
-            WM_MOVE, WM_NCHITTEST, WM_WINDOWPOSCHANGED, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED,
-            WS_EX_LAYERED, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
+            SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW,
+            CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWLP_USERDATA, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT,
+            IDC_ARROW, LWA_ALPHA, MSG, WM_DISPLAYCHANGE, WM_MOVE, WM_NCHITTEST,
+            WM_WINDOWPOSCHANGED, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
+            WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
         },
     },
 };

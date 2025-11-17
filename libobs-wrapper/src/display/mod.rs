@@ -162,7 +162,9 @@ impl ObsDisplayRef {
 
         // Set the display pointer in the window's user data for message handling
         {
-            let manager = instance.manager.read()
+            let manager = instance
+                .manager
+                .read()
                 .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
             manager.set_display_userdata(display_ptr.0);
         }
