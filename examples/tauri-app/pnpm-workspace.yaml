@@ -1,3 +1,0 @@
-onlyBuiltDependencies:
-  - '@heroui/shared-utils'
-  - esbuild

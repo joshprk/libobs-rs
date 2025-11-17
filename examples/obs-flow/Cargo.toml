@@ -7,4 +7,4 @@ edition = "2024"
 anyhow = "1.0.86"
 env_logger = "0.11.5"
 libobs-wrapper = { workspace = true }
-libobs-sources = { path = "../../libobs-sources" }
+libobs-simple = { path = "../../libobs-simple" }

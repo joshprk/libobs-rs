@@ -96,7 +96,7 @@ try {
 
     $libobsVersion = Update-CrateVersion -CratePath (Join-Path $rootDir "libobs") -CrateName "libobs"
     $libobsWrapperVersion = Update-CrateVersion -CratePath (Join-Path $rootDir "libobs-wrapper") -CrateName "libobs-wrapper"
-    $libobsSourcesVersion = Update-CrateVersion -CratePath (Join-Path $rootDir "libobs-sources") -CrateName "libobs-sources"
+    $libobsSourcesVersion = Update-CrateVersion -CratePath (Join-Path $rootDir "libobs-simple") -CrateName "libobs-simple"
 
     # Update workspace Cargo.toml
     Write-Host "`nUpdating workspace Cargo.toml..."
@@ -106,7 +106,7 @@ try {
     # Update each dependency version in workspace (matches format: version = "x.y.z")
     $workspaceContent = $workspaceContent -replace '(?m)(^libobs\s*=\s*\{[^\}]*version\s*=\s*")[^"]+(")', "`${1}$libobsVersion`$2"
     $workspaceContent = $workspaceContent -replace '(?m)(^libobs-wrapper\s*=\s*\{[^\}]*version\s*=\s*")[^"]+(")', "`${1}$libobsWrapperVersion`$2"
-    $workspaceContent = $workspaceContent -replace '(?m)(^libobs-sources\s*=\s*\{[^\}]*version\s*=\s*")[^"]+(")', "`${1}$libobsSourcesVersion`$2"
+    $workspaceContent = $workspaceContent -replace '(?m)(^libobs-simple\s*=\s*\{[^\}]*version\s*=\s*")[^"]+(")', "`${1}$libobsSourcesVersion`$2"
 
     Set-Content -Path $workspaceCargoToml -Value $workspaceContent -NoNewline
     Write-Host "Updated workspace Cargo.toml"
@@ -116,7 +116,7 @@ try {
     Write-Host "Version Update Summary:"
     Write-Host "  libobs:         $libobsVersion"
     Write-Host "  libobs-wrapper: $libobsWrapperVersion"
-    Write-Host "  libobs-sources: $libobsSourcesVersion"
+    Write-Host "  libobs-simple: $libobsSourcesVersion"
     Write-Host "========================================="
 
     # Step 5: Commit changes
@@ -128,7 +128,7 @@ try {
         throw "Failed to stage changes"
     }
 
-    $commitMessage = "chore: bump versions to libobs $libobsVersion, libobs-wrapper $libobsWrapperVersion, libobs-sources $libobsSourcesVersion"
+    $commitMessage = "chore: bump versions to libobs $libobsVersion, libobs-wrapper $libobsWrapperVersion, libobs-simple $libobsSourcesVersion"
     git commit -m $commitMessage
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to commit changes"
@@ -162,11 +162,11 @@ try {
         throw "Failed to publish libobs-wrapper"
     }
 
-    Write-Host "`nPublishing libobs-sources..."
-    Set-Location (Join-Path $rootDir "libobs-sources")
+    Write-Host "`nPublishing libobs-simple..."
+    Set-Location (Join-Path $rootDir "libobs-simple")
     cargo publish
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to publish libobs-sources"
+        throw "Failed to publish libobs-simple"
     }
 
     Write-Host "`n========================================="

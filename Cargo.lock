@@ -1802,16 +1802,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "libobs-source-macro"
-version = "5.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.109",
-]
-
-[[package]]
-name = "libobs-sources"
+name = "libobs-simple"
 version = "3.2.3+32.0.2"
 dependencies = [
  "anyhow",
@@ -1819,7 +1810,7 @@ dependencies = [
  "env_logger",
  "ffmpeg-sidecar",
  "libobs",
- "libobs-source-macro",
+ "libobs-simple-macro",
  "libobs-window-helper",
  "libobs-wrapper",
  "log",
@@ -1828,6 +1819,15 @@ dependencies = [
  "paste",
  "serde_json",
  "winit",
+]
+
+[[package]]
+name = "libobs-simple-macro"
+version = "5.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.109",
 ]
 
 [[package]]
@@ -1997,7 +1997,7 @@ name = "monitor-capture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "libobs-sources",
+ "libobs-simple",
  "libobs-wrapper",
 ]
 
@@ -2512,7 +2512,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "libobs-sources",
+ "libobs-simple",
  "libobs-wrapper",
 ]
 
@@ -2522,7 +2522,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "libobs-sources",
+ "libobs-simple",
  "libobs-wrapper",
  "winit",
 ]

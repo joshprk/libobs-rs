@@ -1,28 +1,20 @@
 use std::pin::Pin;
-use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
+use std::time::Instant;
 
-use libobs_simple::sources::{
-    windows::{
-        GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
-        ObsGameCaptureMode, WindowSearchMode,
-    },
-    ObsObjectUpdater,
-};
+use libobs_simple::sources::windows::MonitorCaptureSourceBuilder;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
-use libobs_wrapper::display::{
-    MiscDisplayTrait, ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait,
-};
+use libobs_wrapper::display::{ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait};
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
-use libobs_wrapper::utils::traits::ObsUpdatable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 use winit::application::ApplicationHandler;
-use winit::dpi::LogicalSize;
-use winit::event::{ElementState, WindowEvent};
-use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::dpi::PhysicalSize;
+use winit::event::WindowEvent;
+use winit::event_loop::ActiveEventLoop;
+use winit::platform::windows::EventLoopBuilderExtWindows;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
@@ -30,15 +22,15 @@ struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
     display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
     context: Arc<RwLock<ObsContext>>,
-    monitor_index: Arc<AtomicUsize>,
-    source_ref: Arc<RwLock<ObsSourceRef>>,
+    _source_ref: Arc<RwLock<ObsSourceRef>>,
+    initialized_at: Instant,
 }
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let window = event_loop
             .create_window(
-                Window::default_attributes().with_inner_size(LogicalSize::new(1920 / 2, 1080 / 2)),
+                Window::default_attributes().with_inner_size(PhysicalSize::new(1920 / 2, 1080 / 2)),
             )
             .unwrap();
 
@@ -64,6 +56,7 @@ impl ApplicationHandler for App {
 
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);
+        self.initialized_at = Instant::now();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -111,42 +104,28 @@ impl ApplicationHandler for App {
                     let _ = display.set_size(display_width, display_height);
                 }
             }
-            WindowEvent::Moved(_) => {
-                if let Some(display) = self.display.write().unwrap().clone() {
-                    let _ = display.update_color_space();
-                }
-            }
-            //TODO If the display settings change, call update_color_space as well
-            WindowEvent::MouseInput { state, .. } => {
-                if !matches!(state, ElementState::Pressed) {
-                    return;
-                }
-                let tmp = self.source_ref.clone();
-                let monitor_index = self.monitor_index.clone();
-
-                let mut source = tmp.write().unwrap().clone();
-                let monitors = MonitorCaptureSourceBuilder::get_monitors().unwrap();
-
-                let monitor_index = monitor_index.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
-                    % monitors.len();
-                let monitor = &monitors[monitor_index];
-
-                source
-                    .create_updater::<MonitorCaptureSourceUpdater>()
-                    .unwrap()
-                    .set_monitor(monitor)
-                    .update()
-                    .unwrap();
-            }
             _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let elapsed = self.initialized_at.elapsed();
+        if elapsed.as_secs() >= 1 {
+            if let Some(display) = self.display.write().unwrap().clone() {
+                let ctx = self.context.clone();
+
+                ctx.write().unwrap().remove_display(&display).unwrap();
+            }
+
+            event_loop.exit();
         }
     }
 }
 
-pub fn main() -> anyhow::Result<()> {
+#[test]
+fn test_preview() {
     env_logger::init();
 
-    //TODO This scales the output to 1920x1080, the captured window may be at a different aspect ratio
     let v = ObsVideoInfoBuilder::new()
         .base_width(1920)
         .base_height(1080)
@@ -155,17 +134,13 @@ pub fn main() -> anyhow::Result<()> {
         .build();
     let info = StartupInfo::new().set_video_info(v);
 
-    let mut context = ObsContext::new(info)?;
+    let mut context = ObsContext::new(info).unwrap();
 
-    // Set up output to ./recording.mp4
-    let mut output_settings = context.data()?;
-    output_settings.set_string("path", "recording.mp4")?;
-
-    let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
-    let mut output = context.output(output_info)?;
+    let output_info = OutputInfo::new("ffmpeg_muxer", "output", None, None);
+    let mut output = context.output(output_info).unwrap();
 
     // Register the video encoder
-    let mut video_settings = context.data()?;
+    let mut video_settings = context.data().unwrap();
     video_settings
         .bulk_update()
         .set_int("bf", 0)
@@ -175,27 +150,28 @@ pub fn main() -> anyhow::Result<()> {
         .set_string("preset", "fast")
         .set_string("rate_control", "cbr")
         .set_int("bitrate", 10000)
-        .update()?;
+        .update()
+        .unwrap();
 
-    let encoders = context.available_video_encoders()?;
+    let encoders = context.available_video_encoders().unwrap();
 
     let mut encoder = encoders
         .into_iter()
         .find(|e| {
-            e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
+            e.get_encoder_id() == &ObsVideoEncoderType::H264_TEXTURE_AMF
                 || e.get_encoder_id() == &ObsVideoEncoderType::AV1_TEXTURE_AMF
-                || e.get_encoder_id() == &ObsVideoEncoderType::OBS_X264
+                || e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
         })
         .unwrap();
 
     encoder.set_settings(video_settings);
 
     println!("Using encoder {:?}", encoder.get_encoder_id());
-    encoder.set_to_output(&mut output, "video_encoder")?;
+    encoder.set_to_output(&mut output, "video_encoder").unwrap();
 
     // Register the audio encoder
-    let mut audio_settings = context.data()?;
-    audio_settings.set_int("bitrate", 160)?;
+    let mut audio_settings = context.data().unwrap();
+    audio_settings.set_int("bitrate", 160).unwrap();
 
     let audio_info = AudioEncoderInfo::new(
         ObsAudioEncoderType::FFMPEG_AAC,
@@ -204,68 +180,30 @@ pub fn main() -> anyhow::Result<()> {
         None,
     );
 
-    output.create_and_set_audio_encoder(audio_info, 0)?;
+    output.create_and_set_audio_encoder(audio_info, 0).unwrap();
 
-    let mut scene = context.scene("Main Scene")?;
+    let mut scene = context.scene("Main Scene").unwrap();
 
-    let btd = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
-    let apex = btd
-        .iter()
-        .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Apex"));
+    let source_ref = context
+        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor capture")
+        .unwrap()
+        .set_monitor(&MonitorCaptureSourceBuilder::get_monitors().unwrap()[0])
+        .add_to_scene(&mut scene)
+        .unwrap();
 
-    let monitor_src = context
-        .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor capture")?
-        .set_monitor(
-            &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
-        )
-        .add_to_scene(&mut scene)?;
-    scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-    scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+    scene.set_to_channel(0).unwrap();
 
-    let mut _apex_source = None;
-    if let Some(apex) = apex {
-        println!(
-            "Is used by other instance: {}",
-            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(apex.pid)?
-        );
-        let source = context
-            .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
-            .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
-            .set_window(apex)
-            .add_to_scene(&mut scene)?;
-
-        scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-        scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
-        _apex_source = Some(source);
-    } else {
-        println!("No Apex window found for game capture");
-    }
-
-    scene.set_to_channel(0)?;
-
-    // Example for signals and events with libobs
-    let tmp = monitor_src.clone();
-    std::thread::spawn(move || {
-        let signal_manager = tmp.signal_manager();
-        let mut x = signal_manager.on_update().unwrap();
-
-        println!("Listening for updates");
-        while x.blocking_recv().is_ok() {
-            println!("Monitor Source has been updated!");
-        }
-    });
-
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = winit::event_loop::EventLoop::builder()
+        .with_any_thread(true)
+        .build()
+        .expect("Failed to create event loop");
     let mut app = App {
         window: Arc::new(RwLock::new(None)),
         display: Arc::new(RwLock::new(None)),
         context: Arc::new(RwLock::new(context)),
-        monitor_index: Arc::new(AtomicUsize::new(1)),
-        source_ref: Arc::new(RwLock::new(monitor_src)),
+        _source_ref: Arc::new(RwLock::new(source_ref)),
+        initialized_at: Instant::now(),
     };
 
     event_loop.run_app(&mut app).unwrap();
-
-    println!("Done with mainloop.");
-    Ok(())
 }

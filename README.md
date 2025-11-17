@@ -65,7 +65,8 @@ More details can be found in the [cargo-obs-build documentation](./cargo-obs-bui
 Below is an example that will record video-only footage of an exclusive fullscreen application. Note that the API is extremely limited right now, but you can already record both video and audio with full control over the output already. If you need more, libobs is exposed.
 
 Examples are located in the [examples](./examples) directory.
-Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).
+Documentation is also available for [libobs-simple](libobs-simple/README.md)
+or [libobs-wrapper](./libobs-wrapper/README.md).
 
 ## Disclaimer
 

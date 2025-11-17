@@ -2,7 +2,7 @@
 
 use std::{thread::sleep, time::Duration};
 
-use libobs_sources::{
+use libobs_simple::sources::{
     ObsSourceBuilder,
     windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod},
 };

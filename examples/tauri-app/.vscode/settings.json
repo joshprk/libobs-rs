@@ -1,6 +1,0 @@
-{
-    "rust-analyzer.cargo.targetDir": true,
-    "rust-analyzer.linkedProjects": [
-        "${workspaceFolder}/src-tauri/Cargo.toml"
-    ]
-}
