@@ -16,6 +16,9 @@ use std::sync::Arc;
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct ObsSourceRef {
+    /// Disconnect signals first
+    pub(crate) signal_manager: Arc<ObsSourceSignals>,
+
     pub(crate) source: Sendable<*mut obs_source_t>,
     pub(crate) id: ObsString,
     pub(crate) name: ObsString,
@@ -25,7 +28,6 @@ pub struct ObsSourceRef {
 
     _guard: Arc<_ObsSourceGuard>,
     pub(crate) runtime: ObsRuntime,
-    pub(crate) signal_manager: Arc<ObsSourceSignals>,
 }
 
 impl ObsSourceRef {
