@@ -205,7 +205,7 @@ pub fn main() -> anyhow::Result<()> {
     let mut scene = context.scene("Main Scene")?;
 
     let btd = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
-    let btd = btd
+    let apex = btd
         .iter()
         .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Apex"));
 
@@ -214,26 +214,25 @@ pub fn main() -> anyhow::Result<()> {
         .set_monitor(
             &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
         )
-        .set_force_sdr(true)
         .add_to_scene(&mut scene)?;
     scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
     scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
 
-    let mut _btd_source = None;
-    if let Some(btd) = btd {
+    let mut _apex_source = None;
+    if let Some(apex) = apex {
         println!(
             "Is used by other instance: {}",
-            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(btd.pid)?
+            GameCaptureSourceBuilder::is_window_in_use_by_other_instance(apex.pid)?
         );
         let source = context
             .source_builder::<GameCaptureSourceBuilder, _>("Game capture")?
             .set_capture_mode(ObsGameCaptureMode::CaptureSpecificWindow)
-            .set_window(btd)
+            .set_window(apex)
             .add_to_scene(&mut scene)?;
 
         scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
         scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
-        _btd_source = Some(source);
+        _apex_source = Some(source);
     } else {
         println!("No Apex window found for game capture");
     }

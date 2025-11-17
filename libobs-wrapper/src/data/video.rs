@@ -11,6 +11,24 @@ use crate::{
     utils::ObsString,
 };
 
+
+#[derive(Clone, Debug)]
+pub struct ObsSdrVideoInfo {
+    /// The white level in nits
+    pub sdr_white_level: f32,
+    /// The nominal peak level in nits
+    pub hdr_nominal_peak_level: f32
+}
+
+impl Default for ObsSdrVideoInfo {
+    fn default() -> Self {
+        Self {
+            sdr_white_level: 300.0,
+            hdr_nominal_peak_level: 1000.0
+        }
+    }
+}
+
 /// A wrapper for `obs_video_info`, which is used
 /// to pass information to libobs for the new OBS
 /// video context after resetting the old OBS
@@ -28,6 +46,8 @@ pub struct ObsVideoInfo {
     // `obs_video_info` struct does not free.
     #[allow(dead_code)]
     graphics_module: ObsString,
+
+    sdr_info: ObsSdrVideoInfo,
 }
 
 impl ObsVideoInfo {
@@ -37,10 +57,30 @@ impl ObsVideoInfo {
     /// be used externally. The recommended,
     /// supported way to build new `ObsVideoInfo`
     /// structs is through `ObsVideoInfoBuilder`.
+    #[deprecated = "Use new_with_sdr_info or the ObsVideoInfoBuilder instead"]
     pub fn new(ovi: obs_video_info, graphics_module: ObsString) -> Self {
         Self {
             ovi: Sendable(Box::pin(ovi)),
             graphics_module,
+            sdr_info: ObsSdrVideoInfo::default(),
+        }
+    }
+
+    /// Creates a new `ObsVideoInfo`.
+    ///
+    /// Note that this function is not meant to
+    /// be used externally. The recommended,
+    /// supported way to build new `ObsVideoInfo`
+    /// structs is through `ObsVideoInfoBuilder`.
+    pub fn new_with_sdr_info(
+        ovi: obs_video_info,
+        graphics_module: ObsString,
+        sdr_info: ObsSdrVideoInfo
+    ) -> Self {
+        Self {
+            ovi: Sendable(Box::pin(ovi)),
+            graphics_module,
+            sdr_info,
         }
     }
 
@@ -78,6 +118,10 @@ impl ObsVideoInfo {
     pub fn get_output_height(&self) -> u32 {
         self.ovi.0.output_height
     }
+
+    pub fn get_sdr_info(&self) -> &ObsSdrVideoInfo {
+        &self.sdr_info
+    }
 }
 
 impl Default for ObsVideoInfo {
@@ -105,6 +149,7 @@ pub struct ObsVideoInfoBuilder {
     colorspace: ObsColorspace,
     range: ObsVideoRange,
     scale_type: ObsScaleType,
+    sdr_info: ObsSdrVideoInfo
 }
 
 impl ObsVideoInfoBuilder {
@@ -146,6 +191,7 @@ impl ObsVideoInfoBuilder {
             colorspace: ObsColorspace::CS709,
             range: ObsVideoRange::Default,
             scale_type: ObsScaleType::Lanczos,
+            sdr_info: ObsSdrVideoInfo::default()
         }
     }
 
@@ -176,7 +222,13 @@ impl ObsVideoInfoBuilder {
         ObsVideoInfo {
             ovi: Sendable(Box::pin(ovi)),
             graphics_module: graphics_mod_str,
+            sdr_info: self.sdr_info
         }
+    }
+
+    pub fn set_sdr_info(mut self, sdr_info: ObsSdrVideoInfo) -> Self {
+        self.sdr_info = sdr_info;
+        self
     }
 
     /// Sets the GPU adapter device
