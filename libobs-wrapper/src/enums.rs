@@ -250,7 +250,6 @@ impl ObsLogLevel {
     }
 }
 
-
 #[cfg_attr(target_os = "windows", repr(i32))]
 #[cfg_attr(not(target_os = "windows"), repr(u32))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]

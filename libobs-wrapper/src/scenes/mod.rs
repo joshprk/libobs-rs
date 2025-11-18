@@ -251,7 +251,6 @@ impl ObsSceneRef {
         Ok(())
     }
 
-
     /// Fits the given source to the screen size.
     /// If the source is locked, no action is taken.
     ///

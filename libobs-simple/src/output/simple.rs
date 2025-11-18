@@ -19,13 +19,13 @@
 //!     .unwrap();
 //! ```
 
-use std::io::Write;
 use libobs_wrapper::{
     context::ObsContext,
     data::{output::ObsOutputRef, ObsData},
     encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType},
     utils::{AudioEncoderInfo, ObsError, OutputInfo, VideoEncoderInfo},
 };
+use std::io::Write;
 use std::path::PathBuf;
 
 /// Preset for x264 software encoder
@@ -91,7 +91,10 @@ pub enum VideoEncoder {
     /// x264 software encoder
     X264(X264Preset),
     /// Hardware encoder (NVENC/AMF/QSV), codec chosen generically at runtime
-    Hardware { codec: HardwareCodec, preset: HardwarePreset },
+    Hardware {
+        codec: HardwareCodec,
+        preset: HardwarePreset,
+    },
     /// Custom encoder by type
     Custom(ObsVideoEncoderType),
 }
@@ -116,8 +119,7 @@ pub enum AudioEncoder {
 }
 
 /// Output format for file recording
-#[derive(Debug, Clone, Copy)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum OutputFormat {
     /// .flv
     FlashVideo,
@@ -139,7 +141,6 @@ pub enum OutputFormat {
     /// MPEG-TS .ts
     MpegTs,
 }
-
 
 /// Unified output settings
 #[derive(Debug)]
@@ -311,12 +312,7 @@ impl SimpleOutputBuilder {
         }
 
         // Create the output
-        let output_info = OutputInfo::new(
-            output_id,
-            "simple_output",
-            Some(output_settings),
-            None,
-        );
+        let output_info = OutputInfo::new(output_id, "simple_output", Some(output_settings), None);
 
         log::trace!("Creating output with settings: {:?}", self.settings);
         std::io::stdout().flush().unwrap();
@@ -430,10 +426,7 @@ impl SimpleOutputBuilder {
         }
     }
 
-    fn configure_video_encoder(
-        &self,
-        settings: &mut ObsData,
-    ) -> Result<(), ObsError> {
+    fn configure_video_encoder(&self, settings: &mut ObsData) -> Result<(), ObsError> {
         // Set rate control to CBR
         settings.set_string("rate_control", "CBR")?;
         settings.set_int("bitrate", self.settings.video_bitrate as i64)?;
