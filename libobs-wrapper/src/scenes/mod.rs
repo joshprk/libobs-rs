@@ -7,12 +7,12 @@ use num_traits::ToPrimitive;
 
 use crate::enums::ObsBounds;
 use crate::{
+    graphics::Vec2,
     impl_obs_drop, impl_signal_manager, run_with_obs,
     runtime::ObsRuntime,
     sources::{ObsFilterRef, ObsSourceRef},
     unsafe_send::Sendable,
     utils::{ObsError, ObsString, SourceInfo},
-    Vec2,
 };
 
 #[derive(Debug)]

@@ -15,6 +15,7 @@ use libobs_wrapper::{
     utils::ObsError,
 };
 use num_traits::ToPrimitive;
+use std::ffi::CStr;
 
 // Usage example
 define_object_manager!(
@@ -40,6 +41,11 @@ define_object_manager!(
     }
 );
 
+const AUDIO_SOURCE_TYPE: &CStr = c"wasapi_process_output_capture";
+fn audio_capture_available() -> bool {
+    unsafe { !libobs::obs_get_latest_input_type_id(AUDIO_SOURCE_TYPE.as_ptr()).is_null() }
+}
+
 #[obs_object_impl]
 impl MonitorCaptureSource {
     /// Gets all available monitors
@@ -49,6 +55,17 @@ impl MonitorCaptureSource {
 
     pub fn set_monitor(self, monitor: &Sendable<DisplayInfo>) -> Self {
         self.set_monitor_id_raw(monitor.0.name.as_str())
+    }
+
+    pub fn set_capture_audio(mut self, capture_audio: bool) -> anyhow::Result<Self, String> {
+        if capture_audio && !audio_capture_available() {
+            return Err("Game Audio Capture is not available on this system".to_string());
+        }
+
+        self.get_settings_updater()
+            .set_bool_ref("capture_audio", capture_audio);
+
+        Ok(self)
     }
 }
 

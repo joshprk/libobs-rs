@@ -7,10 +7,10 @@ use libobs_simple::sources::{
     windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod},
 };
 use libobs_wrapper::{
-    Vec2,
     context::ObsContext,
     data::properties::{ObsProperty, ObsPropertyObject, types::ObsListItemValue},
     encoders::{ObsAudioEncoderType, ObsVideoEncoderType},
+    graphics::Vec2,
     sources::ObsSourceRef,
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo},
 };
