@@ -34,6 +34,5 @@ compiler_error!("libobs-simple can only be used in windows");
 pub mod windows;
 
 mod macro_helper;
-pub mod output;
 
 pub use libobs_wrapper::{data::ObsObjectUpdater, sources::ObsSourceBuilder};
