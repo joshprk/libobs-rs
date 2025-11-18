@@ -227,7 +227,7 @@ impl_signal_manager!(|ptr| unsafe { libobs::obs_source_get_signal_handler(ptr) }
         POINTERS {
             source: *mut libobs::obs_source_t,
         }
-    }}
+    }},
 ]);
 
 #[derive(Debug)]

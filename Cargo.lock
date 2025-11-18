@@ -1887,6 +1887,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "linux-pipewire-capture"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "libobs-sources",
+ "libobs-wrapper",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
