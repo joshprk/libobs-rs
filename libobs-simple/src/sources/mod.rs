@@ -26,7 +26,7 @@
 //! // Obs Output is created from `ObsContext`
 //! .add_to_output(output, 0)
 //! .unwrap();
-//! `````
+//! ```
 
 #[cfg(not(windows))]
 compiler_error!("libobs-simple can only be used in windows");

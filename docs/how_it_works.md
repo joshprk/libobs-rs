@@ -5,7 +5,7 @@
 ## Architecture
 
 ### 1. `libobs` (sys crate)
-- Raw FFI bindings to `libobs.dll`.
+- Raw FFI bindings to `obs.dll`.
 - Generated using `bindgen`.
 - Unsafe and difficult to use directly.
 
@@ -25,7 +25,7 @@
 
 ## Data Flow
 
-1. **Initialization**: `libobs-bootstrapper` ensures binaries exist. `libobs-wrapper` loads `libobs.dll` and initializes the core context.
+1. **Initialization**: `libobs-bootstrapper` ensures binaries exist. `libobs-wrapper` loads `obs.dll` and initializes the core context.
 2. **Configuration**: You create scenes, sources, and encoders using `libobs-simple` or `libobs-wrapper`.
 3. **Execution**: `libobs` runs the video/audio pipeline in background threads.
 4. **Output**: Encoded data is written to file or stream.

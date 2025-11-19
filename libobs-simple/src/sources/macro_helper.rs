@@ -28,4 +28,4 @@ macro_rules! define_object_manager {
     };
 }
 
-pub(crate) use define_object_manager;
+pub use define_object_manager;

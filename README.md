@@ -9,7 +9,7 @@
 
 Simple and safe video recording through libobs.
 
-Currently only tested on Windows. Linux and MacOS likely work, but they are untested. These will receive support later down the road.
+Currently only tested on Windows. Linux and macOS likely work, but they are untested. These will receive support later down the road.
 
 The API is currently unstable and will definitely have breaking revisions in the future.
 
@@ -69,8 +69,6 @@ Documentation is also available for [libobs-simple](libobs-simple/README.md)
 or [libobs-wrapper](./libobs-wrapper/README.md).
 
 ## Documentation
-
-- [Getting Started](./docs/getting_started.md)
 - [Bootstrap Options](./docs/bootstrap_options.md)
 - [How it Works](./docs/how_it_works.md)
 

@@ -17,8 +17,11 @@ libobs = { path = "./libobs", version = "3.0.1" }
 libobs-wrapper = { path = "./libobs-wrapper", version = "5.3.0" }
 libobs-simple-macro = { path = "./libobs-simple-macro", version = "5.0.0" }
 libobs-window-helper = { path = "./libobs-window-helper", version = "0.1.7" }
-libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.1.0" }
+libobs-bootstrapper = { path = "./libobs-bootstrapper", version = "0.1.1" }
+libobs-simple = { path = "./libobs-simple", version = "3.3.0+32.0.2" }
 
 
 [workspace.lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(coverage,coverage_nightly)',
+] }

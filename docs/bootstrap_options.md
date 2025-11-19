@@ -15,6 +15,8 @@ Using `libobs-bootstrapper` (integrated into `libobs-simple`), your application 
 - Requires internet connection on first run.
 - Startup time is longer on first run.
 
+[Example here](../examples/download-at-runtime)
+
 ## 2. Build-time Setup
 
 Using `cargo-obs-build`, you can download OBS binaries during development or build time and bundle them.
@@ -26,6 +28,8 @@ Using `cargo-obs-build`, you can download OBS binaries during development or bui
 ### Cons:
 - Larger distribution size.
 - Manual update management.
+
+[Docs here](../cargo-obs-build/README.md)
 
 ## How to choose?
 

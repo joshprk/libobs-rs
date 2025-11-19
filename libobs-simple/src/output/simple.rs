@@ -5,18 +5,34 @@
 //!
 //! # Example
 //!
-//! ```no_run
-//! use libobs_wrapper::context::ObsContext;
-//! use libobs_wrapper::utils::StartupInfo;
-//! use libobs_simple::output::simple::{SimpleOutputBuilder, X264Preset};
+//! # Example
 //!
-//! let context = ObsContext::new(StartupInfo::default()).unwrap();
-//! let output = SimpleOutputBuilder::new(context)
-//!     .video_bitrate(6000)
-//!     .audio_bitrate(160)
-//!     .path("./recording.mp4")
-//!     .build()
-//!     .unwrap();
+//! ```no_run
+//! use libobs_simple::output::simple::{SimpleOutputBuilder, X264Preset};
+//! use libobs_simple::quick_start::quick_start;
+//! use libobs_wrapper::{context::ObsContext, utils::StartupInfo, data::video::ObsVideoInfoBuilder};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//! let context = StartupInfo::new()
+//!     .set_video_info(
+//!           ObsVideoInfoBuilder::new()
+//!             // Configure video info as need
+//!             .build()
+//!      ).start()
+//!       .unwrap()
+//!     
+//!     let output = SimpleOutputBuilder::new(context, "./recording.mp4")
+//!         .video_bitrate(6000)
+//!         .audio_bitrate(160)
+//!         .x264_encoder(X264Preset::VeryFast)
+//!         .build()
+//!         .unwrap();
+//!
+//!     // Add sources here (for more docs, look [this](https://github.com/libobs-rs/libobs-rs/blob/main/examples/monitor-capture/src/main.rs) example
+//!
+//!     println!("Output created!");
+//! }
 //! ```
 
 use libobs_wrapper::{

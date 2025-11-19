@@ -9,10 +9,26 @@ mod fields;
 mod obs_properties;
 mod parse;
 
+/// Generates an updater struct for an OBS object (e.g., a source).
+///
+/// This macro creates a struct that implements `ObsObjectUpdater`, allowing you to modify
+/// the settings of an existing OBS object at runtime.
+///
+/// # Arguments
+///
+/// * `name` - The unique ID of the OBS object (must match the ID used in `obs_object_builder`).
+/// * `updatable_type` - The type of the struct that holds the object's state.
+///
+/// # Example
+///
+/// ```ignore
+/// #[obs_object_updater("my_source", ObsSourceRef)]
+/// pub struct MySourceUpdater {
+///     #[obs_property(type_t = "string")]
+///     pub url: String,
+/// }
+/// ```
 #[proc_macro_attribute]
-//TODO more documents here
-/// This macro is used to generate an updater pattern for an obs object (for example a source).
-/// For more examples look at libobs-simple
 pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
     let u_input = parse_macro_input!(attr as UpdaterInput);
     let id_value = u_input.name.value();
@@ -109,68 +125,36 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-/// This macro is used to generate a builder pattern for an obs source. <br>
-/// The attribute should be the id of the source.<br>
-/// The struct should have named fields, each field should have an attribute `#[obs_property(type_t="your_type")]`. <br>
-/// `type_t` can be `enum`, `enum_string`, `string`, `bool` or `int`. <br>
-/// - `enum`: the field should be an enum with `num_derive::{FromPrimitive, ToPrimitive}`.
-/// - `enum_string`: the field should be an enum which implements `StringEnum`.
-/// - `string`: the field should be a string.
-/// - `bool`: the field should be a bool.
-/// - `type_t`: `int`, the field should be an i64.
-///   The attribute can also have a `settings_key` which is the key used in the settings, if this attribute is not given, the macro defaults to the field name.
+/// Generates a builder struct for an OBS object (e.g., a source).
 ///
-/// Documentation is inherited from the field to the setter function.
+/// This macro creates a struct that implements `ObsObjectBuilder`, allowing you to configure
+/// and create new instances of an OBS object.
 ///
-/// Example:
+/// # Arguments
 ///
-/// ```
-/// use libobs_wrapper::data::StringEnum;
-/// use libobs_simple_macro::obs_object_builder;
-/// use num_derive::{FromPrimitive, ToPrimitive};
+/// * `attr` - The unique ID of the OBS object (e.g., "window_capture").
 ///
-/// #[repr(i32)]
-/// #[derive(Clone, Copy, Debug, PartialEq, Eq, FromPrimitive, ToPrimitive)]
-/// pub enum ObsWindowCaptureMethod {
-///        MethodAuto = libobs::window_capture_method_METHOD_AUTO,
-///        MethodBitBlt = libobs::window_capture_method_METHOD_BITBLT,
-///        MethodWgc = libobs::window_capture_method_METHOD_WGC,
-/// }
+/// # Fields
 ///
-/// #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-/// pub enum ObsGameCaptureRgbaSpace {
-///     SRgb,
-///     RGBA2100pq
-/// }
+/// Each field in the struct must be annotated with `#[obs_property(type_t = "...")]`.
+/// Supported `type_t` values:
 ///
-/// impl StringEnum for ObsGameCaptureRgbaSpace {
-///     fn to_str(&self) -> &str {
-///         match self {
-///             ObsGameCaptureRgbaSpace::SRgb => "sRGB",
-///             ObsGameCaptureRgbaSpace::RGBA2100pq => "Rec. 2100 (PQ)"
-///         }
-///     }
-/// }
+/// - `"string"`: Maps to `String`.
+/// - `"bool"`: Maps to `bool`.
+/// - `"int"`: Maps to `i64`.
+/// - `"enum"`: Maps to a C-style enum (requires `num_derive`).
+/// - `"enum_string"`: Maps to a string-based enum (requires `StringEnum`).
 ///
-/// /// Provides a easy to use builder for the window capture source.
-/// #[derive(Debug)]
-/// #[obs_object_builder("window_capture")]
-/// pub struct WindowCaptureSourceBuilder {
-/// #[obs_property(type_t="enum")]
-///     /// Sets the capture method for the window capture
-///     capture_method: ObsWindowCaptureMethod,
+/// Optional attributes:
+/// - `settings_key`: The key used in the OBS settings object (defaults to field name).
 ///
-///     /// Sets the window to capture.
-///     #[obs_property(type_t = "string", settings_key = "window")]
-///     window_raw: String,
+/// # Example
 ///
-///     #[obs_property(type_t = "bool")]
-///     /// Sets whether the cursor should be captured
-///     cursor: bool,
-///
-///     /// Sets the capture mode for the game capture source. Look at doc for `ObsGameCaptureMode`
-///     #[obs_property(type_t = "enum_string")]
-///     capture_mode: ObsGameCaptureMode,
+/// ```ignore
+/// #[obs_object_builder("my_source")]
+/// pub struct MySourceBuilder {
+///     #[obs_property(type_t = "string")]
+///     pub url: String,
 /// }
 /// ```
 pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -287,6 +271,20 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+/// Implements the builder and updater logic for an OBS object.
+///
+/// This macro generates the implementation blocks for the builder and updater structs
+/// created by `obs_object_builder` and `obs_object_updater`. It should be applied
+/// to the implementation block of the main object struct.
+///
+/// # Example
+///
+/// ```ignore
+/// #[obs_object_impl]
+/// impl MySource {
+///     // Custom methods...
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn obs_object_impl(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as ItemImpl);
