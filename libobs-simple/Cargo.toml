@@ -29,18 +29,23 @@ display-info = "0.5.4"
 libobs-window-helper = { workspace = true, optional = true }
 ffmpeg-sidecar = "2.2.0"
 paste = "1.0.15"
+libobs-bootstrapper = { workspace = true, optional = true }
 
 [features]
-default = ["window-list", "enable_runtime"]
+default = ["window-list", "enable_runtime", "auto-bootstrap"]
 generate_bindings = ["libobs/generate_bindings"]
 window-list = ["dep:libobs-window-helper"]
 enable_runtime = ["libobs-wrapper/enable_runtime"]
+auto-bootstrap = ["dep:libobs-bootstrapper"]
+__test_environment = ["libobs-wrapper/__test_environment"]
 
 [dev-dependencies]
 env_logger = "0.11.8"
 serde_json = "1.0.145"
 libobs-wrapper = { workspace = true, features = ["__test_environment"] }
 winit = "0.30.12"
+tokio = { version = "1", features = ["rt", "macros"] }
+
 
 [lints]
 workspace = true

@@ -68,6 +68,12 @@ Examples are located in the [examples](./examples) directory.
 Documentation is also available for [libobs-simple](libobs-simple/README.md)
 or [libobs-wrapper](./libobs-wrapper/README.md).
 
+## Documentation
+
+- [Getting Started](./docs/getting_started.md)
+- [Bootstrap Options](./docs/bootstrap_options.md)
+- [How it Works](./docs/how_it_works.md)
+
 ## Disclaimer
 
 This project is **not affiliated with**, **endorsed by**, or **associated with** the OBS Project or OBS Studio.  

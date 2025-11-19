@@ -7,6 +7,7 @@ use ffmpeg_sidecar::{ffprobe::ffprobe_path, paths::ffmpeg_path};
 #[allow(unused_imports)]
 pub use initialize::*;
 use libobs_simple::sources::windows::WindowCaptureSourceBuilder;
+#[cfg(feature = "window-list")]
 use libobs_window_helper::{WindowInfo, WindowSearchMode};
 use libobs_wrapper::unsafe_send::Sendable;
 
@@ -158,6 +159,7 @@ pub async fn assert_motion(path: &str, min_variance: f64) {
 }
 
 #[allow(dead_code)]
+#[cfg(feature = "window-list")]
 pub fn find_notepad() -> Option<Sendable<WindowInfo>> {
     let windows =
         WindowCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized).unwrap();

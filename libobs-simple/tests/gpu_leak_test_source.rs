@@ -1,3 +1,4 @@
+#![cfg(feature = "window-list")]
 mod common;
 
 use std::{process::Command, time::Duration};
