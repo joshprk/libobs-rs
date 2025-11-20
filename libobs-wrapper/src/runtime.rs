@@ -450,6 +450,11 @@ impl ObsRuntime {
             return Err(ObsError::ResetVideoFailure(reset_video_status));
         }
 
+        let sdr_info = info.obs_video_info.get_sdr_info();
+        unsafe {
+            libobs::obs_set_video_levels(sdr_info.sdr_white_level, sdr_info.hdr_nominal_peak_level);
+        }
+
         obs_modules.load_modules();
 
         internal_log_global(

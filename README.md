@@ -3,20 +3,15 @@
 ![Docs](https://img.shields.io/github/actions/workflow/status/joshprk/libobs-rs/build-docs.yml?branch=main&label=docs&style=flat)
 ![Coverage](https://img.shields.io/badge/coverage-55%25-orange?style=flat)
 
-
+> [!NOTE]
+> Need help? [Join our discord server!](https://discord.gg/rsTffTMPMF) 
 
 
 Simple and safe video recording through libobs.
 
-Currently only tested on Windows. Linux and MacOS likely work, but they are untested. These will receive support later down the road.
+Currently only tested on Windows. Linux and MacOS don't work right now, but [we are working on that](https://github.com/libobs-rs/libobs-rs/pull/53).
 
 The API is currently unstable and will definitely have breaking revisions in the future.
-
-To build on Linux, you must install the libobs-dev package, as well as the bindgen dependencies.
-```
-sudo apt-get libobs-dev llvm-dev libclang-dev clang
-```
-
 
 > [!NOTE]
 > The libobs-wrapper async functionality has been removed because of all kinds of issues ([#32](https://github.com/joshprk/libobs-rs/issues/32))
@@ -65,3 +60,10 @@ Below is an example that will record video-only footage of an exclusive fullscre
 
 Examples are located in the [examples](./examples) directory.
 Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).
+
+## Disclaimer
+
+This project is **not affiliated with**, **endorsed by**, or **associated with** the OBS Project or OBS Studio.  
+**OBS** and **OBS Studio** are trademarks of their respective owners.  
+The developers of this project are independent and **not part of the OBS Studio team** in any capacity.
+

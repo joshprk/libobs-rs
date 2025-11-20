@@ -11,13 +11,17 @@ pub use enums::*;
 use libobs::obs_video_info;
 pub use window_manager::*;
 
+use libobs::obs_render_main_texture_src_color_only;
+use std::mem::MaybeUninit;
 use std::{
     ffi::c_void,
     marker::PhantomPinned,
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
-use crate::{run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError};
+use crate::{
+    impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError,
+};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -31,8 +35,7 @@ pub struct ObsDisplayRef {
     display: Sendable<*mut libobs::obs_display_t>,
     id: usize,
 
-    // The callbacks and obs display first
-    _guard: Arc<RwLock<_DisplayDropGuard>>,
+    _guard: Arc<_ObsDisplayDropGuard>,
 
     // Keep for window, manager is accessed by render thread as well so Arc and RwLock
     manager: Arc<RwLock<DisplayWindowManager>>,
@@ -43,18 +46,11 @@ pub struct ObsDisplayRef {
     pub(crate) runtime: ObsRuntime,
 }
 
-unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
-    let s = &*(data as *mut ObsDisplayRef);
+unsafe extern "C" fn render_display(_data: *mut c_void, width: u32, height: u32) {
+    let mut ovi = MaybeUninit::<obs_video_info>::uninit();
+    libobs::obs_get_video_info(ovi.as_mut_ptr());
 
-    let r = s.get_size();
-    if r.is_err() {
-        log::error!("Failed to get display size: {:?}", r.err());
-        return;
-    }
-
-    let (width, height) = r.unwrap();
-    let mut ovi: obs_video_info = std::mem::zeroed();
-    libobs::obs_get_video_info(&mut ovi);
+    let ovi = unsafe { ovi.assume_init() };
 
     libobs::gs_viewport_push();
     libobs::gs_projection_push();
@@ -70,7 +66,7 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
     libobs::gs_set_viewport(0, 0, width as i32, height as i32);
     //draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
-    libobs::obs_render_main_texture();
+    obs_render_main_texture_src_color_only();
 
     libobs::gs_projection_pop();
     libobs::gs_viewport_pop();
@@ -79,9 +75,9 @@ unsafe extern "C" fn render_display(data: *mut c_void, _cx: u32, _cy: u32) {
 impl ObsDisplayRef {
     #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
-    /// NOTE: This must be pinned to prevent the draw callbacks from having a invalid pointer. DO NOT UNPIN
+    /// NOTE: This must be pinned to prevent the draw callbacks from having an invalid pointer. DO NOT UNPIN
     pub(crate) fn new(
-        data: creation_data::ObsDisplayCreationData,
+        data: ObsDisplayCreationData,
         runtime: ObsRuntime,
     ) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
         use std::sync::atomic::Ordering;
@@ -125,40 +121,44 @@ impl ObsDisplayRef {
         }
 
         manager.obs_display = Some(display.clone());
-        let mut instance = Box::pin(Self {
+        let instance = Box::pin(Self {
             display: display.clone(),
+            _guard: Arc::new(_ObsDisplayDropGuard {
+                display,
+                runtime: runtime.clone(),
+            }),
             manager: Arc::new(RwLock::new(manager)),
             id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-            _guard: Arc::new(RwLock::new(_DisplayDropGuard {
-                display,
-                self_ptr: None,
-                runtime: runtime.clone(),
-            })),
             _fixed_in_heap: PhantomPinned,
             runtime: runtime.clone(),
         });
 
-        let instance_ptr =
-            Sendable(unsafe { instance.as_mut().get_unchecked_mut() as *mut _ as *mut c_void });
-
-        instance
-            ._guard
-            .write()
-            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
-            .self_ptr = Some(instance_ptr.clone());
-
         let pos = instance.get_pos();
         log::trace!(
-            "Adding draw callback with display {:?} and draw callback params at {:?} (pos is {:?})...",
+            "Adding draw callback with display {:?} (pos is {:?})...",
             instance.display,
-            instance_ptr,
             pos
         );
+
         let display_ptr = instance.display.clone();
-        run_with_obs!(runtime, (display_ptr, instance_ptr), move || unsafe {
-            libobs::obs_display_add_draw_callback(display_ptr, Some(render_display), instance_ptr);
+        run_with_obs!(runtime, (display_ptr), move || unsafe {
+            libobs::obs_display_add_draw_callback(
+                display_ptr,
+                Some(render_display),
+                std::ptr::null_mut(),
+            );
         })?;
 
+        // Set the display pointer in the window's user data for message handling
+        {
+            let manager = instance
+                .manager
+                .read()
+                .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
+            manager.set_display_userdata(display_ptr.0);
+        }
+
+        instance.update_color_space()?;
         Ok(instance)
     }
 
@@ -168,60 +168,14 @@ impl ObsDisplayRef {
 }
 
 #[derive(Debug)]
-struct _DisplayDropGuard {
+struct _ObsDisplayDropGuard {
     display: Sendable<*mut libobs::obs_display_t>,
-    self_ptr: Option<Sendable<*mut c_void>>,
-    runtime: ObsRuntime,
+    pub(crate) runtime: ObsRuntime,
 }
 
-impl _DisplayDropGuard {
-    pub fn inner_drop(
-        r: ObsRuntime,
-        display: Sendable<*mut libobs::obs_display_t>,
-        self_ptr: Option<Sendable<*mut c_void>>,
-    ) -> Result<(), ObsError> {
-        run_with_obs!(r, (display), move || unsafe {
-            if let Some(ptr) = &self_ptr {
-                log::trace!("Destroying display with callback at {:?}...", ptr.0);
-                libobs::obs_display_remove_draw_callback(display, Some(render_display), ptr.0);
-            }
+impl_obs_drop!(_ObsDisplayDropGuard, (display), move || unsafe {
+    log::trace!("Removing callback of display {:?}...", display);
+    libobs::obs_display_remove_draw_callback(display, Some(render_display), std::ptr::null_mut());
 
-            libobs::obs_display_destroy(display);
-        })
-    }
-}
-
-impl Drop for _DisplayDropGuard {
-    fn drop(&mut self) {
-        log::trace!("Dropping ObsDisplayRef guard...");
-
-        let display = self.display.clone();
-        let self_ptr = self.self_ptr.clone();
-        let r = self.runtime.clone();
-
-        #[cfg(any(
-            not(feature = "no_blocking_drops"),
-            test,
-            feature = "__test_environment"
-        ))]
-        {
-            let r = _DisplayDropGuard::inner_drop(r, display, self_ptr);
-            if std::thread::panicking() {
-                return;
-            }
-
-            r.unwrap();
-        }
-
-        #[cfg(all(
-            feature = "no_blocking_drops",
-            not(test),
-            not(feature = "__test_environment")
-        ))]
-        {
-            tokio::task::spawn_blocking(move || {
-                _DisplayDropGuard::inner_drop(r, display, self_ptr).unwrap();
-            });
-        }
-    }
-}
+    libobs::obs_display_destroy(display);
+});

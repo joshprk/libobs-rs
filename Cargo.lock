@@ -1902,7 +1902,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-sources"
-version = "3.2.3+32.0.2"
+version = "3.3.0+32.0.2"
 dependencies = [
  "anyhow",
  "display-info",
@@ -1933,7 +1933,7 @@ dependencies = [
 
 [[package]]
 name = "libobs-wrapper"
-version = "5.2.3+32.0.2"
+version = "5.3.0+32.0.2"
 dependencies = [
  "anyhow",
  "arboard",

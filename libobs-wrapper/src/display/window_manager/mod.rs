@@ -20,8 +20,9 @@ use windows::{
             CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, GetWindowLongPtrW,
             LoadCursorW, PostMessageW, PostQuitMessage, RegisterClassExW,
             SetLayeredWindowAttributes, SetParent, SetWindowLongPtrW, TranslateMessage, CS_HREDRAW,
-            CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT, IDC_ARROW,
-            LWA_ALPHA, MSG, WM_NCHITTEST, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
+            CS_NOCLOSE, CS_OWNDC, CS_VREDRAW, GWLP_USERDATA, GWL_EXSTYLE, GWL_STYLE, HTTRANSPARENT,
+            IDC_ARROW, LWA_ALPHA, MSG, WM_DISPLAYCHANGE, WM_MOVE, WM_NCHITTEST,
+            WM_WINDOWPOSCHANGED, WNDCLASSEXW, WS_CHILD, WS_EX_COMPOSITED, WS_EX_LAYERED,
             WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
         },
     },
@@ -37,6 +38,16 @@ pub use position_trait::WindowPositionTrait;
 pub use show_hide::ShowHideTrait;
 
 const WM_DESTROY_WINDOW: u32 = 0x8001; // Custom message
+
+// Function to update color space from window user data
+unsafe fn update_color_space_from_userdata(window: HWND) {
+    let user_data = GetWindowLongPtrW(window, GWLP_USERDATA) as *mut obs_display_t;
+    if !user_data.is_null() {
+        log::trace!("Updating color space for display change/move");
+        libobs::obs_display_update_color_space(user_data);
+    }
+}
+
 extern "system" fn wndproc(
     window: HWND,
     message: u32,
@@ -49,6 +60,11 @@ extern "system" fn wndproc(
             WM_DESTROY_WINDOW => {
                 PostQuitMessage(0);
                 LRESULT(0)
+            }
+            WM_DISPLAYCHANGE | WM_MOVE | WM_WINDOWPOSCHANGED => {
+                // Update color space when display changes or window moves
+                update_color_space_from_userdata(window);
+                DefWindowProcW(window, message, w_param, l_param)
             }
             _ => DefWindowProcW(window, message, w_param, l_param),
         }
@@ -280,6 +296,13 @@ impl DisplayWindowManager {
 
     pub fn get_window_handle(&self) -> HWND {
         self.hwnd.0
+    }
+
+    /// Set the obs display pointer in the window's user data for message handling
+    pub fn set_display_userdata(&self, display_ptr: *mut obs_display_t) {
+        unsafe {
+            SetWindowLongPtrW(self.hwnd.0, GWLP_USERDATA, display_ptr as isize);
+        }
     }
 }
 

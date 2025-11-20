@@ -333,6 +333,10 @@ impl ObsContext {
     /// Creates a new display and returns its ID.
     #[cfg(windows)]
     //TODO
+    ///
+    /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
+    ///
+    /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
     pub fn display(
         &mut self,
         data: ObsDisplayCreationData,

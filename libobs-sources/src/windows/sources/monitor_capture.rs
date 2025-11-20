@@ -34,6 +34,10 @@ define_object_manager!(
         /// Compatibility mode for the monitor capture source.
         compatibility: bool,
 
+        #[obs_property(type_t = "bool")]
+        /// If the capture should force SDR
+        force_sdr: bool,
+
         capture_method: Option<ObsDisplayCaptureMethod>,
     }
 );
