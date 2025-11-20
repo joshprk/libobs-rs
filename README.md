@@ -9,15 +9,8 @@
 
 Simple and safe video recording through libobs.
 
-Currently only tested on Windows. Linux and macOS likely work, but they are untested. These will receive support later down the road.
-
+Currently only tested on Windows. MacOS doesn't work right now, but [we are working on that](https://github.com/libobs-rs/libobs-rs/pull/53).
 The API is currently unstable and will definitely have breaking revisions in the future.
-
-To build on Linux, you must install the libobs-dev package, as well as the bindgen dependencies.
-```
-sudo apt-get libobs-dev llvm-dev libclang-dev clang
-```
-
 
 > [!NOTE]
 > The libobs-wrapper async functionality has been removed because of all kinds of issues ([#32](https://github.com/joshprk/libobs-rs/issues/32))
