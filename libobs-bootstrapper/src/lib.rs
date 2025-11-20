@@ -59,7 +59,7 @@ pub enum BootstrapStatus {
 ///   Recommended to use is the dll dummy (found [here](https://github.com/sshcrack/libobs-builds/releases), make sure you use the correct OBS version)
 ///   and rename it to `obs.dll`.
 /// - Call `ObsBootstrapper::bootstrap()` at the start of your application. Options must be configured. For more documentation look at the [tauri example app](https://github.com/joshprk/libobs-rs/tree/main/examples/tauri-app). This will download the latest version of OBS and extract it in the executable directory.
-/// - If BootstrapStatus::RestartRequired is returned, call `ObsBootstrapper::spawn_updater()` to spawn the updater process.
+/// - If BootstrapStatus::RestartRequired is returned, you'll need to restart your application. A updater process has been spawned to watch for the application to exit and rename the `obs_new.dll` file to `obs.dll`.
 /// - Exit the application. The updater process will wait for the application to exit and rename the `obs_new.dll` file to `obs.dll` and restart your application with the same arguments as before.
 ///
 /// [Example project](https://github.com/joshprk/libobs-rs/tree/main/examples/download-at-runtime)

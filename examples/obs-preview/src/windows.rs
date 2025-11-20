@@ -2,20 +2,22 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
-use libobs_sources::windows::{
-    GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
+use libobs_simple::output::simple::ObsContextSimpleExt;
+use libobs_simple::sources::{
+    windows::{
+        GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
+        ObsGameCaptureMode, WindowSearchMode,
+    },
+    ObsObjectUpdater,
 };
-use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
-use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
 use libobs_wrapper::display::{
     MiscDisplayTrait, ObsDisplayCreationData, ObsDisplayRef, WindowPositionTrait,
 };
-use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
+use libobs_wrapper::scenes::ObsSceneRef;
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
 use libobs_wrapper::utils::traits::ObsUpdatable;
-use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
@@ -30,6 +32,7 @@ struct App {
     context: Arc<RwLock<ObsContext>>,
     monitor_index: Arc<AtomicUsize>,
     source_ref: Arc<RwLock<ObsSourceRef>>,
+    scene: Arc<RwLock<ObsSceneRef>>,
 }
 
 impl ApplicationHandler for App {
@@ -135,6 +138,12 @@ impl ApplicationHandler for App {
                     .set_monitor(monitor)
                     .update()
                     .unwrap();
+
+                self.scene
+                    .write()
+                    .unwrap()
+                    .fit_source_to_screen(&source)
+                    .unwrap();
             }
             _ => (),
         }
@@ -154,55 +163,7 @@ pub fn main() -> anyhow::Result<()> {
     let info = StartupInfo::new().set_video_info(v);
 
     let mut context = ObsContext::new(info)?;
-
-    // Set up output to ./recording.mp4
-    let mut output_settings = context.data()?;
-    output_settings.set_string("path", "recording.mp4")?;
-
-    let output_info = OutputInfo::new("ffmpeg_muxer", "output", Some(output_settings), None);
-    let mut output = context.output(output_info)?;
-
-    // Register the video encoder
-    let mut video_settings = context.data()?;
-    video_settings
-        .bulk_update()
-        .set_int("bf", 0)
-        .set_bool("psycho_aq", true)
-        .set_bool("lookahead", true)
-        .set_string("profile", "high")
-        .set_string("preset", "fast")
-        .set_string("rate_control", "cbr")
-        .set_int("bitrate", 10000)
-        .update()?;
-
-    let encoders = context.available_video_encoders()?;
-
-    let mut encoder = encoders
-        .into_iter()
-        .find(|e| {
-            e.get_encoder_id() == &ObsVideoEncoderType::OBS_NVENC_H264_TEX
-                || e.get_encoder_id() == &ObsVideoEncoderType::AV1_TEXTURE_AMF
-                || e.get_encoder_id() == &ObsVideoEncoderType::OBS_X264
-        })
-        .unwrap();
-
-    encoder.set_settings(video_settings);
-
-    println!("Using encoder {:?}", encoder.get_encoder_id());
-    encoder.set_to_output(&mut output, "video_encoder")?;
-
-    // Register the audio encoder
-    let mut audio_settings = context.data()?;
-    audio_settings.set_int("bitrate", 160)?;
-
-    let audio_info = AudioEncoderInfo::new(
-        ObsAudioEncoderType::FFMPEG_AAC,
-        "audio_encoder",
-        Some(audio_settings),
-        None,
-    );
-
-    output.create_and_set_audio_encoder(audio_info, 0)?;
+    let mut output = context.simple_output_builder("recording.mp4").build()?;
 
     let mut scene = context.scene("Main Scene")?;
 
@@ -217,8 +178,7 @@ pub fn main() -> anyhow::Result<()> {
             &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
         )
         .add_to_scene(&mut scene)?;
-    scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-    scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+    scene.fit_source_to_screen(&monitor_src)?;
 
     let mut _apex_source = None;
     if let Some(apex) = apex {
@@ -232,8 +192,7 @@ pub fn main() -> anyhow::Result<()> {
             .set_window(apex)
             .add_to_scene(&mut scene)?;
 
-        scene.set_source_position(&source, libobs_wrapper::Vec2::new(0.0, 0.0))?;
-        scene.set_source_scale(&source, libobs_wrapper::Vec2::new(1.0, 1.0))?;
+        scene.fit_source_to_screen(&source)?;
         _apex_source = Some(source);
     } else {
         println!("No Apex window found for game capture");
@@ -253,16 +212,21 @@ pub fn main() -> anyhow::Result<()> {
         }
     });
 
-    let event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new()?;
     let mut app = App {
         window: Arc::new(RwLock::new(None)),
         display: Arc::new(RwLock::new(None)),
         context: Arc::new(RwLock::new(context)),
         monitor_index: Arc::new(AtomicUsize::new(1)),
         source_ref: Arc::new(RwLock::new(monitor_src)),
+        scene: Arc::new(RwLock::new(scene)),
     };
 
-    event_loop.run_app(&mut app).unwrap();
+    output.start()?;
+
+    event_loop.run_app(&mut app)?;
+
+    output.stop()?;
 
     println!("Done with mainloop.");
     Ok(())

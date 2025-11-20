@@ -26,8 +26,10 @@
 //! ```no_run
 //! # fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! use libobs_wrapper::context::ObsContext;
+//! use libobs_wrapper::utils::StartupInfo;
 //!
-//! let context = ObsContext::builder().start()?;
+//! let info = StartupInfo::default();
+//! let context = ObsContext::new(info)?;
 //! # Ok(())
 //! # }
 //! ```
@@ -133,8 +135,7 @@ impl ObsContext {
     /// period of time. Unfortunately the memory
     /// leak is caused by a bug in libobs itself.
     ///
-    /// If the `bootstrapper` feature is enabled, and ObsContextReturn::Restart is returned,
-    /// the application must be restarted to apply the updates and initialization can not continue.
+    /// If initialization fails, an `ObsError` is returned.
     pub fn new(info: StartupInfo) -> Result<ObsContext, ObsError> {
         // Spawning runtime, I'll keep this as function for now
         let (runtime, obs_modules, info) = ObsRuntime::startup(info)?;

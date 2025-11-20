@@ -52,7 +52,7 @@ cargo obs-build --out-dir target/release
 cargo obs-build --out-dir target/(debug|release)/deps
 ```
 
-More details can be found in the [cargo-obs-build documentation](./cargo-obs-build/README.md).
+More details can be found in the [cargo-obs-build documentation](../cargo-obs-build/README.md).
 
 ### Option 2: Using the OBS Bootstrapper (Recommended for distribution)
 
@@ -65,11 +65,12 @@ See the [libobs-bootstrapper documentation](https://docs.rs/libobs-bootstrapper)
 ## Advanced Usage
 
 For more advanced usage examples, check out:
-- Monitor capture example with full configuration: [examples/monitor_capture.rs](../examples/monitor_capture.rs)
-- Tauri integration example: [examples/tauri-app](../examples/tauri-app)
+
+- Monitor capture example with full configuration: [examples/monitor_capture](../examples/monitor-capture)
 - Runtime bootstrapping example: [examples/download-at-runtime](../examples/download-at-runtime)
 
-For even easier source creation and management, consider using the [`libobs-sources`](https://crates.io/crates/libobs-sources) crate which builds on top of this wrapper.
+For even easier handling, consider using the [`libobs-simple`](https://crates.io/crates/libobs-simple) crate which
+builds on top of this wrapper.
 
 ## Features
 - `no_blocking_drops` - Spawns a tokio thread using `tokio::task::spawn_blocking`, so drops don't block your Application (experimental, make sure you have a tokio runtime running)

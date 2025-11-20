@@ -1,0 +1,25 @@
+[package]
+name = "libobs-simple-macro"
+description = "Helper macro for libobs-simple"
+repository = "https://github.com/joshprk/libobs-rs"
+documentation = "https://joshprk.github.io/libobs-rs/libobs_simple_macro/"
+readme = "README.md"
+authors = ["sshcrack"]
+categories = ["multimedia::video", "multimedia::audio", "multimedia", "multimedia::encoding"]
+keywords = ["obs", "libobs", "video", "recording", "screen-recording"]
+license = "GPL-3.0"
+version = "5.0.0"
+edition = "2021"
+
+[dependencies]
+proc-macro2 = "1.0.86"
+quote = "1.0.36"
+syn = {version="2.0.72", features=["full"]}
+
+[lib]
+name = "libobs_simple_macro"
+path = "src/lib.rs"
+proc-macro = true
+
+[lints]
+workspace = true

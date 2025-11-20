@@ -1,15 +1,18 @@
+use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
 use getters0::Getters;
-use libobs::{obs_scene_t, obs_source_t};
+use libobs::{obs_scene_t, obs_source_t, obs_transform_info, obs_video_info};
+use num_traits::ToPrimitive;
 
+use crate::enums::ObsBounds;
 use crate::{
+    graphics::Vec2,
     impl_obs_drop, impl_signal_manager, run_with_obs,
     runtime::ObsRuntime,
     sources::{ObsFilterRef, ObsSourceRef},
     unsafe_send::Sendable,
     utils::{ObsError, ObsString, SourceInfo},
-    Vec2,
 };
 
 #[derive(Debug)]
@@ -248,6 +251,60 @@ impl ObsSceneRef {
         Ok(())
     }
 
+    /// Fits the given source to the screen size.
+    /// If the source is locked, no action is taken.
+    ///
+    /// Returns `Ok(true)` if the source was resized, `Ok(false)` if the source was locked and not resized.
+    pub fn fit_source_to_screen(&self, source_info: &ObsSourceRef) -> Result<bool, ObsError> {
+        let scene_item = source_info.scene_item.clone();
+
+        if scene_item.is_none() {
+            return Err(ObsError::SourceNotFound);
+        }
+
+        let scene_item_ptr = scene_item.unwrap();
+        let is_locked = {
+            run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
+                libobs::obs_sceneitem_locked(scene_item_ptr)
+            })?
+        };
+
+        if is_locked {
+            return Ok(false);
+        }
+
+        let ovi = run_with_obs!(self.runtime, (), move || unsafe {
+            let mut ovi = std::mem::MaybeUninit::<obs_video_info>::uninit();
+            libobs::obs_get_video_info(ovi.as_mut_ptr());
+
+            Sendable(ovi.assume_init())
+        })?;
+
+        let bounds_crop = run_with_obs!(self.runtime, (scene_item_ptr), move || unsafe {
+            libobs::obs_sceneitem_get_bounds_crop(scene_item_ptr)
+        })?;
+
+        let item_info = obs_transform_info {
+            pos: Vec2::new(0.0, 0.0).into(),
+            scale: Vec2::new(1.0, 1.0).into(),
+            alignment: libobs::OBS_ALIGN_LEFT | libobs::OBS_ALIGN_TOP,
+            rot: 0.0,
+            bounds: Vec2::new(ovi.0.base_width as f32, ovi.0.base_height as f32).into(),
+            bounds_type: ObsBounds::ScaleInner
+                .to_i32()
+                .expect("Failed to convert ObsBounds to i32"),
+            bounds_alignment: libobs::OBS_ALIGN_CENTER,
+            crop_to_bounds: bounds_crop,
+        };
+
+        let item_info = Sendable(item_info);
+        run_with_obs!(self.runtime, (scene_item_ptr, item_info), move || unsafe {
+            libobs::obs_sceneitem_set_info2(scene_item_ptr, &item_info);
+        })?;
+
+        Ok(true)
+    }
+
     pub fn as_ptr(&self) -> Sendable<*mut obs_scene_t> {
         Sendable(self.scene.0)
     }
@@ -257,7 +314,7 @@ impl_signal_manager!(|scene_ptr| unsafe {
     let source_ptr = libobs::obs_scene_get_source(scene_ptr);
 
     libobs::obs_source_get_signal_handler(source_ptr)
-}, ObsSceneSignals for ObsSceneRef<*mut libobs::obs_scene_t>, [
+}, ObsSceneSignals for ObsSceneRef<*mut obs_scene_t>, [
     "item_add": {
         struct ItemAddSignal {
             POINTERS {

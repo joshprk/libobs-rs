@@ -9,8 +9,7 @@
 
 Simple and safe video recording through libobs.
 
-Currently only tested on Windows. Linux and MacOS don't work right now, but [we are working on that](https://github.com/libobs-rs/libobs-rs/pull/53).
-
+Currently only tested on Windows. MacOS doesn't work right now, but [we are working on that](https://github.com/libobs-rs/libobs-rs/pull/53).
 The API is currently unstable and will definitely have breaking revisions in the future.
 
 > [!NOTE]
@@ -59,7 +58,12 @@ More details can be found in the [cargo-obs-build documentation](./cargo-obs-bui
 Below is an example that will record video-only footage of an exclusive fullscreen application. Note that the API is extremely limited right now, but you can already record both video and audio with full control over the output already. If you need more, libobs is exposed.
 
 Examples are located in the [examples](./examples) directory.
-Documentation is also available for [libobs-sources](./libobs-sources/README.md) or [libobs-wrapper](./libobs-wrapper/README.md).
+Documentation is also available for [libobs-simple](libobs-simple/README.md)
+or [libobs-wrapper](./libobs-wrapper/README.md).
+
+## Documentation
+- [Bootstrap Options](./docs/bootstrap_options.md)
+- [How it Works](./docs/how_it_works.md)
 
 ## Disclaimer
 

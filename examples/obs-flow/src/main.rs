@@ -2,15 +2,15 @@
 
 use std::{thread::sleep, time::Duration};
 
-use libobs_sources::{
+use libobs_simple::sources::{
     ObsSourceBuilder,
     windows::{MonitorCaptureSourceBuilder, ObsDisplayCaptureMethod},
 };
 use libobs_wrapper::{
-    Vec2,
     context::ObsContext,
     data::properties::{ObsProperty, ObsPropertyObject, types::ObsListItemValue},
     encoders::{ObsAudioEncoderType, ObsVideoEncoderType},
+    graphics::Vec2,
     sources::ObsSourceRef,
     utils::{AudioEncoderInfo, ObsPath, OutputInfo, StartupInfo, VideoEncoderInfo},
 };

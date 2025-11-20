@@ -12,7 +12,7 @@
                 "args": [
                     "test",
                     "--package",
-                    "libobs-sources",
+                    "libobs-simple",
                     "startup",
                     "--",
                     "--nocapture"
