@@ -445,4 +445,30 @@ impl ObsContext {
     ) -> Result<T, ObsError> {
         T::new(name.into(), self.runtime.clone())
     }
+
+    /// Gets the current video frame time in nanoseconds.
+    ///
+    /// This returns the timestamp from OBS's internal monotonic clock (`os_gettime_ns()`),
+    /// which is the same timebase used for video frame timestamps. This is critical for
+    /// synchronizing external events (like input events) with video frames.
+    ///
+    /// # Returns
+    ///
+    /// The current video frame time in nanoseconds since an arbitrary epoch.
+    /// This value is monotonic and will never go backwards.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # fn example(context: &libobs_wrapper::context::ObsContext) -> Result<(), Box<dyn std::error::Error>> {
+    /// let timestamp_ns = context.get_video_frame_time()?;
+    /// println!("Current video frame time: {} ns", timestamp_ns);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn get_video_frame_time(&self) -> Result<u64, ObsError> {
+        run_with_obs!(self.runtime, || unsafe {
+            libobs::obs_get_video_frame_time()
+        })
+    }
 }

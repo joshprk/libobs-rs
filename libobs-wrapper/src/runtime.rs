@@ -95,6 +95,28 @@ pub struct ObsRuntime {
 }
 
 impl ObsRuntime {
+    /// Gets the current video frame time in nanoseconds directly.
+    ///
+    /// This is a lightweight function that can be called frequently from any thread
+    /// without the overhead of the runtime message passing system. It directly calls
+    /// the OBS C API to get the current video frame timestamp.
+    ///
+    /// This timestamp uses OBS's internal monotonic clock (os_gettime_ns()) and is
+    /// the same timebase used for video frame PTS values, making it ideal for
+    /// synchronizing external events with video recording.
+    ///
+    /// # Safety
+    ///
+    /// This function is safe to call from any thread after OBS has been initialized.
+    /// The underlying `obs_get_video_frame_time()` C function is thread-safe.
+    ///
+    /// # Returns
+    ///
+    /// Current video frame time in nanoseconds.
+    pub fn get_video_frame_time_direct(&self) -> u64 {
+        unsafe { libobs::obs_get_video_frame_time() }
+    }
+
     /// Initializes the OBS runtime.
     ///
     /// This function starts up OBS on a dedicated thread and prepares it for use.
