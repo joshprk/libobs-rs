@@ -29,7 +29,13 @@ impl Drop for PlatformSpecificGuard {
         unsafe {
             match self.platform {
                 PlatformType::X11 => {
-                    XCloseDisplay(self.display.0);
+                    let result = XCloseDisplay(self.display.0);
+                    if result != 0 {
+                        eprintln!(
+                            "[libobs-wrapper]: Warning: XCloseDisplay returned non-zero: {}",
+                            result
+                        );
+                    }
                 }
                 PlatformType::Wayland => {
                     wl_display_disconnect(self.display.0);
