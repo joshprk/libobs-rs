@@ -39,7 +39,10 @@
 //! # Linux Example
 //! ```no_run
 //! #[cfg(target_os = "linux")]
-//! use libobs_sources::linux::{X11CaptureSourceBuilder, V4L2InputSourceBuilder, AlsaInputSourceBuilder};
+//! use libobs_sources::linux::{
+//!     LinuxGeneralScreenCapture, LinuxGeneralWindowCapture,
+//!     X11CaptureSourceBuilder, V4L2InputSourceBuilder, AlsaInputSourceBuilder
+//! };
 //! use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -49,9 +52,23 @@
 //!
 //! #[cfg(target_os = "linux")]
 //! {
-//!     // Screen capture
+//!     // General screen capture (auto-detects X11 vs Wayland/PipeWire)
+//!     let screen_capture = LinuxGeneralScreenCapture::auto_detect(
+//!         context.runtime().clone(),
+//!         "Screen Capture"
+//!     )?;
+//!     scene.add(&screen_capture)?;
+//!
+//!     // General window capture (auto-detects X11 vs Wayland/PipeWire)
+//!     let window_capture = LinuxGeneralWindowCapture::auto_detect(
+//!         context.runtime().clone(),
+//!         "Window Capture"
+//!     )?;
+//!     scene.add(&window_capture)?;
+//!
+//!     // Or use specific X11 screen capture
 //!     let screen_source = context
-//!         .source_builder::<X11CaptureSourceBuilder, _>("Screen Capture")?
+//!         .source_builder::<X11CaptureSourceBuilder, _>("X11 Screen")?
 //!         .set_screen(0)
 //!         .set_show_cursor(true)
 //!         .add_to_scene(&mut scene)?;

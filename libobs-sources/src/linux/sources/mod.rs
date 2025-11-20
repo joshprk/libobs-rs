@@ -18,3 +18,9 @@ pub use jack_input::*;
 
 mod pipewire_capture;
 pub use pipewire_capture::*;
+
+mod linux_general_screen_capture;
+pub use linux_general_screen_capture::*;
+
+mod linux_general_window_capture;
+pub use linux_general_window_capture::*;
