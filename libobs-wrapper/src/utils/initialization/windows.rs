@@ -12,7 +12,9 @@ use windows::{
     },
 };
 
-pub fn load_debug_privilege() {
+#[derive(Debug)]
+pub(crate) struct PlatformSpecificGuard {}
+pub fn platform_specific_setup() {
     unsafe {
         let flags = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
         let mut tp = TOKEN_PRIVILEGES::default();

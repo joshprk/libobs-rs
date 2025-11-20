@@ -50,6 +50,9 @@ pub enum ObsError {
 
     /// Encoder is still active, stop the attached output before proceeding
     EncoderActive,
+
+    /// Error during platform-specific initialization
+    PlatformInitError(String),
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -81,6 +84,7 @@ impl Display for ObsError {
             ObsError::Unexpected(e) => write!(f, "Unexpected error: {:?}", e),
             ObsError::EncoderActive => write!(f, "Encoder is still active, stop the attached output before proceeding"),
             ObsError::StringConversionError => write!(f, "Error converting a string between Rust and OBS"),
+            ObsError::PlatformInitError(e) => write!(f, "Error during platform-specific initialization: {}", e),
         }
     }
 }
