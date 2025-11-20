@@ -1,5 +1,3 @@
-
-
 define_object_manager!(
     /// Provides an easy-to-use builder for the window capture source.
     #[derive(Debug)]
@@ -119,7 +117,6 @@ impl ObsSourceBuilder for WindowCaptureSourceBuilder {
         Ok(res)
     }
 }
-
 
 fn main() -> anyhow::Result<()> {
     println!("Custom Source Example");
