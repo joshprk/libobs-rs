@@ -75,7 +75,14 @@ pub struct ObsOutputRef {
     #[skip_getter]
     pub(crate) runtime: ObsRuntime,
 
-    pub(crate) signal_manager: Arc<ObsOutputSignals>,
+    /// Signal manager for subscribing to OBS output events
+    /// 
+    /// Provides access to output signals like:
+    /// - `on_start()`: Output successfully started (equivalent to OBS_WEBSOCKET_OUTPUT_STARTED)
+    /// - `on_stop()`: Output stopped
+    /// - `on_pause()`: Output paused
+    /// - And more...
+    pub signal_manager: Arc<ObsOutputSignals>,
 }
 
 impl ObsOutputRef {
