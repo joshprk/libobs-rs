@@ -1,11 +1,9 @@
-
-#[cfg(any(not(feature = "install_dummy_dll"), not(target_os="windows")))]
+#[cfg(any(not(feature = "install_dummy_dll"), not(target_os = "windows")))]
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 }
 
-#[cfg(feature = "install_dummy_dll")]
-#[cfg(target_os="windows")]
+#[cfg(all(feature = "install_dummy_dll", target_os = "windows"))]
 fn main() {
     use std::path::PathBuf;
     println!("cargo:rerun-if-changed=build.rs");
