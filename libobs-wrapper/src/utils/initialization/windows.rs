@@ -14,7 +14,7 @@ use windows::{
 
 #[derive(Debug)]
 pub(crate) struct PlatformSpecificGuard {}
-pub fn platform_specific_setup() {
+pub fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
     unsafe {
         let flags = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
         let mut tp = TOKEN_PRIVILEGES::default();
@@ -66,4 +66,6 @@ pub fn platform_specific_setup() {
 
         let _ = CloseHandle(token);
     }
+
+    Ok(None)
 }
