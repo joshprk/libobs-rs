@@ -22,7 +22,7 @@ impl StringEnum for ObsV4L2ColorRange {
     fn to_str(&self) -> &str {
         match self {
             ObsV4L2ColorRange::Default => "Default",
-            ObsV4L2ColorRange::Partial => "Partial", 
+            ObsV4L2ColorRange::Partial => "Partial",
             ObsV4L2ColorRange::Full => "Full",
         }
     }

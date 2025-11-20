@@ -1,6 +1,4 @@
-use libobs_wrapper::{
-    sources::{ObsSourceBuilder, ObsSourceRef},
-};
+use libobs_wrapper::sources::{ObsSourceBuilder, ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
@@ -25,8 +23,7 @@ define_object_manager!(
 impl JackInputSourceBuilder {
     /// Set to capture from system audio input ports
     pub fn set_system_capture(self) -> Self {
-        self.set_client_match("system")
-            .set_connect_ports(true)
+        self.set_client_match("system").set_connect_ports(true)
     }
 }
 

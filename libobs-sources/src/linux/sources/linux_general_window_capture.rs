@@ -1,5 +1,8 @@
 use libobs_wrapper::{
-    data::ObsObjectBuilder, runtime::ObsRuntime, sources::ObsSourceRef, utils::{ObsError, SourceInfo},
+    data::ObsObjectBuilder,
+    runtime::ObsRuntime,
+    sources::ObsSourceRef,
+    utils::{ObsError, SourceInfo},
 };
 
 use super::DisplayServerType;

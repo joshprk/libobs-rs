@@ -1,9 +1,9 @@
 //! A library for creating OBS sources without having to figure out what properties are used by sources.
-//! 
+//!
 //! This crate provides convenient builders for OBS sources across different platforms:
 //! - **Windows**: Window capture, monitor capture, game capture
 //! - **Linux**: X11 screen capture, XComposite window capture, V4L2 camera, ALSA/PulseAudio/JACK audio, PipeWire
-//! 
+//!
 //! # Windows Example
 //! ```no_run
 //! #[cfg(target_family = "windows")]
@@ -35,7 +35,7 @@
 //! # }
 //! ```
 
-//! 
+//!
 //! # Linux Example
 //! ```no_run
 //! #[cfg(target_os = "linux")]

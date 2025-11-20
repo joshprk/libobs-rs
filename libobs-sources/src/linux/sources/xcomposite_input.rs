@@ -1,6 +1,4 @@
-use libobs_wrapper::{
-    sources::{ObsSourceBuilder, ObsSourceRef},
-};
+use libobs_wrapper::sources::{ObsSourceBuilder, ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
@@ -20,7 +18,7 @@ define_object_manager!(
         #[obs_property(type_t = "int")]
         cut_top: i64,
 
-        /// Crop from left (in pixels) 
+        /// Crop from left (in pixels)
         #[obs_property(type_t = "int")]
         cut_left: i64,
 

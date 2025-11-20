@@ -1,6 +1,4 @@
-use libobs_wrapper::{
-    sources::{ObsSourceBuilder, ObsSourceRef},
-};
+use libobs_wrapper::sources::{ObsSourceBuilder, ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
@@ -18,7 +16,7 @@ define_object_manager!(
     /// A source for PipeWire screen/camera capture.
     ///
     /// PipeWire is a modern multimedia framework for Linux that handles audio and video.
-    /// This source can capture screen content through the desktop portal or camera 
+    /// This source can capture screen content through the desktop portal or camera
     /// content through the camera portal, providing sandboxed capture capabilities.
     struct PipeWireCaptureSource("pipewire-desktop-capture-source") for ObsSourceRef {
         /// Restore token for reconnecting to previous sessions
@@ -26,9 +24,9 @@ define_object_manager!(
         restore_token: String,
 
         /// Portal session token
-        #[obs_property(type_t = "string")]  
+        #[obs_property(type_t = "string")]
         session_token: String,
-        
+
         /// Whether to show cursor (for screen capture)
         #[obs_property(type_t = "bool")]
         show_cursor: bool,
@@ -50,7 +48,7 @@ define_object_manager!(
         #[obs_property(type_t = "string")]
         video_format: String,
 
-        /// Resolution as "width x height" 
+        /// Resolution as "width x height"
         #[obs_property(type_t = "string")]
         resolution: String,
 

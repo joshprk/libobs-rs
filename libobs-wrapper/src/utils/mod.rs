@@ -5,7 +5,7 @@ mod obs_string;
 mod path;
 pub mod traits;
 
-#[cfg(target_os="linux")]
+#[cfg(target_os = "linux")]
 pub(crate) mod linux;
 
 #[cfg(test)]

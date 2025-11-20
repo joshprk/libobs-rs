@@ -1,6 +1,4 @@
-use libobs_wrapper::{
-    sources::{ObsSourceBuilder, ObsSourceRef},
-};
+use libobs_wrapper::sources::{ObsSourceBuilder, ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
@@ -28,10 +26,9 @@ define_object_manager!(
 impl AlsaInputSourceBuilder {
     /// Set a custom PCM device
     pub fn set_custom_device(self, pcm_device: &str) -> Self {
-        self.set_device_id("__custom__")
-            .set_custom_pcm(pcm_device)
+        self.set_device_id("__custom__").set_custom_pcm(pcm_device)
     }
-    
+
     /// Set a standard ALSA device
     pub fn set_alsa_device(self, device: &str) -> Self {
         self.set_device_id(device)

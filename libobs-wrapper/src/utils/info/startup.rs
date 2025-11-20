@@ -63,7 +63,7 @@ impl Default for StartupInfo {
             obs_video_info: ObsVideoInfo::default(),
             obs_audio_info: ObsAudioInfo::default(),
             logger: Some(Box::new(ConsoleLogger::new())),
-            start_glib_loop: true
+            start_glib_loop: true,
         }
     }
 }

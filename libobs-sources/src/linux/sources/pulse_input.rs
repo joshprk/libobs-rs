@@ -1,6 +1,4 @@
-use libobs_wrapper::{
-    sources::{ObsSourceBuilder, ObsSourceRef},
-};
+use libobs_wrapper::sources::{ObsSourceBuilder, ObsSourceRef};
 
 use crate::macro_helper::define_object_manager;
 
