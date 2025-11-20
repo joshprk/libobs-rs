@@ -45,7 +45,7 @@ fn main() {
             pkg_config::Config::new()
                 .atleast_version(&version)
                 .probe("libobs")
-                .expect("Could not find libobs via pkg-config. Make sure you have installed obs-studio to the system. A build/installation guide can be found at https://github.com/obsproject/obs-studio/wiki/Build-Instructions-For-Linux.");
+                .unwrap_or_else(|_| panic!("Could not find libobs via pkg-config. Make sure you have installed obs-studio to the system. A build/installation guide can be found at https://github.com/obsproject/obs-studio/wiki/Build-Instructions-For-Linux. The version must be at least {}", version));
         }
     }
 
