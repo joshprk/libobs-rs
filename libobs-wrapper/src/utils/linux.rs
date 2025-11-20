@@ -30,6 +30,15 @@ impl Drop for LinuxGlibLoop {
         if self.glib_loop.is_running() {
             self.glib_loop.quit();
         }
-        self.handle.take().unwrap().join().unwrap();
+        let handle = self.handle.take().unwrap();
+        let r = handle.join();
+        if std::thread::panicking() {
+            log::error!(
+                "[libobs-wrapper]: Thread panicked while dropping LinuxGlibLoop: {:?}",
+                r.err()
+            );
+        } else {
+            r.unwrap();
+        }
     }
 }

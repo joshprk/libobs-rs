@@ -321,7 +321,17 @@ impl Drop for DisplayWindowManager {
             let thread = self.message_thread.take();
             if let Some(thread) = thread {
                 log::trace!("Waiting for message thread to exit...");
-                thread.join().unwrap();
+                let r = thread.join();
+                if r.is_ok() {
+                    log::trace!("Message thread exited cleanly");
+                    return;
+                }
+
+                if !std::thread::panicking() {
+                    log::error!("Message thread panicked: {:?}", r.unwrap_err());
+                } else {
+                    r.unwrap();
+                }
             }
         }
     }

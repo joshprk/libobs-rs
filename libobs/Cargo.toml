@@ -20,9 +20,11 @@ build = "build.rs"
 [target.'cfg(target_family = "windows")'.build-dependencies]
 bindgen = { version = "0.72.1", optional = true }
 
+# For non-windows targets, bindgen is always required to generate bindings
 [target.'cfg(not(target_family = "windows"))'.build-dependencies]
 bindgen = "0.72.1"
-[target.'cfg(target_family = "unix")'.build-dependencies]
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
 pkg-config = "0.3"
 
 [features]
