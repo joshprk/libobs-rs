@@ -13,12 +13,6 @@ Currently only tested on Windows. Linux and MacOS don't work right now, but [we 
 
 The API is currently unstable and will definitely have breaking revisions in the future.
 
-To build on Linux, you must install the libobs-dev package, as well as the bindgen dependencies.
-```
-sudo apt-get libobs-dev llvm-dev libclang-dev clang
-```
-
-
 > [!NOTE]
 > The libobs-wrapper async functionality has been removed because of all kinds of issues ([#32](https://github.com/joshprk/libobs-rs/issues/32))
 
