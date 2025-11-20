@@ -71,69 +71,23 @@ enum PlatformType {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn detect_platform() -> Option<PlatformType> {
-    unsafe {
-        // First check environment variables for explicit session type
-        if let Some(session_type) = get_env_var("XDG_SESSION_TYPE") {
-            let session_lower = session_type.to_lowercase();
-            if session_lower.contains("wayland") {
-                return Some(PlatformType::Wayland);
-            } else if session_lower.contains("x11") {
-                return Some(PlatformType::X11);
-            }
-        }
-
-        // Check for Wayland-specific environment variables
-        if get_env_var("WAYLAND_DISPLAY").is_some() || get_env_var("WAYLAND_SERVER").is_some() {
-            // Try to connect to Wayland to verify it's actually available
-            let display = wl_display_connect(ptr::null());
-            if !display.is_null() {
-                wl_display_disconnect(display);
-                return Some(PlatformType::Wayland);
-            }
-            // Even if we can't connect, if env vars suggest Wayland, prefer it
-            return Some(PlatformType::Wayland);
-        }
-
-        // Check for X11 display environment variable
-        if get_env_var("DISPLAY").is_some() {
-            // Try to connect to X11 to verify it's actually available
-            let display = XOpenDisplay(ptr::null());
-            if !display.is_null() {
-                XCloseDisplay(display);
-                return Some(PlatformType::X11);
-            }
-            // Even if we can't connect, if DISPLAY is set, prefer X11
-            return Some(PlatformType::X11);
-        }
-
-        // Check for desktop environment hints
-        if let Some(desktop) = get_env_var("XDG_CURRENT_DESKTOP") {
-            let desktop_lower = desktop.to_lowercase();
-            // Some DEs that typically use Wayland
-            if desktop_lower.contains("sway")
-                || desktop_lower.contains("river")
-                || desktop_lower.contains("hyprland")
-                || desktop_lower.contains("weston")
-            {
-                return Some(PlatformType::Wayland);
-            }
-        }
-
-        // Default fallback to X11 if nothing else is detected
-        // This is the most compatible choice for most Linux systems
-        Some(PlatformType::X11)
+    // Check for Wayland first
+    if std::env::var("WAYLAND_DISPLAY").is_ok() {
+        return Some(PlatformType::Wayland);
     }
-}
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-unsafe fn get_env_var(name: &str) -> Option<String> {
-    let name_cstr = CString::new(name).ok()?;
-    let value_ptr = getenv(name_cstr.as_ptr());
-
-    if value_ptr.is_null() {
-        None
-    } else {
-        let value_cstr = std::ffi::CStr::from_ptr(value_ptr);
-        value_cstr.to_str().ok().map(|s| s.to_string())
+    // Check for X11
+    if std::env::var("DISPLAY").is_ok() {
+        // Could be XWayland, check XDG_SESSION_TYPE for more accuracy
+        if let Ok(session_type) = std::env::var("XDG_SESSION_TYPE") {
+            return match session_type.as_str() {
+                "wayland" => Some(PlatformType::Wayland),
+                "x11" => Some(PlatformType::X11),
+                _ => None,
+            };
+        }
+        return Some(PlatformType::X11);
     }
+
+    None
 }
