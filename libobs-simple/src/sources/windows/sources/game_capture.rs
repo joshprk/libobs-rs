@@ -6,7 +6,7 @@ use libobs_wrapper::{
 };
 
 use super::{ObsHookRate, ObsWindowPriority};
-use crate::sources::macro_helper::define_object_manager;
+use crate::define_object_manager;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Describes the capture mode of the game capture source.

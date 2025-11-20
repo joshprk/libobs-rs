@@ -20,4 +20,3 @@ You can find fully working examples in the `examples/` directory of the reposito
 
 - **`simple_recording.rs`**: A basic example showing how to record a scene.
 - **`window_capture.rs`**: Demonstrates how to capture a specific window.
-- **`custom_source.rs`**: (Coming soon) A complete guide to building a custom source.

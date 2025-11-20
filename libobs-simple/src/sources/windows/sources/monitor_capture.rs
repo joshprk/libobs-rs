@@ -2,7 +2,7 @@
 //! This source captures the entire monitor and is used for screen recording.
 
 use super::ObsDisplayCaptureMethod;
-use crate::sources::macro_helper::define_object_manager;
+use crate::define_object_manager;
 /// Note: This does not update the capture method directly, instead the capture method gets
 /// stored in the struct. The capture method is being set to WGC at first, then the source is created and then the capture method is updated to the desired method.
 use display_info::DisplayInfo;
