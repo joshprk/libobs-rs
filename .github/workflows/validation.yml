@@ -17,6 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
+      - name: Cache cargo-obs-build Installation
+        uses: actions/cache@v4
+        if: matrix.os != 'ubuntu-latest'
+        id: cargo-obs-cacje
+        with:
+          path: |
+            obs-build
+          key: ${{ runner.os }}-cargo-obs-build-${{ hashFiles('Cargo.toml') }}-v2
       - name: Cache OBS Studio Installation
         uses: actions/cache@v4
         if: matrix.os == 'ubuntu-latest'
