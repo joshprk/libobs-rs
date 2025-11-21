@@ -77,6 +77,10 @@ jobs:
         with:
           crate: cargo-obs-build
 
+      - name: Install cargo-hack from crates.io
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: cargo-hack
       - name: Install OBS build dependencies (Windows)
         if: matrix.os != 'ubuntu-latest'
         run: cargo obs-build --out-dir target/debug/deps
@@ -136,7 +140,7 @@ jobs:
         run: cargo clippy -- -D warnings
       # Run cargo check to ensure code will compile
       - name: Check code compilation
-        run: cargo check --all
+        run: cargo hack check --feature-powerset --no-dev-deps --all --skip generate_bindings
       - name: Run tests (no default features)
         run: cargo nextest r --profile ci --no-default-features --features "__test_environment"
       - name: Run tests (with default features)

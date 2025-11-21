@@ -39,7 +39,7 @@ lazy_static! {
         }
         #[cfg(not(feature="dialog_crash_handler"))]
         {
-            Mutex::new(Box::new(ConsoleCrashHandler {}))
+            Mutex::new(Box::new(ConsoleCrashHandler { _private: () }))
         }
     };
 }

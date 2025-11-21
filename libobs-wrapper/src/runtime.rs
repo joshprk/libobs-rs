@@ -94,7 +94,7 @@ pub struct ObsRuntime {
     _guard: Arc<_ObsRuntimeGuard>,
 
     #[cfg(not(feature = "enable_runtime"))]
-    platform_specific: Option<Arc<PlatformSpecificGuard>>,
+    _platform_specific: Option<Arc<PlatformSpecificGuard>>,
 }
 
 impl ObsRuntime {
@@ -162,7 +162,7 @@ impl ObsRuntime {
 
         let runtime = Self {
             _guard: Arc::new(_ObsRuntimeGuard {}),
-            platform_specific,
+            _platform_specific: platform_specific,
         };
 
         modules.runtime = Some(runtime.clone());
