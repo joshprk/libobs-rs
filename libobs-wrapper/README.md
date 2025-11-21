@@ -74,8 +74,9 @@ For even easier source creation and management, consider using the [`libobs-sour
 ## Features
 - `no_blocking_drops` - Spawns a tokio thread using `tokio::task::spawn_blocking`, so drops don't block your Application (experimental, make sure you have a tokio runtime running)
 - `generate_bindings` - When enabled, forces the underlying bindings from `libobs` to generate instead of using the cached ones.
-- `color-logger` - Enables coloring for the console
-- `dialog_crash_handler` - Adds a default crash handler, which shows the error and an option to copy the stacktrace to the clipboard
+- `color-logger` - Enables coloring for the console. **On by default**.
+- `dialog_crash_handler` - Adds a default crash handler, which shows the error and an option to copy the stacktrace to the clipboard. **On by default**. If turned off, OBS crashes will be reported via `stderr`, unless `logging_crash_handler` is enabled, in which case they will be reported via `log::error!`.
+- `logging_crash_handler` - Sets the non-`dialog_crash_handler` default crash handler to report crashes via `log::error!`, instead of through `stderr`.
 
 ## Common Issues
 
