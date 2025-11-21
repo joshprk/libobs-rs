@@ -5,6 +5,8 @@ use std::sync::{
     Arc, Mutex,
 };
 
+use crate::display::ObsWindowHandle;
+use crate::unsafe_send::Sendable;
 use lazy_static::lazy_static;
 use libobs::obs_display_t;
 use windows::{
@@ -28,14 +30,9 @@ use windows::{
     },
 };
 
-use crate::unsafe_send::Sendable;
-
 mod misc_trait;
 mod position_trait;
 mod show_hide;
-pub use misc::*;
-pub use position_trait::WindowPositionTrait;
-pub use show_hide::ShowHideTrait;
 
 const WM_DESTROY_WINDOW: u32 = 0x8001; // Custom message
 
@@ -129,11 +126,11 @@ fn try_register_class() -> windows::core::Result<()> {
 }
 
 #[derive(Debug)]
-pub(crate) struct DisplayWindowManager {
+pub(crate) struct WindowDisplayWindowManager {
     // Shouldn't really be needed
     message_thread: Option<std::thread::JoinHandle<()>>,
     should_exit: Arc<AtomicBool>,
-    hwnd: Sendable<HWND>,
+    window_handle: ObsWindowHandle,
 
     x: i32,
     y: i32,
@@ -150,9 +147,9 @@ pub(crate) struct DisplayWindowManager {
     obs_display: Option<Sendable<*mut obs_display_t>>,
 }
 
-impl DisplayWindowManager {
+impl WindowDisplayWindowManager {
     pub fn new_child(
-        parent: Sendable<HWND>,
+        parent: ObsWindowHandle,
         x: i32,
         y: i32,
         width: u32,
@@ -163,6 +160,7 @@ impl DisplayWindowManager {
         let should_exit = Arc::new(AtomicBool::new(false));
         let tmp = should_exit.clone();
 
+        let parent = parent.get_hwnd();
         let parent = Mutex::new(Sendable(parent));
         let message_thread = std::thread::spawn(move || {
             let parent = parent.lock().unwrap().0.clone();
@@ -219,7 +217,7 @@ impl DisplayWindowManager {
 
                 unsafe {
                     log::trace!("Setting parent...");
-                    SetParent(window, Some(parent.0))?;
+                    SetParent(window, Some(parent))?;
                     log::trace!("Setting styles...");
                     let mut style = GetWindowLongPtrW(window, GWL_STYLE);
                     //TODO Check casts here
@@ -268,7 +266,7 @@ impl DisplayWindowManager {
             width,
             height,
             scale: 1.0,
-            hwnd: window,
+            window_handle: ObsWindowHandle::new_from_handle(window.0 .0),
             should_exit,
             message_thread: Some(message_thread),
             render_at_bottom: false,
@@ -277,7 +275,7 @@ impl DisplayWindowManager {
         })
     }
 
-    pub fn new(window_handle: Sendable<HWND>, x: i32, y: i32, width: u32, height: u32) -> Self {
+    pub fn new(window_handle: ObsWindowHandle, x: i32, y: i32, width: u32, height: u32) -> Self {
         // Should exit is not needed as the window is being managed by the sender
         Self {
             x,
@@ -285,7 +283,7 @@ impl DisplayWindowManager {
             width,
             height,
             scale: 1.0,
-            hwnd: window_handle,
+            window_handle,
             should_exit: Arc::new(AtomicBool::new(false)),
             message_thread: None,
             render_at_bottom: false,
@@ -294,29 +292,36 @@ impl DisplayWindowManager {
         }
     }
 
-    pub fn get_window_handle(&self) -> HWND {
-        self.hwnd.0
+    pub fn get_window_handle(&self) -> ObsWindowHandle {
+        self.window_handle.clone()
     }
-}
 
-impl PrivateSetDisplayHandle for DisplayWindowManager {
     /// Set the obs display pointer in the window's user data for message handling
-    fn set_display_handle(&mut self, handle: Sendable<*mut libobs::obs_display>) {
-        self.obs_display = Some(handle);
+    pub(crate) fn set_display_handle(&mut self, handle: Sendable<*mut libobs::obs_display>) {
+        self.obs_display = Some(handle.clone());
         unsafe {
-            SetWindowLongPtrW(self.hwnd.0, GWLP_USERDATA, display_ptr as isize);
+            SetWindowLongPtrW(
+                self.window_handle.get_hwnd(),
+                GWLP_USERDATA,
+                handle.0 as isize,
+            );
         }
     }
 }
 
-impl Drop for DisplayWindowManager {
+impl Drop for WindowDisplayWindowManager {
     fn drop(&mut self) {
         log::trace!("Dropping DisplayWindowManager...");
         unsafe {
             self.should_exit.store(true, Ordering::Relaxed);
 
             log::trace!("Destroying window...");
-            let res = PostMessageW(Some(self.hwnd.0), WM_DESTROY_WINDOW, WPARAM(0), LPARAM(0));
+            let res = PostMessageW(
+                Some(self.window_handle.get_hwnd()),
+                WM_DESTROY_WINDOW,
+                WPARAM(0),
+                LPARAM(0),
+            );
             if let Err(err) = res {
                 log::error!("Failed to post destroy window message: {:?}", err);
             }

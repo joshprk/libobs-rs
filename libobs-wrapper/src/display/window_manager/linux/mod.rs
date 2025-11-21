@@ -1,4 +1,8 @@
-use crate::{display::{GeneralDisplayWindowManager, MiscDisplayTrait, ObsWindowHandle}, unsafe_send::Sendable, utils::ObsError};
+use crate::{
+    display::{GeneralDisplayWindowManager, MiscDisplayTrait, ObsWindowHandle},
+    unsafe_send::Sendable,
+    utils::ObsError,
+};
 
 #[derive(Debug)]
 pub(crate) struct DisplayWindowManager {
@@ -7,7 +11,7 @@ pub(crate) struct DisplayWindowManager {
     x: i32,
     y: i32,
     width: u32,
-    height: u32
+    height: u32,
 }
 
 impl DisplayWindowManager {
@@ -25,7 +29,6 @@ impl DisplayWindowManager {
 
 impl MiscDisplayTrait for DisplayWindowManager {
     fn update_color_space(&self) -> Result<(), ObsError> {
-        
         Ok(())
     }
 }

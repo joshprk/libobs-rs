@@ -13,7 +13,7 @@ use crate::macro_helper::define_object_manager;
 use super::{ObsWindowCaptureMethod, ObsWindowPriority};
 
 define_object_manager!(
-    /// Provides a easy to use builder for the window capture source.
+    /// Provides an easy-to-use builder for the window capture source.
     #[derive(Debug)]
     struct WindowCaptureSource("window_capture") for ObsSourceRef {
 

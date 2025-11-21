@@ -58,14 +58,13 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
             type ToUpdate = #updatable_type;
 
             fn create_update(runtime: libobs_wrapper::runtime::ObsRuntime, updatable: &'a mut Self::ToUpdate) -> Result<Self, libobs_wrapper::utils::ObsError> {
-                let name = updatable.name();
-                let obs_name = libobs_wrapper::utils::ObsString::from(name);
+                let source_id = Self::get_id();
                 let flags = unsafe {
-                    libobs::obs_get_source_output_flags(obs_name.as_ptr().0)
+                    libobs::obs_get_source_output_flags(source_id.as_ptr().0)
                 };
 
                 if flags == 0 {
-                    return Err(libobs_wrapper::utils::ObsError::SourceNotAvailable(obs_name.to_string()))
+                    return Err(libobs_wrapper::utils::ObsError::SourceNotAvailable(source_id.to_string()))
                 }
 
                 let mut settings = libobs_wrapper::data::ObsData::new(runtime.clone())?;
@@ -162,7 +161,7 @@ pub fn obs_object_updater(attr: TokenStream, item: TokenStream) -> TokenStream {
 ///     }
 /// }
 ///
-/// /// Provides a easy to use builder for the window capture source.
+/// /// Provides an easy-to-use builder for the window capture source.
 /// #[derive(Debug)]
 /// #[obs_object_builder("window_capture")]
 /// pub struct WindowCaptureSourceBuilder {
@@ -229,13 +228,14 @@ pub fn obs_object_builder(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         impl libobs_wrapper::data::ObsObjectBuilder for #builder_name {
             fn new<T: Into<libobs_wrapper::utils::ObsString> + Send + Sync>(name: T, runtime: libobs_wrapper::runtime::ObsRuntime) -> Result<Self, libobs_wrapper::utils::ObsError> {
-                let name: libobs_wrapper::utils::ObsString = name.into();
+                let name = name.into();
+                let source_id = Self::get_id();
                 let flags = unsafe {
-                    libobs::obs_get_source_output_flags(name.as_ptr().0)
+                    libobs::obs_get_source_output_flags(source_id.as_ptr().0)
                 };
 
                 if flags == 0 {
-                    return Err(libobs_wrapper::utils::ObsError::SourceNotAvailable(name.to_string()))
+                    return Err(libobs_wrapper::utils::ObsError::SourceNotAvailable(source_id.to_string()))
                 }
 
                 let mut hotkeys = libobs_wrapper::data::ObsData::new(runtime.clone())?;

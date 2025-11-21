@@ -1,7 +1,7 @@
 use libobs::gs_init_data;
 use num_traits::ToPrimitive;
 
-use crate::{display::ObsWindowHandle};
+use crate::display::ObsWindowHandle;
 
 use super::{GsColorFormat, GsZstencilFormat};
 
@@ -64,8 +64,10 @@ impl ObsDisplayCreationData {
         self
     }
 
-
     /// If enabled, creating the display will result in a child window being created inside the provided window handle. The display is attached to that child window. This is on by default.
+    ///
+    /// ## Platform
+    /// This is only applicable on Windows.
     pub fn set_create_child(mut self, should_create: bool) -> Self {
         self.create_child = should_create;
         self
@@ -87,7 +89,9 @@ impl ObsDisplayCreationData {
             #[cfg(target_family = "windows")]
             zsformat: self.zsformat.to_i32().unwrap(),
 
-            window: window_override.map(|s| s.0.0).unwrap_or_else(|| self.window_handle.0 .0),
+            window: window_override
+                .map(|s| s.0 .0)
+                .unwrap_or_else(|| self.window_handle.0 .0),
             adapter: self.adapter,
             num_backbuffers: self.backbuffers,
         }

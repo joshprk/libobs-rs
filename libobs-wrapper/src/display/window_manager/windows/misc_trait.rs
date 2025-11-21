@@ -1,12 +1,9 @@
+use crate::display::window_manager::MiscDisplayTrait;
+use crate::display::ObsDisplayRef;
+use crate::run_with_obs;
+use crate::utils::ObsError;
 
 impl MiscDisplayTrait for ObsDisplayRef {
-    fn update_color_space(&self) -> Result<(), ObsError> {
-        let display_ptr = self.display.clone();
-        run_with_obs!(self.runtime, (display_ptr), move || unsafe {
-            libobs::obs_display_update_color_space(display_ptr)
-        })
-    }
-
     fn is_enabled(&self) -> Result<bool, ObsError> {
         let display_ptr = self.display.clone();
         run_with_obs!(self.runtime, (display_ptr), move || unsafe {

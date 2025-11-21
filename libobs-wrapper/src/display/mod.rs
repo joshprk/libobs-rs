@@ -6,11 +6,14 @@ mod enums;
 //TODO
 mod window_manager;
 
+pub use window_manager::{MiscDisplayTrait, ShowHideTrait, WindowPositionTrait};
+
 pub use creation_data::*;
 pub use enums::*;
 use libobs::obs_video_info;
-pub use window_manager::*;
 
+use crate::utils::ObsError;
+use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable};
 use libobs::obs_render_main_texture_src_color_only;
 use std::mem::MaybeUninit;
 use std::{
@@ -18,8 +21,6 @@ use std::{
     marker::PhantomPinned,
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
-
-use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -37,8 +38,11 @@ pub struct ObsDisplayRef {
 
     // Keep for window, manager is accessed by render thread as well so Arc and RwLock
     #[cfg(windows)]
-    manager: Arc<RwLock<window_manager::windows::DisplayWindowManager>>,
+    #[allow(dead_code)]
+    manager: Arc<RwLock<window_manager::windows::WindowDisplayWindowManager>>,
+
     #[cfg(target_os = "linux")]
+    #[allow(dead_code)]
     manager: Arc<RwLock<window_manager::linux::DisplayWindowManager>>,
     /// This must not be moved in memory as the draw callback is a raw pointer to this struct
     _fixed_in_heap: PhantomPinned,
@@ -79,9 +83,12 @@ pub struct ObsWindowHandle(Sendable<libobs::gs_window>);
 impl ObsWindowHandle {
     #[cfg(windows)]
     pub fn new_from_handle(handle: *mut std::os::raw::c_void) -> Self {
-        Self {
-            internal: Sendable(libobs::gs_window { hwnd: handle }),
-        }
+        Self(Sendable(libobs::gs_window { hwnd: handle }))
+    }
+
+    #[cfg(windows)]
+    pub fn get_hwnd(&self) -> windows::Win32::Foundation::HWND {
+        windows::Win32::Foundation::HWND(self.0 .0.hwnd)
     }
 
     #[cfg(target_os = "linux")]
@@ -120,14 +127,40 @@ impl ObsDisplayRef {
             ..
         } = data.clone();
 
+        #[cfg(windows)]
         let (mut manager, child_handle) = if create_child {
-            new_general_window_manager_from_child(window_handle.clone(), x, y, width, height)?
+            let m = window_manager::windows::WindowDisplayWindowManager::new_child(
+                window_handle.clone(),
+                x,
+                y,
+                width,
+                height,
+            )?;
+            let handle = m.get_window_handle();
+
+            (m, Some(handle))
         } else {
             (
-                new_general_window_manager(window_handle.clone(), x, y, width, height)?,
+                window_manager::windows::WindowDisplayWindowManager::new(
+                    window_handle.clone(),
+                    x,
+                    y,
+                    width,
+                    height,
+                ),
                 None,
             )
         };
+
+        #[cfg(target_os = "linux")]
+        let (mut manager, child_handle) = window_manager::linus::DisplayWindowManager::new(
+            window_handle.clone(),
+            x,
+            y,
+            width,
+            height,
+            create_child,
+        )?;
 
         let init_data = Sendable(data.build(child_handle));
 
@@ -170,6 +203,13 @@ impl ObsDisplayRef {
 
     pub fn id(&self) -> usize {
         self.id
+    }
+
+    pub fn update_color_space(&self) -> Result<(), ObsError> {
+        let display_ptr = self.display.clone();
+        run_with_obs!(self.runtime, (display_ptr), move || unsafe {
+            libobs::obs_display_update_color_space(display_ptr)
+        })
     }
 }
 
