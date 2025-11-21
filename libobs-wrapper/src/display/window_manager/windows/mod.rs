@@ -138,10 +138,7 @@ pub(crate) struct WindowDisplayWindowManager {
     width: u32,
     height: u32,
 
-    scale: f32,
-
     is_hidden: AtomicBool,
-
     render_at_bottom: bool,
 
     obs_display: Option<Sendable<*mut obs_display_t>>,
@@ -265,7 +262,6 @@ impl WindowDisplayWindowManager {
             y,
             width,
             height,
-            scale: 1.0,
             window_handle: ObsWindowHandle::new_from_handle(window.0 .0),
             should_exit,
             message_thread: Some(message_thread),
@@ -282,7 +278,6 @@ impl WindowDisplayWindowManager {
             y,
             width,
             height,
-            scale: 1.0,
             window_handle,
             should_exit: Arc::new(AtomicBool::new(false)),
             message_thread: None,

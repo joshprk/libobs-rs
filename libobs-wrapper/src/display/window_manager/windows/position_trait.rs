@@ -117,16 +117,6 @@ impl WindowPositionTrait for ObsDisplayRef {
         Ok(())
     }
 
-    fn set_scale(&self, scale: f32) -> Result<(), ObsError> {
-        log::trace!("Set scale {scale}");
-        let mut m = self
-            .manager
-            .write()
-            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
-        m.scale = scale;
-        Ok(())
-    }
-
     fn get_pos(&self) -> Result<(i32, i32), ObsError> {
         let m = self
             .manager
@@ -141,13 +131,5 @@ impl WindowPositionTrait for ObsDisplayRef {
             .read()
             .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
         Ok((m.width, m.height))
-    }
-
-    fn get_scale(&self) -> Result<f32, ObsError> {
-        let m = self
-            .manager
-            .read()
-            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
-        Ok(m.scale)
     }
 }
