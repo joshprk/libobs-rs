@@ -66,8 +66,8 @@ define_object_manager!(
     capture_method: Option<ObsWindowCaptureMethod>,
 });
 
-#[obs_object_impl]
 #[cfg(feature = "window-list")]
+#[libobs_source_macro::obs_object_impl]
 impl WindowCaptureSource {
     /// Gets a list of windows that can be captured by this source.
     pub fn get_windows(
