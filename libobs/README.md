@@ -4,48 +4,9 @@ This is currently just a wrapper around the C API of OBS Studio.
 The stable API is available in the [`libobs-wrapper`](https://crates.io/crates/libobs-wrapper) crate.
 
 ## Building on Linux
-
-### Prerequisites
-
-Before building this crate on Linux, you need to install the following system dependencies:
-
-#### Ubuntu/Debian
-```bash
-sudo apt update
-sudo apt install -y clang libclang-dev libsimde-dev libxcb1-dev libx11-dev
-```
-
-#### Fedora/RHEL/CentOS
-```bash
-sudo dnf install clang clang-devel simde-devel libxcb-devel libX11-devel
-# or on older versions:
-# sudo yum install clang clang-devel simde-devel
-```
-
-#### Arch Linux
-```bash
-sudo pacman -S clang simde libxcb libx11
-```
-
-### Build Instructions
-
-Once the dependencies are installed, you can build the crate:
-
-```bash
-cargo build
-```
-
-For a release build:
-
-```bash
-cargo build --release
-```
-
-### Dependencies Explained
-
-- **clang**: Required by bindgen to parse C headers and generate Rust bindings
-- **libclang-dev**: Development headers for libclang
-- **libsimde-dev**: SIMD Everywhere library headers, required by OBS headers for cross-platform SIMD operations
+The library needs OBS binaries in your target directory for Windows and MacOS.
+If you want to target Linux, users (you included) must [build and install](https://github.com/obsproject/obs-studio/wiki/Build-Instructions-For-Linux) OBS Studio manually from source.
+For Windows and Macos, there are multiple ways to set this up. Instructions can be viewed [here](https://github.com/libobs-rs/libobs-rs/blob/feat/flake/libobs-wrapper/README.md#prerequisites)
 
 ### Troubleshooting
 
