@@ -10,19 +10,6 @@ use windows::Win32::{
 use crate::{display::MiscDisplayTrait, utils::ObsError};
 use crate::{display::ObsDisplayRef, run_with_obs};
 
-pub trait WindowPositionTrait {
-    fn set_render_at_bottom(&self, render_at_bottom: bool) -> Result<(), ObsError>;
-    fn get_render_at_bottom(&self) -> Result<bool, ObsError>;
-    fn set_pos(&self, x: i32, y: i32) -> Result<(), ObsError>;
-    fn set_size(&self, width: u32, height: u32) -> Result<(), ObsError>;
-    fn set_scale(&self, scale: f32) -> Result<(), ObsError>;
-
-    fn get_pos(&self) -> Result<(i32, i32), ObsError>;
-
-    fn get_size(&self) -> Result<(u32, u32), ObsError>;
-
-    fn get_scale(&self) -> Result<f32, ObsError>;
-}
 
 impl WindowPositionTrait for ObsDisplayRef {
     fn set_render_at_bottom(&self, render_at_bottom: bool) -> Result<(), ObsError> {

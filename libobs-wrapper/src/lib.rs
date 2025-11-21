@@ -5,8 +5,6 @@ use getters0::Getters;
 pub mod context;
 pub mod crash_handler;
 pub mod data;
-//TODO
-#[cfg(windows)]
 pub mod display;
 pub mod encoders;
 pub mod logger;

@@ -35,15 +35,9 @@
 //! For more examples refer to the [examples](https://github.com/joshprk/libobs-rs/tree/main/examples) directory in the repository.
 
 use std::{
-    ffi::CStr,
-    sync::{Arc, Mutex, RwLock},
-    thread::ThreadId,
+    collections::HashMap, ffi::CStr, pin::Pin, sync::{Arc, Mutex, RwLock}, thread::ThreadId
 };
 
-#[cfg(target_family = "windows")]
-use std::{collections::HashMap, pin::Pin};
-
-#[cfg(windows)]
 use crate::display::{ObsDisplayCreationData, ObsDisplayRef};
 use crate::{
     data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
@@ -70,7 +64,6 @@ lazy_static::lazy_static! {
 // This is a bit of a hack, but it works would be glad to hear your thoughts on this.
 
 // Factor complex display map type out to satisfy clippy::type_complexity
-#[cfg(target_family = "windows")]
 pub(crate) type DisplayMap = HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>;
 
 /// Interface to the OBS context. Only one context
@@ -91,7 +84,6 @@ pub struct ObsContext {
     startup_info: Arc<RwLock<StartupInfo>>,
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    #[cfg(target_family = "windows")]
     displays: Arc<RwLock<DisplayMap>>,
 
     /// Outputs must be stored in order to prevent
@@ -155,7 +147,6 @@ impl ObsContext {
         Ok(Self {
             _obs_modules: Arc::new(obs_modules),
             active_scene: Default::default(),
-            #[cfg(target_family = "windows")]
             displays: Default::default(),
             outputs: Default::default(),
             scenes: Default::default(),
@@ -331,8 +322,6 @@ impl ObsContext {
     }
 
     /// Creates a new display and returns its ID.
-    #[cfg(windows)]
-    //TODO
     ///
     /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
     ///
@@ -356,12 +345,10 @@ impl ObsContext {
         Ok(display_clone)
     }
 
-    #[cfg(target_family = "windows")]
     pub fn remove_display(&mut self, display: &ObsDisplayRef) -> Result<(), ObsError> {
         self.remove_display_by_id(display.id())
     }
 
-    #[cfg(target_family = "windows")]
     pub fn remove_display_by_id(&mut self, id: usize) -> Result<(), ObsError> {
         self.displays
             .write()
@@ -373,7 +360,6 @@ impl ObsContext {
         Ok(())
     }
 
-    #[cfg(target_family = "windows")]
     pub fn get_display_by_id(
         &self,
         id: usize,

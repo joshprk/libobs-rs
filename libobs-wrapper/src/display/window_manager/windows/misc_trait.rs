@@ -1,14 +1,3 @@
-use crate::{display::ObsDisplayRef, run_with_obs, utils::ObsError};
-
-pub trait MiscDisplayTrait {
-    fn update_color_space(&self) -> Result<(), ObsError>;
-
-    fn is_enabled(&self) -> Result<bool, ObsError>;
-
-    fn set_enabled(&self, enabled: bool) -> Result<(), ObsError>;
-
-    fn set_background_color(&self, r: u8, g: u8, b: u8) -> Result<(), ObsError>;
-}
 
 impl MiscDisplayTrait for ObsDisplayRef {
     fn update_color_space(&self) -> Result<(), ObsError> {

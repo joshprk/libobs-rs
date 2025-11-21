@@ -19,9 +19,7 @@ use std::{
     sync::{atomic::AtomicUsize, Arc, RwLock},
 };
 
-use crate::{
-    impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable, utils::ObsError,
-};
+use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable};
 
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
@@ -38,7 +36,10 @@ pub struct ObsDisplayRef {
     _guard: Arc<_ObsDisplayDropGuard>,
 
     // Keep for window, manager is accessed by render thread as well so Arc and RwLock
-    manager: Arc<RwLock<DisplayWindowManager>>,
+    #[cfg(windows)]
+    manager: Arc<RwLock<window_manager::windows::DisplayWindowManager>>,
+    #[cfg(target_os = "linux")]
+    manager: Arc<RwLock<window_manager::linux::DisplayWindowManager>>,
     /// This must not be moved in memory as the draw callback is a raw pointer to this struct
     _fixed_in_heap: PhantomPinned,
 
@@ -72,8 +73,29 @@ unsafe extern "C" fn render_display(_data: *mut c_void, width: u32, height: u32)
     libobs::gs_viewport_pop();
 }
 
+#[derive(Clone, Debug)]
+pub struct ObsWindowHandle(Sendable<libobs::gs_window>);
+
+impl ObsWindowHandle {
+    #[cfg(windows)]
+    pub fn new_from_handle(handle: *mut std::os::raw::c_void) -> Self {
+        Self {
+            internal: Sendable(libobs::gs_window { hwnd: handle }),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn new_from_wayland(display: *mut c_void) -> Self {
+        Self(Sendable(libobs::gs_window { display, id: 0 }))
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn new_from_x11(display: *mut c_void, id: u32) -> Self {
+        Self(Sendable(libobs::gs_window { display, id }))
+    }
+}
+
 impl ObsDisplayRef {
-    #[cfg(target_family = "windows")]
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having an invalid pointer. DO NOT UNPIN
     pub(crate) fn new(
@@ -84,8 +106,6 @@ impl ObsDisplayRef {
 
         use anyhow::bail;
         use creation_data::ObsDisplayCreationData;
-        use libobs::gs_window;
-        use window_manager::DisplayWindowManager;
 
         use crate::run_with_obs;
 
@@ -100,16 +120,16 @@ impl ObsDisplayRef {
             ..
         } = data.clone();
 
-        let mut manager = if create_child {
-            DisplayWindowManager::new_child(window_handle.clone(), x, y, width, height)?
+        let (mut manager, child_handle) = if create_child {
+            new_general_window_manager_from_child(window_handle.clone(), x, y, width, height)?
         } else {
-            DisplayWindowManager::new(window_handle.clone(), x, y, width, height)
+            (
+                new_general_window_manager(window_handle.clone(), x, y, width, height)?,
+                None,
+            )
         };
 
-        let preview_window_handle = Sendable(manager.get_window_handle());
-        let init_data = Sendable(data.build(gs_window {
-            hwnd: preview_window_handle.0 .0,
-        }));
+        let init_data = Sendable(data.build(child_handle));
 
         log::trace!("Creating obs display...");
         let display = run_with_obs!(runtime, (init_data), move || unsafe {
@@ -120,7 +140,8 @@ impl ObsDisplayRef {
             bail!("OBS failed to create display");
         }
 
-        manager.obs_display = Some(display.clone());
+        manager.set_display_handle(display.clone());
+
         let instance = Box::pin(Self {
             display: display.clone(),
             _guard: Arc::new(_ObsDisplayDropGuard {
@@ -133,12 +154,7 @@ impl ObsDisplayRef {
             runtime: runtime.clone(),
         });
 
-        let pos = instance.get_pos();
-        log::trace!(
-            "Adding draw callback with display {:?} (pos is {:?})...",
-            instance.display,
-            pos
-        );
+        log::trace!("Adding draw callback with display {:?}", instance.display);
 
         let display_ptr = instance.display.clone();
         run_with_obs!(runtime, (display_ptr), move || unsafe {
@@ -149,16 +165,6 @@ impl ObsDisplayRef {
             );
         })?;
 
-        // Set the display pointer in the window's user data for message handling
-        {
-            let manager = instance
-                .manager
-                .read()
-                .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
-            manager.set_display_userdata(display_ptr.0);
-        }
-
-        instance.update_color_space()?;
         Ok(instance)
     }
 
