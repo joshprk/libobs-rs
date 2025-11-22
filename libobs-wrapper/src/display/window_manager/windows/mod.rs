@@ -124,20 +124,21 @@ fn try_register_class() -> windows::core::Result<()> {
 #[derive(Debug)]
 pub(crate) struct WindowsPreviewChildWindowHandler {
     // Shouldn't really be needed
-    child_message_thread: Option<std::thread::JoinHandle<()>>,
-    should_exit: Arc<AtomicBool>,
-    window_handle: ObsWindowHandle,
+    pub(in crate::display::window_manager) child_message_thread:
+        Option<std::thread::JoinHandle<()>>,
+    pub(in crate::display::window_manager) should_exit: Arc<AtomicBool>,
+    pub(in crate::display::window_manager) window_handle: ObsWindowHandle,
 
-    x: i32,
-    y: i32,
+    pub(in crate::display::window_manager) x: i32,
+    pub(in crate::display::window_manager) y: i32,
 
-    width: u32,
-    height: u32,
+    pub(in crate::display::window_manager) width: u32,
+    pub(in crate::display::window_manager) height: u32,
 
-    is_hidden: AtomicBool,
-    render_at_bottom: bool,
+    pub(in crate::display::window_manager) is_hidden: AtomicBool,
+    pub(in crate::display::window_manager) render_at_bottom: bool,
 
-    obs_display: Option<Sendable<*mut obs_display_t>>,
+    pub(in crate::display::window_manager) obs_display: Option<Sendable<*mut obs_display_t>>,
 }
 
 impl WindowsPreviewChildWindowHandler {
@@ -157,7 +158,7 @@ impl WindowsPreviewChildWindowHandler {
         let parent = parent.get_hwnd();
         let parent = Mutex::new(Sendable(parent));
         let message_thread = std::thread::spawn(move || {
-            let parent = parent.lock().unwrap().0.clone();
+            let parent = parent.lock().unwrap().0;
             // We have to have the whole window creation stuff here as well so the message loop functions
             let create = move || {
                 log::trace!("Registering class...");

@@ -1,7 +1,11 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
+#[cfg(target_os = "linux")]
 use libobs_sources::linux::LinuxGeneralScreenCapture;
+#[cfg(target_os = "linux")]
+use libobs_wrapper::utils::NixDisplay;
+
 #[cfg(windows)]
 use libobs_sources::windows::{
     GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
@@ -16,7 +20,7 @@ use libobs_wrapper::display::{
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
-use libobs_wrapper::utils::{AudioEncoderInfo, NixDisplay, OutputInfo};
+use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
 use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
 #[cfg(windows)]
 use libobs_wrapper::{sources::ObsSourceBuilder, utils::traits::ObsUpdatable};
@@ -24,9 +28,9 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::raw_window_handle::{
-    HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
-};
+#[cfg(target_os = "linux")]
+use winit::raw_window_handle::{HasDisplayHandle, RawDisplayHandle};
+use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
 use winit::window::{Window, WindowId};
 
 struct App {
@@ -69,6 +73,7 @@ impl ApplicationHandler for App {
             ObsWindowHandle::new_from_handle(hwnd.get() as *mut _)
         };
 
+        #[cfg(target_os = "linux")]
         let obs_handle = {
             if let RawWindowHandle::Xlib(handle) = hwnd {
                 //TODO check if this is actually u32
@@ -218,6 +223,7 @@ pub fn main() -> anyhow::Result<()> {
 
     let event_loop = EventLoop::new().unwrap();
 
+    #[allow(unused_mut)]
     let mut info = StartupInfo::new().set_video_info(v);
 
     //NOTE - This is very important if you are running a GUI application, ensure that a nix display is set on linux!
@@ -300,6 +306,7 @@ pub fn main() -> anyhow::Result<()> {
         )
         .add_to_scene(&mut scene)?;
 
+    #[cfg(target_os = "linux")]
     let monitor_src =
         LinuxGeneralScreenCapture::auto_detect(context.runtime().clone(), "Monitor capture")
             .unwrap()

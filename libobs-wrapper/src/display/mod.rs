@@ -109,6 +109,7 @@ pub struct LockedPosition {
 #[derive(Clone, Debug)]
 pub struct ObsWindowHandle {
     pub(crate) window: Sendable<libobs::gs_window>,
+    #[allow(dead_code)]
     pub(crate) is_wayland: bool,
 }
 
@@ -123,7 +124,7 @@ impl ObsWindowHandle {
 
     #[cfg(windows)]
     pub fn get_hwnd(&self) -> windows::Win32::Foundation::HWND {
-        windows::Win32::Foundation::HWND(self.0 .0.hwnd)
+        windows::Win32::Foundation::HWND(self.window.0.hwnd)
     }
 
     #[cfg(target_os = "linux")]
@@ -210,9 +211,9 @@ impl ObsDisplayRef {
         }
 
         #[cfg(windows)]
-        child_handler
-            .as_mut()
-            .map(|e| e.set_display_handle(display.clone()));
+        if let Some(handler) = &mut child_handler {
+            handler.set_display_handle(display.clone());
+        }
 
         let initial_pos = if create_child && cfg!(windows) {
             (0, 0)
