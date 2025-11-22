@@ -1,4 +1,6 @@
+#[cfg(windows)]
 use std::sync::atomic::Ordering;
+#[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOWNA};
 
 use crate::display::window_manager::ShowHideTrait;
@@ -13,6 +15,8 @@ impl ShowHideTrait for ObsDisplayRef {
     /// if the internal lock is poisoned.
     fn show(&mut self) -> Result<(), ObsError> {
         log::trace!("show");
+
+        #[cfg(windows)]
         if let Some(m) = &self.child_window_handler {
             let m = m
                 .read()
@@ -22,18 +26,19 @@ impl ShowHideTrait for ObsDisplayRef {
             }
 
             m.is_hidden.store(false, Ordering::Relaxed);
-        } else {
-            let ptr = self.display.clone();
-            run_with_obs!(self.runtime, (ptr), move || unsafe {
-                libobs::obs_display_set_enabled(ptr, true);
-            })?;
+            return Ok(());
         }
 
+        let ptr = self.display.clone();
+        run_with_obs!(self.runtime, (ptr), move || unsafe {
+            libobs::obs_display_set_enabled(ptr, true);
+        })?;
         Ok(())
     }
 
     fn hide(&mut self) -> Result<(), ObsError> {
         log::trace!("hide");
+        #[cfg(windows)]
         if let Some(m) = &self.child_window_handler {
             let m = m
                 .read()
@@ -44,29 +49,30 @@ impl ShowHideTrait for ObsDisplayRef {
             }
 
             m.is_hidden.store(true, Ordering::Relaxed);
-        } else {
-            let ptr = self.display.clone();
-            run_with_obs!(self.runtime, (ptr), move || unsafe {
-                libobs::obs_display_set_enabled(ptr, false);
-            })?;
+            return Ok(());
         }
 
+        let ptr = self.display.clone();
+        run_with_obs!(self.runtime, (ptr), move || unsafe {
+            libobs::obs_display_set_enabled(ptr, false);
+        })?;
         Ok(())
     }
 
     fn is_visible(&self) -> Result<bool, ObsError> {
+        #[cfg(windows)]
         if let Some(m) = &self.child_window_handler {
             let m = m
                 .read()
                 .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
 
-            Ok(!m.is_hidden.load(Ordering::Relaxed))
-        } else {
-            let ptr = self.display.clone();
-            run_with_obs!(self.runtime, (ptr), move || unsafe {
-                let enabled = libobs::obs_display_enabled(ptr);
-                Ok(enabled)
-            })?
+            return Ok(!m.is_hidden.load(Ordering::Relaxed));
         }
+
+        let ptr = self.display.clone();
+        run_with_obs!(self.runtime, (ptr), move || unsafe {
+            let enabled = libobs::obs_display_enabled(ptr);
+            Ok(enabled)
+        })?
     }
 }

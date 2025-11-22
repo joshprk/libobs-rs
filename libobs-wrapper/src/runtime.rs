@@ -399,8 +399,7 @@ impl ObsRuntime {
             libobs::base_set_crash_handler(Some(main_crash_handler), std::ptr::null_mut());
         }
 
-        let native = platform_specific_setup()?;
-
+        let native = platform_specific_setup(info.nix_display.clone())?;
         unsafe {
             libobs::base_set_log_handler(Some(extern_log_callback), std::ptr::null_mut());
         }

@@ -1,10 +1,13 @@
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, RwLock};
 
+use libobs_sources::linux::LinuxGeneralScreenCapture;
+#[cfg(windows)]
 use libobs_sources::windows::{
     GameCaptureSourceBuilder, MonitorCaptureSourceBuilder, MonitorCaptureSourceUpdater,
+    ObsGameCaptureMode, WindowSearchMode,
 };
-use libobs_sources::windows::{ObsGameCaptureMode, WindowSearchMode};
+#[cfg(windows)]
 use libobs_sources::ObsObjectUpdater;
 use libobs_wrapper::data::video::ObsVideoInfoBuilder;
 use libobs_wrapper::display::{
@@ -13,9 +16,10 @@ use libobs_wrapper::display::{
 use libobs_wrapper::encoders::{ObsAudioEncoderType, ObsContextEncoders, ObsVideoEncoderType};
 use libobs_wrapper::sources::ObsSourceRef;
 use libobs_wrapper::unsafe_send::Sendable;
-use libobs_wrapper::utils::traits::ObsUpdatable;
 use libobs_wrapper::utils::{AudioEncoderInfo, OutputInfo};
-use libobs_wrapper::{context::ObsContext, sources::ObsSourceBuilder, utils::StartupInfo};
+use libobs_wrapper::{context::ObsContext, utils::StartupInfo};
+#[cfg(windows)]
+use libobs_wrapper::{sources::ObsSourceBuilder, utils::traits::ObsUpdatable};
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
@@ -27,7 +31,10 @@ struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
     display: Arc<RwLock<Option<ObsDisplayRef>>>,
     context: Arc<RwLock<ObsContext>>,
+    #[cfg_attr(not(windows), allow(dead_code))]
     monitor_index: Arc<AtomicUsize>,
+
+    #[cfg_attr(not(windows), allow(dead_code))]
     source_ref: Arc<RwLock<ObsSourceRef>>,
 }
 
@@ -44,23 +51,34 @@ impl ApplicationHandler for App {
         let height = size.height;
 
         let hwnd = window.window_handle().unwrap().as_raw();
-        let hwnd = if let RawWindowHandle::Win32(hwnd) = hwnd {
-            hwnd.hwnd
-        } else {
-            panic!("Expected a Win32 window handle");
-        };
 
-        println!("Created window with hwnd size {width} {height}: {:?}", hwnd);
         let w = self.window.clone();
         let d_rw = self.display.clone();
         let ctx = self.context.clone();
-        let data = ObsDisplayCreationData::new(
-            ObsWindowHandle::new_from_handle(hwnd.get() as *mut _),
-            0,
-            0,
-            width,
-            height,
-        );
+
+        #[cfg(windows)]
+        let obs_handle = {
+            let hwnd = if let RawWindowHandle::Win32(hwnd) = hwnd {
+                hwnd.hwnd
+            } else {
+                panic!("Expected a Win32 window handle");
+            };
+
+            ObsWindowHandle::new_from_handle(hwnd.get() as *mut _)
+        };
+
+        let obs_handle = {
+            if let RawWindowHandle::Xlib(handle) = hwnd {
+                //TODO check if this is actually u32
+                ObsWindowHandle::new_from_x11(ctx.read().unwrap().runtime(), handle.visual_id as u32).unwrap()
+            } else if let RawWindowHandle::Wayland(handle) = hwnd {
+                ObsWindowHandle::new_from_wayland(handle.surface.as_ptr() as *mut _)
+            } else {
+                panic!("Unsupported window handle for this platform");
+            }
+        };
+        let data: ObsDisplayCreationData =
+            ObsDisplayCreationData::new(obs_handle, 0, 0, width, height);
 
         let display = ctx.write().unwrap().display(data).unwrap();
 
@@ -125,6 +143,7 @@ impl ApplicationHandler for App {
                 }
 
                 match button {
+                    #[cfg(windows)]
                     MouseButton::Left => {
                         let tmp = self.source_ref.clone();
                         let monitor_index = self.monitor_index.clone();
@@ -170,7 +189,7 @@ impl ApplicationHandler for App {
                             }
                         }
                     }
-                    _ => return,
+                    _ => (),
                 };
             }
             _ => (),
@@ -243,21 +262,32 @@ pub fn main() -> anyhow::Result<()> {
 
     let mut scene = context.scene("Main Scene")?;
 
+    #[cfg(windows)]
     let apex = GameCaptureSourceBuilder::get_windows(WindowSearchMode::ExcludeMinimized)?;
+    #[cfg(windows)]
     let apex = apex
         .iter()
         .find(|e| e.title.is_some() && e.title.as_ref().unwrap().contains("Apex"));
 
+    #[cfg(windows)]
     let monitor_src = context
         .source_builder::<MonitorCaptureSourceBuilder, _>("Monitor capture")?
         .set_monitor(
             &MonitorCaptureSourceBuilder::get_monitors().expect("Couldn't get monitors")[0],
         )
         .add_to_scene(&mut scene)?;
+
+    let monitor_src =
+        LinuxGeneralScreenCapture::auto_detect(context.runtime().clone(), "Monitor capture")
+            .unwrap()
+            .add_to_scene(&mut scene)?;
+
     scene.set_source_position(&monitor_src, libobs_wrapper::Vec2::new(0.0, 0.0))?;
     scene.set_source_scale(&monitor_src, libobs_wrapper::Vec2::new(1.0, 1.0))?;
 
+    #[cfg(windows)]
     let mut _apex_source = None;
+    #[cfg(windows)]
     if let Some(apex) = apex {
         println!(
             "Is used by other instance: {}",

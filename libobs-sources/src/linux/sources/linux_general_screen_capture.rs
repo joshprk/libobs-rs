@@ -111,6 +111,7 @@ impl LinuxGeneralScreenCapture {
     /// Create a screen capture source by auto-detecting the display server type.
     ///
     /// This is the recommended way to create a screen capture on Linux.
+    //TODO rework this API, the best way to use this is to create a SourceBuilder that does the detection internally
     pub fn auto_detect(
         runtime: ObsRuntime,
         name: &str,

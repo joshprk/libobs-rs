@@ -30,9 +30,6 @@ use windows::{
     },
 };
 
-mod misc_trait;
-mod position_trait;
-mod show_hide;
 
 const WM_DESTROY_WINDOW: u32 = 0x8001; // Custom message
 

@@ -5,6 +5,8 @@ use std::ptr;
 use std::sync::Arc;
 
 use crate::unsafe_send::Sendable;
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+use crate::utils::initialization::NixDisplay;
 use crate::utils::ObsError;
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
@@ -52,16 +54,33 @@ pub(crate) fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGua
 
 /// Detects the current display server and initializes OBS platform accordingly
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-pub(crate) fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
-    let platform_type = detect_platform();
-    if platform_type.is_none() {
-        return Err(ObsError::PlatformInitError(
-            "Could not detect display server platform".to_string(),
-        ));
-    }
+pub(crate) fn platform_specific_setup(
+    display: Option<NixDisplay>,
+) -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
+    let mut display_ptr = None;
 
-    let platform_type = platform_type.unwrap();
-    // Try to detect and initialize the platform
+    let platform_type = match display {
+        Some(NixDisplay::X11(e)) => {
+            display_ptr = Some(e);
+            PlatformType::X11
+        }
+        Some(NixDisplay::Wayland(e)) => {
+            display_ptr = Some(e);
+            PlatformType::Wayland
+        }
+        None => {
+            // Auto-detect platform
+            match detect_platform() {
+                Some(plat) => plat,
+                None => {
+                    return Err(ObsError::PlatformInitError(
+                        "Could not detect display server platform".to_string(),
+                    ))
+                }
+            }
+        }
+    };
+
     unsafe {
         match platform_type {
             PlatformType::X11 => {
@@ -70,7 +89,9 @@ pub(crate) fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGua
                 );
 
                 // Try to get X11 display - note: this may fail in headless environments
-                let display = XOpenDisplay(ptr::null());
+                let display = display_ptr
+                    .map(|e| e.0)
+                    .unwrap_or_else(|| XOpenDisplay(ptr::null()));
                 if display.is_null() {
                     return Err(ObsError::PlatformInitError(
                         "Failed to open X11 display".to_string(),
@@ -93,7 +114,10 @@ pub(crate) fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGua
                 );
 
                 // Try to get Wayland display - note: this may fail in headless environments
-                let display = wl_display_connect(ptr::null());
+                let display = display_ptr
+                    .map(|e| e.0)
+                    .unwrap_or_else(|| wl_display_connect(ptr::null()));
+
                 if display.is_null() {
                     return Err(ObsError::PlatformInitError(
                         "Failed to connect to Wayland display".to_string(),

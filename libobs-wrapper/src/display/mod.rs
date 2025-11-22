@@ -126,8 +126,16 @@ impl ObsWindowHandle {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn new_from_x11(display: *mut c_void, id: u32) -> Self {
-        Self(Sendable(libobs::gs_window { display, id }))
+    pub fn new_from_x11(runtime: &ObsRuntime, id: u32) -> Result<Self, ObsError> {
+        let runtime = runtime.clone();
+        let display = run_with_obs!(runtime, (), move || unsafe {
+            Sendable(libobs::obs_get_nix_platform_display())
+        })?;
+
+        Ok(Self(Sendable(libobs::gs_window {
+            display: display.0,
+            id,
+        })))
     }
 }
 
@@ -145,11 +153,14 @@ impl ObsDisplayRef {
         let ObsDisplayCreationData {
             x,
             y,
-            height,
-            width,
-            window_handle,
             background_color,
             create_child,
+            #[cfg(windows)]
+            height,
+            #[cfg(windows)]
+            width,
+            #[cfg(windows)]
+            window_handle,
             ..
         } = data.clone();
 

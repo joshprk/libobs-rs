@@ -2,7 +2,7 @@ use crate::{
     context::ObsContext,
     data::{audio::ObsAudioInfo, video::ObsVideoInfo},
     logger::{ConsoleLogger, ObsLogger},
-    utils::{ObsError, ObsPath, ObsString},
+    utils::{ObsError, ObsPath, ObsString, initialization::NixDisplay},
 };
 
 /// Contains information to start a libobs context.
@@ -15,6 +15,7 @@ pub struct StartupInfo {
     // Option because logger is taken when creating
     pub(crate) logger: Option<Box<dyn ObsLogger + Sync + Send>>,
     pub(crate) start_glib_loop: bool,
+    pub(crate) nix_display: Option<NixDisplay>,
 }
 
 impl StartupInfo {
@@ -50,6 +51,11 @@ impl StartupInfo {
         self
     }
 
+    pub fn set_nix_display(mut self, display: NixDisplay) -> Self {
+        self.nix_display = Some(display);
+        self
+    }
+
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn start(self) -> Result<ObsContext, ObsError> {
         ObsContext::new(self)
@@ -64,6 +70,7 @@ impl Default for StartupInfo {
             obs_audio_info: ObsAudioInfo::default(),
             logger: Some(Box::new(ConsoleLogger::new())),
             start_glib_loop: true,
+            nix_display: None,
         }
     }
 }

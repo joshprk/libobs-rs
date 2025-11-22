@@ -21,6 +21,7 @@ pub use info::*;
 pub use modules::ObsModules;
 pub use obs_string::*;
 pub use path::*;
+pub use initialization::NixDisplay;
 
 pub const ENCODER_HIDE_FLAGS: u32 =
     libobs::OBS_ENCODER_CAP_DEPRECATED | libobs::OBS_ENCODER_CAP_INTERNAL;

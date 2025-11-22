@@ -1,3 +1,4 @@
+#[cfg(windows)]
 use windows::Win32::{
     Foundation::HWND,
     Graphics::Gdi::{RedrawWindow, RDW_ERASE, RDW_INVALIDATE},
@@ -13,19 +14,21 @@ use crate::utils::ObsError;
 use crate::{display::ObsDisplayRef, run_with_obs};
 
 impl WindowPositionTrait for ObsDisplayRef {
-    fn set_render_at_bottom(&self, render_at_bottom: bool) -> Result<(), ObsError> {
+    fn set_render_at_bottom(&self, _render_at_bottom: bool) -> Result<(), ObsError> {
         log::trace!("Set render bottom");
+        #[cfg(windows)]
         if let Some(m) = self.child_window_handler.as_ref() {
             let mut m = m
                 .write()
                 .map_err(|e| ObsError::LockError(format!("{:?}", e)))?;
 
-            m.render_at_bottom = render_at_bottom;
+            m.render_at_bottom = _render_at_bottom;
         }
         Ok(())
     }
 
     fn get_render_at_bottom(&self) -> Result<bool, ObsError> {
+        #[cfg(windows)]
         if let Some(m) = self.child_window_handler.as_ref() {
             let m = m
                 .read()
@@ -76,13 +79,15 @@ impl WindowPositionTrait for ObsDisplayRef {
 
             // Update color space when window position changes
             drop(m); // Release the lock before calling run_with_obs
-        } else {
-            *DISPLAY_POSITIONS
-                .write()
-                .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
-                .get_mut(&self.id)
-                .ok_or_else(|| ObsError::LockError("Position not found".to_string()))? = (x, y);
+            self.update_color_space()?;
+            return Ok(());
         }
+
+        *DISPLAY_POSITIONS
+            .write()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
+            .get_mut(&self.id)
+            .ok_or_else(|| ObsError::LockError("Position not found".to_string()))? = (x, y);
 
         self.update_color_space()?;
         Ok(())
@@ -91,6 +96,7 @@ impl WindowPositionTrait for ObsDisplayRef {
     fn set_size(&self, width: u32, height: u32) -> Result<(), ObsError> {
         log::trace!("Set size {width} {height}");
 
+        #[cfg(windows)]
         if let Some(m) = self.child_window_handler.as_ref() {
             let mut m = m
                 .write()
@@ -136,6 +142,7 @@ impl WindowPositionTrait for ObsDisplayRef {
     }
 
     fn get_pos(&self) -> Result<(i32, i32), ObsError> {
+        #[cfg(windows)]
         if let Some(m) = self.child_window_handler.as_ref() {
             let m = m
                 .read()
@@ -150,10 +157,11 @@ impl WindowPositionTrait for ObsDisplayRef {
             .get(&self.id)
             .ok_or_else(|| ObsError::LockError("Position not found".to_string()))?;
 
-        Ok(pos.clone())
+        Ok(*pos)
     }
 
     fn get_size(&self) -> Result<(u32, u32), ObsError> {
+        #[cfg(windows)]
         if let Some(m) = self.child_window_handler.as_ref() {
             let m = m
                 .read()
