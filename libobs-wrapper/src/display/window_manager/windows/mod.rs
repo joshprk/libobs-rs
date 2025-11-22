@@ -30,7 +30,6 @@ use windows::{
     },
 };
 
-
 const WM_DESTROY_WINDOW: u32 = 0x8001; // Custom message
 
 // Function to update color space from window user data

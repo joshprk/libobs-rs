@@ -2,7 +2,7 @@ use crate::{
     context::ObsContext,
     data::{audio::ObsAudioInfo, video::ObsVideoInfo},
     logger::{ConsoleLogger, ObsLogger},
-    utils::{ObsError, ObsPath, ObsString, initialization::NixDisplay},
+    utils::{initialization::NixDisplay, ObsError, ObsPath, ObsString},
 };
 
 /// Contains information to start a libobs context.

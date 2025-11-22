@@ -24,7 +24,9 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, EventLoop};
-use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle};
+use winit::raw_window_handle::{
+    HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
 use winit::window::{Window, WindowId};
 
 struct App {
@@ -70,7 +72,11 @@ impl ApplicationHandler for App {
         let obs_handle = {
             if let RawWindowHandle::Xlib(handle) = hwnd {
                 //TODO check if this is actually u32
-                ObsWindowHandle::new_from_x11(ctx.read().unwrap().runtime(), handle.visual_id as u32).unwrap()
+                ObsWindowHandle::new_from_x11(
+                    ctx.read().unwrap().runtime(),
+                    handle.visual_id as u32,
+                )
+                .unwrap()
             } else if let RawWindowHandle::Wayland(handle) = hwnd {
                 ObsWindowHandle::new_from_wayland(handle.surface.as_ptr() as *mut _)
             } else {

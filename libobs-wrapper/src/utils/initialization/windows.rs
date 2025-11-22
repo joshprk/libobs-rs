@@ -1,7 +1,7 @@
 //! This is derived from the frontend/obs-main.cpp.
 
-use std::sync::Arc;
 use crate::utils::initialization::NixDisplay;
+use std::sync::Arc;
 
 use windows::{
     core::PCWSTR,
@@ -19,7 +19,9 @@ use crate::utils::ObsError;
 
 #[derive(Debug)]
 pub(crate) struct PlatformSpecificGuard {}
-pub fn platform_specific_setup(_display: Option<NixDisplay>) -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
+pub fn platform_specific_setup(
+    _display: Option<NixDisplay>,
+) -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
     unsafe {
         let flags = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
         let mut tp = TOKEN_PRIVILEGES::default();
