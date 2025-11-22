@@ -149,7 +149,6 @@ impl ApplicationHandler for App {
                     let _ = display.update_color_space();
                 }
             }
-            //TODO If the display settings change, call update_color_space as well
             WindowEvent::MouseInput { state, button, .. } => {
                 if !matches!(state, ElementState::Pressed) {
                     return;

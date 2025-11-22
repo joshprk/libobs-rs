@@ -41,5 +41,3 @@ fern = { version = "0.7.1", features = ["colored"], optional = true }
 [features]
 default = ["cli"]
 cli = ["clap", "colored", "fern", "indicatif"]
-
-#TODO separate windows deps from others

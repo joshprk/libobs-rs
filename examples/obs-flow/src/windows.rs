@@ -46,7 +46,6 @@ pub fn main() -> anyhow::Result<()> {
         None,
     ))?;
     output.create_and_set_audio_encoder(
-        //TODO use FFMPEG_AAC after fixing the enum mapping
         AudioEncoderInfo::new(ObsAudioEncoderType::FFMPEG_AAC, "audio_encoder", None, None),
         0,
     )?;

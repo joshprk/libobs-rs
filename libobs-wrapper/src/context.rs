@@ -333,6 +333,8 @@ impl ObsContext {
     /// All references of the `ObsDisplayRef` **MUST** be dropped before your application exits, otherwise you **will** have crashes.
     /// This includes calling `remove_display` or `remove_display_by_id` to remove the display from the context.
     ///
+    /// Also on X11, make sure that the provided window handle was created using the same display as the one provided in the `NixDisplay` in the `StartupInfo`.
+    ///
     /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
     #[cfg(target_os = "linux")]
     pub unsafe fn display(
@@ -367,7 +369,9 @@ impl ObsContext {
         {
             let nix_display = nix_display.unwrap();
             match nix_display {
-                crate::utils::NixDisplay::X11(_display) => todo!(),
+                crate::utils::NixDisplay::X11(_display) => {
+                    //TODO maybe check if the window handle's display matches the provided display
+                },
                 crate::utils::NixDisplay::Wayland(display) => {
                     use crate::utils::linux::wl_proxy_get_display;
                     if !data.window_handle.is_wayland {
