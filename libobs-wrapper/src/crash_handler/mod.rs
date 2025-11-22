@@ -26,7 +26,10 @@ impl ConsoleCrashHandler {
 }
 impl ObsCrashHandler for ConsoleCrashHandler {
     fn handle_crash(&self, message: String) {
+        #[cfg(not(feature = "logging_crash_handler"))]
         eprintln!("OBS crashed: {}", message);
+        #[cfg(feature = "logging_crash_handler")]
+        log::error!("OBS crashed: {}", message);
     }
 }
 
@@ -39,7 +42,7 @@ lazy_static! {
         }
         #[cfg(not(feature="dialog_crash_handler"))]
         {
-            Mutex::new(Box::new(ConsoleCrashHandler { _private: () }))
+            Mutex::new(Box::new(ConsoleCrashHandler::new()))
         }
     };
 }
