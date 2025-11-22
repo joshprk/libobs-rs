@@ -9,7 +9,7 @@ pub type RawDisplayHandle = *mut ::std::os::raw::c_void;
 
 #[derive(Clone)]
 pub struct ObsDisplayCreationData {
-    pub(super) window_handle: ObsWindowHandle,
+    pub(crate) window_handle: ObsWindowHandle,
     pub(super) create_child: bool,
     pub(super) x: i32,
     pub(super) y: i32,
@@ -91,8 +91,8 @@ impl ObsDisplayCreationData {
             zsformat: self.zsformat.to_i32().unwrap(),
 
             window: window_override
-                .map(|s| s.0 .0)
-                .unwrap_or_else(|| self.window_handle.0 .0),
+                .map(|s| s.window.0)
+                .unwrap_or_else(|| self.window_handle.window.0),
             adapter: self.adapter,
             num_backbuffers: self.backbuffers,
         }

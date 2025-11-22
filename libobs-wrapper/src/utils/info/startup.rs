@@ -7,6 +7,14 @@ use crate::{
 
 /// Contains information to start a libobs context.
 /// This is passed to the creation of `ObsContext`.
+///
+/// ## Platform Notes
+/// On Linux platforms, if your application uses a GUI
+/// framework (like GTK, Qt, etc.), it is crucial to set
+/// the appropriate `NixDisplay` in the `StartupInfo`.
+/// This ensures that libobs can correctly interface with
+/// the display server (X11 or Wayland) used by your application.
+/// If this is not set, libobs will not be able to create a preview window and the application will crash.
 #[derive(Debug)]
 pub struct StartupInfo {
     pub(crate) startup_paths: StartupPaths,

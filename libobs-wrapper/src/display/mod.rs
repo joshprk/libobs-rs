@@ -107,12 +107,18 @@ pub struct LockedPosition {
 }
 
 #[derive(Clone, Debug)]
-pub struct ObsWindowHandle(Sendable<libobs::gs_window>);
+pub struct ObsWindowHandle {
+    pub(crate) window: Sendable<libobs::gs_window>,
+    pub(crate) is_wayland: bool,
+}
 
 impl ObsWindowHandle {
     #[cfg(windows)]
     pub fn new_from_handle(handle: *mut std::os::raw::c_void) -> Self {
-        Self(Sendable(libobs::gs_window { hwnd: handle }))
+        Self {
+            window: Sendable(libobs::gs_window { hwnd: handle }),
+            is_wayland: false,
+        }
     }
 
     #[cfg(windows)]
@@ -121,8 +127,14 @@ impl ObsWindowHandle {
     }
 
     #[cfg(target_os = "linux")]
-    pub fn new_from_wayland(display: *mut c_void) -> Self {
-        Self(Sendable(libobs::gs_window { display, id: 0 }))
+    pub fn new_from_wayland(surface: *mut c_void) -> Self {
+        Self {
+            window: Sendable(libobs::gs_window {
+                display: surface,
+                id: 0,
+            }),
+            is_wayland: true,
+        }
     }
 
     #[cfg(target_os = "linux")]
@@ -132,10 +144,13 @@ impl ObsWindowHandle {
             Sendable(libobs::obs_get_nix_platform_display())
         })?;
 
-        Ok(Self(Sendable(libobs::gs_window {
-            display: display.0,
-            id,
-        })))
+        Ok(Self {
+            window: Sendable(libobs::gs_window {
+                display: display.0,
+                id,
+            }),
+            is_wayland: false,
+        })
     }
 }
 

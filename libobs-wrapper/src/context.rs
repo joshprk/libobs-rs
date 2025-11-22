@@ -321,6 +321,53 @@ impl ObsContext {
     ///
     /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
+        // We'll need to check if a custom display was provided because libobs will crash if the display didn't create the window the user is giving us
+        let nix_display = self
+            .startup_info
+            .read()
+            .map_err(|_| {
+                ObsError::LockError("Failed to acquire read lock on startup info".to_string())
+            })?
+            .nix_display
+            .clone();
+
+        if nix_display.is_none() && cfg!(target_os = "linux") {
+            return Err(ObsError::DisplayCreationError(
+                "Creating displays without a custom NixDisplay on Linux is not supported. Please provide a NixDisplay in the StartupInfo.".to_string(),
+            ));
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            let nix_display = nix_display.unwrap();
+            match nix_display {
+                crate::utils::NixDisplay::X11(_display) => todo!(),
+                crate::utils::NixDisplay::Wayland(display) => {
+                    use crate::utils::linux::wl_proxy_get_display;
+                    if !data.window_handle.is_wayland {
+                        return Err(ObsError::DisplayCreationError(
+                            "Provided window handle is not a Wayland handle, but the NixDisplay is Wayland.".to_string(),
+                        ));
+                    }
+
+                    let surface_handle = data.window_handle.window.0.display;
+                    let display_from_surface = wl_proxy_get_display(surface_handle);
+                    if display_from_surface.is_err() {
+                        return Err(ObsError::DisplayCreationError(
+                            "Could not get display from surface handle on wayland. Make sure your wayland client is at least version 1.23".to_string(),
+                        ));
+                    }
+
+                    let display_from_surface = display_from_surface.unwrap();
+                    if display_from_surface != display.0 {
+                        return Err(ObsError::DisplayCreationError(
+                            "Provided surface handle's Wayland display does not match the NixDisplay's Wayland display.".to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+
         let display = ObsDisplayRef::new(data, self.runtime.clone())
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
 

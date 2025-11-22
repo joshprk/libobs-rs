@@ -1,24 +1,17 @@
 use std::ffi::CString;
-use std::os::raw::c_char;
 use std::ptr;
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+
+#[cfg(target_os = "linux")]
 use std::sync::Arc;
 
 use crate::unsafe_send::Sendable;
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+
+#[cfg(target_os = "linux")]
 use crate::utils::initialization::NixDisplay;
 use crate::utils::ObsError;
 
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
-extern "C" {
-    // X11 functions
-    fn XOpenDisplay(display_name: *const c_char) -> *mut std::os::raw::c_void;
-    fn XCloseDisplay(display: *mut std::os::raw::c_void) -> i32;
-
-    // Wayland functions
-    fn wl_display_connect(name: *const c_char) -> *mut std::os::raw::c_void;
-    fn wl_display_disconnect(display: *mut std::os::raw::c_void);
-}
+#[cfg(target_os = "linux")]
+use crate::utils::linux::{wl_display_disconnect, XCloseDisplay};
 
 #[derive(Debug)]
 pub(crate) struct PlatformSpecificGuard {
@@ -47,13 +40,13 @@ impl Drop for PlatformSpecificGuard {
     }
 }
 
-#[cfg(any(target_os = "windows", target_os = "macos"))]
+#[cfg(not(target_os = "linux"))]
 pub(crate) fn platform_specific_setup() -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
     return Ok(None);
 }
 
 /// Detects the current display server and initializes OBS platform accordingly
-#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+#[cfg(target_os = "linux")]
 pub(crate) fn platform_specific_setup(
     display: Option<NixDisplay>,
 ) -> Result<Option<Arc<PlatformSpecificGuard>>, ObsError> {
@@ -84,6 +77,8 @@ pub(crate) fn platform_specific_setup(
     unsafe {
         match platform_type {
             PlatformType::X11 => {
+                use crate::utils::linux::XOpenDisplay;
+
                 libobs::obs_set_nix_platform(
                     libobs::obs_nix_platform_type_OBS_NIX_PLATFORM_X11_EGL,
                 );
@@ -109,6 +104,8 @@ pub(crate) fn platform_specific_setup(
                 })))
             }
             PlatformType::Wayland => {
+                use crate::utils::linux::wl_display_connect;
+
                 libobs::obs_set_nix_platform(
                     libobs::obs_nix_platform_type_OBS_NIX_PLATFORM_WAYLAND,
                 );

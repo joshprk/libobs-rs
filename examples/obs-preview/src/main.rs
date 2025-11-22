@@ -103,9 +103,10 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => {
                 println!("The close button was pressed; stopping");
                 println!("Stopping output...");
-                if let Some(display) = self.display.write().unwrap().clone() {
+                if let Some(display) = self.display.write().unwrap().take() {
                     let ctx = self.context.clone();
 
+                    //TOOD We must ensure that the display is removed BEFORE the event loop exits
                     ctx.write().unwrap().remove_display(&display).unwrap();
                 }
 
@@ -218,6 +219,7 @@ pub fn main() -> anyhow::Result<()> {
 
     let mut info = StartupInfo::new().set_video_info(v);
 
+    //NOTE - This is very important if you are running a GUI application, ensure that a nix display is set on linux!
     #[cfg(target_os = "linux")]
     if let RawDisplayHandle::Wayland(handle) = event_loop.display_handle().unwrap().as_raw() {
         info = info.set_nix_display(NixDisplay::Wayland(Sendable(handle.display.as_ptr() as _)));
@@ -229,7 +231,7 @@ pub fn main() -> anyhow::Result<()> {
         }
     }
 
-    let mut context = ObsContext::new(info)?;
+    let mut context = info.start()?;
 
     // Set up output to ./recording.mp4
     let mut output_settings = context.data()?;

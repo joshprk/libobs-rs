@@ -1945,6 +1945,7 @@ dependencies = [
  "getters0",
  "glib",
  "lazy_static",
+ "libloading 0.9.0",
  "libobs",
  "log",
  "num-derive",
