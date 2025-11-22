@@ -26,6 +26,7 @@ impl ObsDisplayCreationData {
     pub fn new(window_handle: ObsWindowHandle, x: i32, y: i32, width: u32, height: u32) -> Self {
         Self {
             window_handle,
+            //TODO check if we should keep this true by default, it works without it on windows but it was enabled by default on streamlabs obs-studio node
             create_child: true,
             format: GsColorFormat::BGRA,
             zsformat: GsZstencilFormat::ZSNone,

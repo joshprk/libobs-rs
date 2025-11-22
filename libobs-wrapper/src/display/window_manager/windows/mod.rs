@@ -126,9 +126,9 @@ fn try_register_class() -> windows::core::Result<()> {
 }
 
 #[derive(Debug)]
-pub(crate) struct WindowDisplayWindowManager {
+pub(crate) struct WindowsPreviewChildWindowHandler {
     // Shouldn't really be needed
-    message_thread: Option<std::thread::JoinHandle<()>>,
+    child_message_thread: Option<std::thread::JoinHandle<()>>,
     should_exit: Arc<AtomicBool>,
     window_handle: ObsWindowHandle,
 
@@ -144,7 +144,7 @@ pub(crate) struct WindowDisplayWindowManager {
     obs_display: Option<Sendable<*mut obs_display_t>>,
 }
 
-impl WindowDisplayWindowManager {
+impl WindowsPreviewChildWindowHandler {
     pub fn new_child(
         parent: ObsWindowHandle,
         x: i32,
@@ -152,6 +152,7 @@ impl WindowDisplayWindowManager {
         width: u32,
         height: u32,
     ) -> anyhow::Result<Self> {
+        log::trace!("Creating WindowsPreviewChildWindowHandler...");
         let (tx, rx) = oneshot::channel();
 
         let should_exit = Arc::new(AtomicBool::new(false));
@@ -264,27 +265,11 @@ impl WindowDisplayWindowManager {
             height,
             window_handle: ObsWindowHandle::new_from_handle(window.0 .0),
             should_exit,
-            message_thread: Some(message_thread),
+            child_message_thread: Some(message_thread),
             render_at_bottom: false,
             is_hidden: AtomicBool::new(false),
             obs_display: None,
         })
-    }
-
-    pub fn new(window_handle: ObsWindowHandle, x: i32, y: i32, width: u32, height: u32) -> Self {
-        // Should exit is not needed as the window is being managed by the sender
-        Self {
-            x,
-            y,
-            width,
-            height,
-            window_handle,
-            should_exit: Arc::new(AtomicBool::new(false)),
-            message_thread: None,
-            render_at_bottom: false,
-            is_hidden: AtomicBool::new(false),
-            obs_display: None,
-        }
     }
 
     pub fn get_window_handle(&self) -> ObsWindowHandle {
@@ -304,7 +289,7 @@ impl WindowDisplayWindowManager {
     }
 }
 
-impl Drop for WindowDisplayWindowManager {
+impl Drop for WindowsPreviewChildWindowHandler {
     fn drop(&mut self) {
         log::trace!("Dropping DisplayWindowManager...");
         unsafe {
@@ -321,7 +306,7 @@ impl Drop for WindowDisplayWindowManager {
                 log::error!("Failed to post destroy window message: {:?}", err);
             }
 
-            let thread = self.message_thread.take();
+            let thread = self.child_message_thread.take();
             if let Some(thread) = thread {
                 log::trace!("Waiting for message thread to exit...");
                 let r = thread.join();

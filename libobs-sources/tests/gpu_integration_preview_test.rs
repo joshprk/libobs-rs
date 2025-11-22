@@ -1,6 +1,5 @@
 #![cfg(target_family = "windows")]
 
-use std::pin::Pin;
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
 
@@ -24,7 +23,7 @@ use winit::window::{Window, WindowId};
 
 struct App {
     window: Arc<RwLock<Option<Sendable<Window>>>>,
-    display: Arc<RwLock<Option<Pin<Box<ObsDisplayRef>>>>>,
+    display: Arc<RwLock<Option<ObsDisplayRef>>>,
     context: Arc<RwLock<ObsContext>>,
     _source_ref: Arc<RwLock<ObsSourceRef>>,
     initialized_at: Instant,
@@ -66,19 +65,6 @@ impl ApplicationHandler for App {
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);
         self.initialized_at = Instant::now();
-    }
-
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        let elapsed = self.initialized_at.elapsed();
-        if elapsed.as_secs() >= 1 {
-            if let Some(display) = self.display.write().unwrap().clone() {
-                let ctx = self.context.clone();
-
-                ctx.write().unwrap().remove_display(&display).unwrap();
-            }
-
-            event_loop.exit();
-        }
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -127,6 +113,19 @@ impl ApplicationHandler for App {
                 }
             }
             _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let elapsed = self.initialized_at.elapsed();
+        if elapsed.as_secs() >= 1 {
+            if let Some(display) = self.display.write().unwrap().clone() {
+                let ctx = self.context.clone();
+
+                ctx.write().unwrap().remove_display(&display).unwrap();
+            }
+
+            event_loop.exit();
         }
     }
 }

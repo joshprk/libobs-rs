@@ -9,7 +9,13 @@ pub trait MiscDisplayTrait {
 }
 
 pub trait WindowPositionTrait {
+    /// If create_child is true, sets whether the window is rendered at the bottom of the Z order.
+    ///
+    /// Otherwise, this function has no effect.
     fn set_render_at_bottom(&self, render_at_bottom: bool) -> Result<(), ObsError>;
+
+    /// Returns true if the window is rendered at the bottom of the Z order.
+    /// If create_child was false during creation, this function always returns false.
     fn get_render_at_bottom(&self) -> Result<bool, ObsError>;
     fn set_pos(&self, x: i32, y: i32) -> Result<(), ObsError>;
     fn set_size(&self, width: u32, height: u32) -> Result<(), ObsError>;

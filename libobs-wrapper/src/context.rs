@@ -32,12 +32,11 @@
 //! # }
 //! ```
 //!
-//! For more examples refer to the [examples](https://github.com/joshprk/libobs-rs/tree/main/examples) directory in the repository.
+//! For more examples refer to the [examples](https://github.com/libobs-rs/libobs-rs/tree/main/examples) directory in the repository.
 
 use std::{
     collections::HashMap,
     ffi::CStr,
-    pin::Pin,
     sync::{Arc, Mutex, RwLock},
     thread::ThreadId,
 };
@@ -61,15 +60,6 @@ lazy_static::lazy_static! {
     pub(crate) static ref OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 }
 
-// Note to developers of this library:
-// I've updated everything in the ObsContext to use Rc and RefCell.
-// Then the obs context shutdown hook is given to each children of for example scenes and displays.
-// That way, obs is not shut down as long as there are still displays or scenes alive.
-// This is a bit of a hack, but it works would be glad to hear your thoughts on this.
-
-// Factor complex display map type out to satisfy clippy::type_complexity
-pub(crate) type DisplayMap = HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>;
-
 /// Interface to the OBS context. Only one context
 /// can exist across all threads and any attempt to
 /// create a new context while there is an existing
@@ -88,7 +78,7 @@ pub struct ObsContext {
     startup_info: Arc<RwLock<StartupInfo>>,
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    displays: Arc<RwLock<DisplayMap>>,
+    displays: Arc<RwLock<HashMap<usize, ObsDisplayRef>>>,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
@@ -99,7 +89,7 @@ pub struct ObsContext {
     #[get_mut]
     pub(crate) scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
 
-    // Filters are on the level of the context because they are not scene specific
+    // Filters are on the level of the context because they are not scene-specific
     #[get_mut]
     pub(crate) filters: Arc<RwLock<Vec<ObsFilterRef>>>,
 
@@ -330,14 +320,9 @@ impl ObsContext {
     /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
     ///
     /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
-    pub fn display(
-        &mut self,
-        data: ObsDisplayCreationData,
-    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
         let display = ObsDisplayRef::new(data, self.runtime.clone())
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
-
-        let display_clone = display.clone();
 
         let id = display.id();
         self.displays
@@ -345,8 +330,9 @@ impl ObsContext {
             .map_err(|_| {
                 ObsError::LockError("Failed to acquire write lock on displays".to_string())
             })?
-            .insert(id, Arc::new(display));
-        Ok(display_clone)
+            .insert(id, display.clone());
+
+        Ok(display)
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplayRef) -> Result<(), ObsError> {
@@ -364,10 +350,7 @@ impl ObsContext {
         Ok(())
     }
 
-    pub fn get_display_by_id(
-        &self,
-        id: usize,
-    ) -> Result<Option<Arc<Pin<Box<ObsDisplayRef>>>>, ObsError> {
+    pub fn get_display_by_id(&self, id: usize) -> Result<Option<ObsDisplayRef>, ObsError> {
         let d = self
             .displays
             .read()

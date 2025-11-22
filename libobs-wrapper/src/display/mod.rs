@@ -3,7 +3,6 @@
 
 mod creation_data;
 mod enums;
-//TODO
 mod window_manager;
 
 pub use window_manager::{MiscDisplayTrait, ShowHideTrait, WindowPositionTrait};
@@ -14,7 +13,9 @@ use libobs::obs_video_info;
 
 use crate::utils::ObsError;
 use crate::{impl_obs_drop, run_with_obs, runtime::ObsRuntime, unsafe_send::Sendable};
+use lazy_static::lazy_static;
 use libobs::obs_render_main_texture_src_color_only;
+use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::{
     ffi::c_void,
@@ -25,8 +26,6 @@ use std::{
 static ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[derive(Debug, Clone)]
 //TODO: This has to be checked again, I'm unsure with pinning and draw callbacks from OBS
-/// # NEVER STORE THIS REF DIRECTLY!!
-/// ALWAYS store the std::pin::Pin<Box<ObsDisplayRef>> that is created from ObsContext::display!
 ///
 /// This is a wrapper around the obs_display struct and contains direct memory references.
 /// You should ALWAYS use the context to get to this struct, and as said NEVER store it.
@@ -35,23 +34,46 @@ pub struct ObsDisplayRef {
     id: usize,
 
     _guard: Arc<_ObsDisplayDropGuard>,
+    _pos_remove_guard: Arc<PosRemoveGuard>,
 
-    // Keep for window, manager is accessed by render thread as well so Arc and RwLock
+    /// Keep for window, manager is accessed by render thread as well so Arc and RwLock
+    ///
+    /// This is mostly used on windows to handle the size and position of the child window.
     #[cfg(windows)]
     #[allow(dead_code)]
-    manager: Arc<RwLock<window_manager::windows::WindowDisplayWindowManager>>,
-
-    #[cfg(target_os = "linux")]
-    #[allow(dead_code)]
-    manager: Arc<RwLock<window_manager::linux::DisplayWindowManager>>,
-    /// This must not be moved in memory as the draw callback is a raw pointer to this struct
-    _fixed_in_heap: PhantomPinned,
+    child_window_handler:
+        Option<Arc<RwLock<window_manager::windows::WindowsPreviewChildWindowHandler>>>,
 
     /// Stored so the obs context is not dropped while this is alive
     pub(crate) runtime: ObsRuntime,
 }
 
-unsafe extern "C" fn render_display(_data: *mut c_void, width: u32, height: u32) {
+lazy_static! {
+    pub(super) static ref DISPLAY_POSITIONS: Arc<RwLock<HashMap<usize, (i32, i32)>>> =
+        Arc::new(RwLock::new(HashMap::new()));
+}
+
+#[derive(Debug)]
+struct PosRemoveGuard {
+    id: usize,
+}
+
+impl Drop for PosRemoveGuard {
+    fn drop(&mut self) {
+        let mut map = DISPLAY_POSITIONS.write().unwrap();
+        map.remove(&self.id);
+    }
+}
+
+unsafe extern "C" fn render_display(data: *mut c_void, width: u32, height: u32) {
+    let id = data as usize;
+    let pos = DISPLAY_POSITIONS
+        .read()
+        .unwrap()
+        .get(&id)
+        .cloned()
+        .unwrap_or((0, 0));
+
     let mut ovi = MaybeUninit::<obs_video_info>::uninit();
     libobs::obs_get_video_info(ovi.as_mut_ptr());
 
@@ -68,13 +90,20 @@ unsafe extern "C" fn render_display(_data: *mut c_void, width: u32, height: u32)
         -100.0f32,
         100.0f32,
     );
-    libobs::gs_set_viewport(0, 0, width as i32, height as i32);
+    libobs::gs_set_viewport(pos.0, pos.1, width as i32, height as i32);
     //draw_backdrop(&s.buffers, ovi.base_width as f32, ovi.base_height as f32);
 
     obs_render_main_texture_src_color_only();
 
     libobs::gs_projection_pop();
     libobs::gs_viewport_pop();
+}
+
+pub struct LockedPosition {
+    pub x: i32,
+    pub y: i32,
+    /// This must not be moved in memory as the draw callback is a raw pointer to this struct
+    _fixed_in_heap: PhantomPinned,
 }
 
 #[derive(Clone, Debug)]
@@ -105,10 +134,7 @@ impl ObsWindowHandle {
 impl ObsDisplayRef {
     /// Call initialize to ObsDisplay#create the display
     /// NOTE: This must be pinned to prevent the draw callbacks from having an invalid pointer. DO NOT UNPIN
-    pub(crate) fn new(
-        data: ObsDisplayCreationData,
-        runtime: ObsRuntime,
-    ) -> anyhow::Result<std::pin::Pin<Box<Self>>> {
+    pub(crate) fn new(data: ObsDisplayCreationData, runtime: ObsRuntime) -> anyhow::Result<Self> {
         use std::sync::atomic::Ordering;
 
         use anyhow::bail;
@@ -128,41 +154,25 @@ impl ObsDisplayRef {
         } = data.clone();
 
         #[cfg(windows)]
-        let (mut manager, child_handle) = if create_child {
-            let m = window_manager::windows::WindowDisplayWindowManager::new_child(
-                window_handle.clone(),
-                x,
-                y,
-                width,
-                height,
-            )?;
-            let handle = m.get_window_handle();
-
-            (m, Some(handle))
-        } else {
-            (
-                window_manager::windows::WindowDisplayWindowManager::new(
+        let mut child_handler = if create_child {
+            Some(
+                window_manager::windows::WindowsPreviewChildWindowHandler::new_child(
                     window_handle.clone(),
                     x,
                     y,
                     width,
                     height,
-                ),
-                None,
+                )?,
             )
+        } else {
+            None
         };
 
-        #[cfg(target_os = "linux")]
-        let (mut manager, child_handle) = window_manager::linus::DisplayWindowManager::new(
-            window_handle.clone(),
-            x,
-            y,
-            width,
-            height,
-            create_child,
-        )?;
+        #[cfg(windows)]
+        let init_data = Sendable(data.build(child_handler.as_ref().map(|e| e.get_window_handle())));
 
-        let init_data = Sendable(data.build(child_handle));
+        #[cfg(not(windows))]
+        let init_data = Sendable(data.build(None));
 
         log::trace!("Creating obs display...");
         let display = run_with_obs!(runtime, (init_data), move || unsafe {
@@ -173,19 +183,36 @@ impl ObsDisplayRef {
             bail!("OBS failed to create display");
         }
 
-        manager.set_display_handle(display.clone());
+        #[cfg(windows)]
+        child_handler
+            .as_mut()
+            .map(|e| e.set_display_handle(display.clone()));
 
-        let instance = Box::pin(Self {
+        let initial_pos = if create_child && cfg!(windows) {
+            (0, 0)
+        } else {
+            (x, y)
+        };
+
+        let id = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+        DISPLAY_POSITIONS
+            .write()
+            .map_err(|e| ObsError::LockError(format!("{:?}", e)))?
+            .insert(id, initial_pos);
+
+        let instance = Self {
             display: display.clone(),
             _guard: Arc::new(_ObsDisplayDropGuard {
                 display,
                 runtime: runtime.clone(),
             }),
-            manager: Arc::new(RwLock::new(manager)),
-            id: ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-            _fixed_in_heap: PhantomPinned,
+            id,
             runtime: runtime.clone(),
-        });
+            _pos_remove_guard: Arc::new(PosRemoveGuard { id }),
+
+            #[cfg(windows)]
+            child_window_handler: child_handler.map(|e| Arc::new(RwLock::new(e))),
+        };
 
         log::trace!("Adding draw callback with display {:?}", instance.display);
 
@@ -194,7 +221,7 @@ impl ObsDisplayRef {
             libobs::obs_display_add_draw_callback(
                 display_ptr,
                 Some(render_display),
-                std::ptr::null_mut(),
+                id as *mut c_void,
             );
         })?;
 
