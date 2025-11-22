@@ -86,7 +86,8 @@ impl ApplicationHandler for App {
         let data: ObsDisplayCreationData =
             ObsDisplayCreationData::new(obs_handle, 0, 0, width, height);
 
-        let display = ctx.write().unwrap().display(data).unwrap();
+        #[allow(unused_unsafe)]
+        let display = unsafe { ctx.write().unwrap().display(data) }.unwrap();
 
         w.write().unwrap().replace(Sendable(window));
         d_rw.write().unwrap().replace(display);

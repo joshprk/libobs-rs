@@ -320,7 +320,33 @@ impl ObsContext {
     /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
     ///
     /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
+    #[cfg(not(target_os = "linux"))]
     pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
+        self.inner_display_fn(data)
+    }
+
+    /// Creates a new display and returns its ID.
+    ///
+    /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
+    ///
+    /// # Safety
+    /// All references of the `ObsDisplayRef` **MUST** be dropped before your application exits, otherwise you **will** have crashes.
+    /// This includes calling `remove_display` or `remove_display_by_id` to remove the display from the context.
+    ///
+    /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
+    #[cfg(target_os = "linux")]
+    pub unsafe fn display(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<ObsDisplayRef, ObsError> {
+        self.inner_display_fn(data)
+    }
+
+    /// This f unction is used internally to create displays.
+    fn inner_display_fn(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<ObsDisplayRef, ObsError> {
         // We'll need to check if a custom display was provided because libobs will crash if the display didn't create the window the user is giving us
         let nix_display = self
             .startup_info
