@@ -59,6 +59,14 @@ impl StartupInfo {
         self
     }
 
+    /// This sets the Nix display (X11 or Wayland) to use when starting libobs.
+    ///
+    /// This is required on Linux platforms to ensure proper integration with the display server.
+    ///
+    /// Wayland requires this display to be the same as the one used by the application.
+    /// Failing to set this may result in libobs being unable to create preview windows,
+    ///
+    /// X11 however works without setting this display, in fact your window may become unresponsive if a display is set.
     pub fn set_nix_display(mut self, display: NixDisplay) -> Self {
         self.nix_display = Some(display);
         self

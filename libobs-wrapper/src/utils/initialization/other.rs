@@ -98,6 +98,7 @@ pub(crate) fn platform_specific_setup(
                 let message = CString::new("[libobs-wrapper]: Detected Platform: EGL/X11").unwrap();
                 libobs::blog(libobs::LOG_INFO as i32, message.as_ptr());
 
+                //TODO make sure when creating a display that the same platform is used
                 Ok(Some(Arc::new(PlatformSpecificGuard {
                     display: Sendable(display),
                     platform: PlatformType::X11,

@@ -77,11 +77,8 @@ impl ApplicationHandler for App {
         let obs_handle = {
             if let RawWindowHandle::Xlib(handle) = hwnd {
                 //TODO check if this is actually u32
-                ObsWindowHandle::new_from_x11(
-                    ctx.read().unwrap().runtime(),
-                    handle.visual_id as u32,
-                )
-                .unwrap()
+                ObsWindowHandle::new_from_x11(ctx.read().unwrap().runtime(), handle.window as u32)
+                    .unwrap()
             } else if let RawWindowHandle::Wayland(handle) = hwnd {
                 ObsWindowHandle::new_from_wayland(handle.surface.as_ptr() as *mut _)
             } else {
@@ -229,12 +226,6 @@ pub fn main() -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
     if let RawDisplayHandle::Wayland(handle) = event_loop.display_handle().unwrap().as_raw() {
         info = info.set_nix_display(NixDisplay::Wayland(Sendable(handle.display.as_ptr() as _)));
-    }
-    #[cfg(target_os = "linux")]
-    if let RawDisplayHandle::Xlib(handle) = event_loop.display_handle().unwrap().as_raw() {
-        if let Some(d) = handle.display {
-            info = info.set_nix_display(NixDisplay::X11(Sendable(d.as_ptr() as _)));
-        }
     }
 
     let mut context = info.start()?;
