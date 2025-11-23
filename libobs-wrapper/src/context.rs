@@ -32,19 +32,18 @@
 //! # }
 //! ```
 //!
-//! For more examples refer to the [examples](https://github.com/joshprk/libobs-rs/tree/main/examples) directory in the repository.
+//! For more examples refer to the [examples](https://github.com/libobs-rs/libobs-rs/tree/main/examples) directory in the repository.
 
 use std::{
     collections::HashMap,
     ffi::CStr,
-    pin::Pin,
     sync::{Arc, Mutex, RwLock},
     thread::ThreadId,
 };
 
+use crate::display::{ObsDisplayCreationData, ObsDisplayRef};
 use crate::{
     data::{output::ObsOutputRef, video::ObsVideoInfo, ObsData},
-    display::{ObsDisplayCreationData, ObsDisplayRef},
     enums::{ObsLogLevel, ObsResetVideoStatus},
     logger::LOGGER,
     run_with_obs,
@@ -60,15 +59,6 @@ use libobs::{audio_output, obs_scene_t, video_output};
 lazy_static::lazy_static! {
     pub(crate) static ref OBS_THREAD_ID: Mutex<Option<ThreadId>> = Mutex::new(None);
 }
-
-// Note to developers of this library:
-// I've updated everything in the ObsContext to use Rc and RefCell.
-// Then the obs context shutdown hook is given to each children of for example scenes and displays.
-// That way, obs is not shut down as long as there are still displays or scenes alive.
-// This is a bit of a hack, but it works would be glad to hear your thoughts on this.
-
-// Factor complex display map type out to satisfy clippy::type_complexity
-pub(crate) type DisplayMap = HashMap<usize, Arc<Pin<Box<ObsDisplayRef>>>>;
 
 /// Interface to the OBS context. Only one context
 /// can exist across all threads and any attempt to
@@ -88,7 +78,7 @@ pub struct ObsContext {
     startup_info: Arc<RwLock<StartupInfo>>,
     #[get_mut]
     // Key is display id, value is the display fixed in heap
-    displays: Arc<RwLock<DisplayMap>>,
+    displays: Arc<RwLock<HashMap<usize, ObsDisplayRef>>>,
 
     /// Outputs must be stored in order to prevent
     /// early freeing.
@@ -99,7 +89,7 @@ pub struct ObsContext {
     #[get_mut]
     pub(crate) scenes: Arc<RwLock<Vec<ObsSceneRef>>>,
 
-    // Filters are on the level of the context because they are not scene specific
+    // Filters are on the level of the context because they are not scene-specific
     #[get_mut]
     pub(crate) filters: Arc<RwLock<Vec<ObsFilterRef>>>,
 
@@ -113,6 +103,9 @@ pub struct ObsContext {
     /// that everything else has been freed already before the runtime
     /// shuts down
     pub(crate) runtime: ObsRuntime,
+
+    #[cfg(target_os = "linux")]
+    pub(crate) glib_loop: Arc<RwLock<Option<crate::utils::linux::LinuxGlibLoop>>>,
 }
 
 impl ObsContext {
@@ -138,6 +131,12 @@ impl ObsContext {
     pub fn new(info: StartupInfo) -> Result<ObsContext, ObsError> {
         // Spawning runtime, I'll keep this as function for now
         let (runtime, obs_modules, info) = ObsRuntime::startup(info)?;
+        #[cfg(target_os = "linux")]
+        let linux_opt = if info.start_glib_loop {
+            Some(crate::utils::linux::LinuxGlibLoop::new())
+        } else {
+            None
+        };
 
         Ok(Self {
             _obs_modules: Arc::new(obs_modules),
@@ -148,6 +147,9 @@ impl ObsContext {
             filters: Default::default(),
             runtime,
             startup_info: Arc::new(RwLock::new(info)),
+
+            #[cfg(target_os = "linux")]
+            glib_loop: Arc::new(RwLock::new(linux_opt)),
         })
     }
 
@@ -318,14 +320,97 @@ impl ObsContext {
     /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
     ///
     /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
-    pub fn display(
+    ///
+    /// Another note: On Linux, this method is unsafe because you must ensure that every display reference is dropped before your application exits.
+    #[cfg(not(target_os = "linux"))]
+    pub fn display(&mut self, data: ObsDisplayCreationData) -> Result<ObsDisplayRef, ObsError> {
+        self.inner_display_fn(data)
+    }
+
+    /// Creates a new display and returns its ID.
+    ///
+    /// You must call `update_color_space` on the display when the window is moved, resized or the display settings change.
+    ///
+    /// # Safety
+    /// All references of the `ObsDisplayRef` **MUST** be dropped before your application exits, otherwise you **will** have crashes.
+    /// This includes calling `remove_display` or `remove_display_by_id` to remove the display from the context.
+    ///
+    /// Also on X11, make sure that the provided window handle was created using the same display as the one provided in the `NixDisplay` in the `StartupInfo`.
+    ///
+    /// Note: When calling `set_size` or `set_pos`, `update_color_space` is called automatically.
+    #[cfg(target_os = "linux")]
+    pub unsafe fn display(
         &mut self,
         data: ObsDisplayCreationData,
-    ) -> Result<Pin<Box<ObsDisplayRef>>, ObsError> {
+    ) -> Result<ObsDisplayRef, ObsError> {
+        self.inner_display_fn(data)
+    }
+
+    /// This f unction is used internally to create displays.
+    fn inner_display_fn(
+        &mut self,
+        data: ObsDisplayCreationData,
+    ) -> Result<ObsDisplayRef, ObsError> {
+        #[cfg(target_os = "linux")]
+        {
+            // We'll need to check if a custom display was provided because libobs will crash if the display didn't create the window the user is giving us
+            // X11 allows having a separate display however.
+            let nix_display = self
+                .startup_info
+                .read()
+                .map_err(|_| {
+                    ObsError::LockError("Failed to acquire read lock on startup info".to_string())
+                })?
+                .nix_display
+                .clone();
+
+            let is_wayland_handle = data.window_handle.is_wayland;
+            if is_wayland_handle && nix_display.is_none() {
+                return Err(ObsError::DisplayCreationError(
+                    "Wayland window handle provided but no NixDisplay was set in StartupInfo."
+                        .to_string(),
+                ));
+            }
+
+            if let Some(nix_display) = &nix_display {
+                if is_wayland_handle {
+                    match nix_display {
+                        crate::utils::NixDisplay::X11(_display) => {
+                            return Err(ObsError::DisplayCreationError(
+                                "Provided NixDisplay is X11, but the window handle is Wayland."
+                                    .to_string(),
+                            ));
+                        }
+                        crate::utils::NixDisplay::Wayland(display) => {
+                            use crate::utils::linux::wl_proxy_get_display;
+                            if !data.window_handle.is_wayland {
+                                return Err(ObsError::DisplayCreationError(
+                            "Provided window handle is not a Wayland handle, but the NixDisplay is Wayland.".to_string(),
+                        ));
+                            }
+
+                            let surface_handle = data.window_handle.window.0.display;
+                            let display_from_surface = wl_proxy_get_display(surface_handle);
+                            if display_from_surface.is_err() {
+                                return Err(ObsError::DisplayCreationError(
+                            "Could not get display from surface handle on wayland. Make sure your wayland client is at least version 1.23".to_string(),
+                        ));
+                            }
+
+                            let display_from_surface = display_from_surface.unwrap();
+                            if display_from_surface != display.0 {
+                                return Err(ObsError::DisplayCreationError(
+                            "Provided surface handle's Wayland display does not match the NixDisplay's Wayland display.".to_string(),
+                        ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let display = ObsDisplayRef::new(data, self.runtime.clone())
             .map_err(|e| ObsError::DisplayCreationError(e.to_string()))?;
-
-        let display_clone = display.clone();
 
         let id = display.id();
         self.displays
@@ -333,8 +418,9 @@ impl ObsContext {
             .map_err(|_| {
                 ObsError::LockError("Failed to acquire write lock on displays".to_string())
             })?
-            .insert(id, Arc::new(display));
-        Ok(display_clone)
+            .insert(id, display.clone());
+
+        Ok(display)
     }
 
     pub fn remove_display(&mut self, display: &ObsDisplayRef) -> Result<(), ObsError> {
@@ -352,10 +438,7 @@ impl ObsContext {
         Ok(())
     }
 
-    pub fn get_display_by_id(
-        &self,
-        id: usize,
-    ) -> Result<Option<Arc<Pin<Box<ObsDisplayRef>>>>, ObsError> {
+    pub fn get_display_by_id(&self, id: usize) -> Result<Option<ObsDisplayRef>, ObsError> {
         let d = self
             .displays
             .read()
